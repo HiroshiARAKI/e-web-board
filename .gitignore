@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# build
+dist/
+build/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# database
+data/
+*.db
+*.db-journal
+
+# uploads
+public/uploads/
+
+# os
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+!.vscode/settings.json
+*.swp
+*.swo
+
+# debug
+npm-debug.log*
+pnpm-debug.log*
+
+# turbo
+.turbo/
+
+# vercel
+.vercel/
