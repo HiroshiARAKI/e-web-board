@@ -8,6 +8,9 @@ import PhotoClockBoard, {
 import RetroBoard, {
   retroBoardDefaultConfig,
 } from "@/components/board/templates/RetroBoard";
+import MessageBoard, {
+  messageBoardDefaultConfig,
+} from "@/components/board/templates/MessageBoard";
 
 /** Registry of all available board templates */
 export const templates: Record<TemplateId, BoardTemplate> = {
@@ -39,8 +42,8 @@ export const templates: Record<TemplateId, BoardTemplate> = {
     name: "メッセージ掲示板",
     description:
       "外部APIからのメッセージをリアルタイム表示する掲示板",
-    defaultConfig: {},
-    component: SimpleBoard, // placeholder — will be replaced in Issue #6
+    defaultConfig: messageBoardDefaultConfig,
+    component: MessageBoard,
   },
 };
 
