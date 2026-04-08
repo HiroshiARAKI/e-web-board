@@ -74,6 +74,42 @@ sampleMessages.forEach((content, i) => {
 });
 
 console.log(`✅ Seed complete — board ID: ${boardId}`);
-console.log(`   Open http://localhost:3000/board/${boardId}`);
+console.log(`   Open http://localhost:3000/${boardId}`);
+
+// --- Photo-Clock Board ---
+const photoClockId = randomUUID();
+
+db.insert(schema.boards)
+  .values({
+    id: photoClockId,
+    name: "フォトクロック サンプル",
+    templateId: "photo-clock",
+    config: JSON.stringify({
+      slideInterval: 8,
+      clockPosition: "bottom-right",
+      clockFontSize: "text-5xl",
+      clockColor: "#ffffff",
+      clockBgOpacity: 0.5,
+      is24Hour: true,
+    }),
+    isActive: true,
+  })
+  .run();
+
+sampleImages.forEach((url, i) => {
+  db.insert(schema.mediaItems)
+    .values({
+      id: randomUUID(),
+      boardId: photoClockId,
+      type: "image",
+      filePath: url,
+      displayOrder: i,
+      duration: 8,
+    })
+    .run();
+});
+
+console.log(`✅ Photo-Clock board ID: ${photoClockId}`);
+console.log(`   Open http://localhost:3000/${photoClockId}`);
 
 sqlite.close();

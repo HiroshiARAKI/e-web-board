@@ -2,6 +2,9 @@ import type { TemplateId, BoardTemplate } from "@/types";
 import SimpleBoard, {
   simpleBoardDefaultConfig,
 } from "@/components/board/templates/SimpleBoard";
+import PhotoClockBoard, {
+  photoClockDefaultConfig,
+} from "@/components/board/templates/PhotoClockBoard";
 
 /** Registry of all available board templates */
 export const templates: Record<TemplateId, BoardTemplate> = {
@@ -17,8 +20,8 @@ export const templates: Record<TemplateId, BoardTemplate> = {
     id: "photo-clock",
     name: "フォトクロック",
     description: "写真スライドショーに日時オーバーレイを重ねた表示",
-    defaultConfig: {},
-    component: SimpleBoard, // placeholder — will be replaced in Issue #4
+    defaultConfig: photoClockDefaultConfig,
+    component: PhotoClockBoard,
   },
   retro: {
     id: "retro",
