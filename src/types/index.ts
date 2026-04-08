@@ -1,2 +1,29 @@
-// Common type definitions
-// Will be implemented in Issue #2
+import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { boards, mediaItems, messages } from "@/db/schema";
+
+// Select types (read from DB)
+export type Board = InferSelectModel<typeof boards>;
+export type MediaItem = InferSelectModel<typeof mediaItems>;
+export type Message = InferSelectModel<typeof messages>;
+
+// Insert types (write to DB)
+export type NewBoard = InferInsertModel<typeof boards>;
+export type NewMediaItem = InferInsertModel<typeof mediaItems>;
+export type NewMessage = InferInsertModel<typeof messages>;
+
+// Template types
+export type TemplateId = "simple" | "photo-clock" | "retro" | "message";
+
+export interface BoardTemplate {
+  id: TemplateId;
+  name: string;
+  description: string;
+  defaultConfig: Record<string, unknown>;
+  component: React.ComponentType<BoardTemplateProps>;
+}
+
+export interface BoardTemplateProps {
+  board: Board;
+  mediaItems: MediaItem[];
+  messages: Message[];
+}
