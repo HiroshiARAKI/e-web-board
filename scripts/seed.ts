@@ -112,4 +112,46 @@ sampleImages.forEach((url, i) => {
 console.log(`✅ Photo-Clock board ID: ${photoClockId}`);
 console.log(`   Open http://localhost:3000/${photoClockId}`);
 
+// --- Retro Board ---
+const retroBoardId = randomUUID();
+
+db.insert(schema.boards)
+  .values({
+    id: retroBoardId,
+    name: "レトロ掲示板 サンプル",
+    templateId: "retro",
+    config: JSON.stringify({
+      displayColor: "green",
+      rows: 5,
+      flipSpeed: 0.08,
+      switchInterval: 5,
+    }),
+    isActive: true,
+  })
+  .run();
+
+const retroMessages = [
+  "1番線  東京行き  10:15 発  定刻",
+  "2番線  大阪行き  10:32 発  定刻",
+  "3番線  名古屋行き  10:45 発  約5分遅れ",
+  "4番線  博多行き  11:00 発  定刻",
+  "5番線  仙台行き  11:15 発  定刻",
+  "6番線  新潟行き  11:30 発  定刻",
+  "7番線  広島行き  11:45 発  運休",
+];
+
+retroMessages.forEach((content, i) => {
+  db.insert(schema.messages)
+    .values({
+      id: randomUUID(),
+      boardId: retroBoardId,
+      content,
+      priority: retroMessages.length - i,
+    })
+    .run();
+});
+
+console.log(`✅ Retro board ID: ${retroBoardId}`);
+console.log(`   Open http://localhost:3000/${retroBoardId}`);
+
 sqlite.close();
