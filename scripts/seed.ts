@@ -154,4 +154,45 @@ retroMessages.forEach((content, i) => {
 console.log(`✅ Retro board ID: ${retroBoardId}`);
 console.log(`   Open http://localhost:3000/${retroBoardId}`);
 
+// --- Message Board ---
+const messageBoardId = randomUUID();
+
+db.insert(schema.boards)
+  .values({
+    id: messageBoardId,
+    name: "メッセージ掲示板 サンプル",
+    templateId: "message",
+    config: JSON.stringify({
+      maxDisplayCount: 10,
+      fontSize: "text-xl",
+      backgroundColor: "#1e293b",
+      textColor: "#f8fafc",
+      accentColor: "#3b82f6",
+    }),
+    isActive: true,
+  })
+  .run();
+
+const msgBoardMessages = [
+  { content: "本日 14:00 より全体会議を行います", priority: 5 },
+  { content: "エレベーター点検のため、15:00〜16:00 は使用不可です", priority: 3 },
+  { content: "社員食堂 本日のメニュー: カレーライス定食", priority: 1 },
+  { content: "落とし物: 黒い財布が受付に届いています", priority: 2 },
+  { content: "来週月曜日は祝日のため休業です", priority: 0 },
+];
+
+msgBoardMessages.forEach(({ content, priority }) => {
+  db.insert(schema.messages)
+    .values({
+      id: randomUUID(),
+      boardId: messageBoardId,
+      content,
+      priority,
+    })
+    .run();
+});
+
+console.log(`✅ Message board ID: ${messageBoardId}`);
+console.log(`   Open http://localhost:3000/${messageBoardId}`);
+
 sqlite.close();
