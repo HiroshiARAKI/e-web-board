@@ -5,6 +5,9 @@ import SimpleBoard, {
 import PhotoClockBoard, {
   photoClockDefaultConfig,
 } from "@/components/board/templates/PhotoClockBoard";
+import RetroBoard, {
+  retroBoardDefaultConfig,
+} from "@/components/board/templates/RetroBoard";
 
 /** Registry of all available board templates */
 export const templates: Record<TemplateId, BoardTemplate> = {
@@ -28,8 +31,8 @@ export const templates: Record<TemplateId, BoardTemplate> = {
     name: "レトロ掲示板",
     description:
       "駅の案内板風ドットマトリクスデザインのクラシックな掲示板",
-    defaultConfig: {},
-    component: SimpleBoard, // placeholder — will be replaced in Issue #5
+    defaultConfig: retroBoardDefaultConfig,
+    component: RetroBoard,
   },
   message: {
     id: "message",
