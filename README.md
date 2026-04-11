@@ -87,6 +87,16 @@ docker compose up -d
 
 ブラウザで http://localhost:3000 にアクセスしてください。
 
+```bash
+# 停止
+docker compose down
+
+# 停止 + データ削除
+docker compose down -v
+```
+
+> **Note:** データ (SQLite DB、アップロードファイル) は Docker ボリュームに永続化されます。`docker compose down` ではデータは保持され、`-v` オプションを付けるとボリュームごと削除されます。
+
 ### ローカル開発
 
 ```bash
