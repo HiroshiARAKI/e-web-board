@@ -1,0 +1,84 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { mediaItems } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import path from "path";
+import fs from "fs";
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
+  const item = await db.query.mediaItems.findFirst({
+    where: eq(mediaItems.id, id),
+  });
+  if (!item) {
+    return NextResponse.json(
+      { error: "Media item not found" },
+      { status: 404 },
+    );
+  }
+
+  // Delete file from disk
+  const filePath = path.resolve(process.cwd(), "public", item.filePath);
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {
+    // File may already be deleted; continue with DB cleanup
+  }
+
+  // Delete from DB
+  await db.delete(mediaItems).where(eq(mediaItems.id, id));
+
+  return NextResponse.json({ success: true });
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
+  const item = await db.query.mediaItems.findFirst({
+    where: eq(mediaItems.id, id),
+  });
+  if (!item) {
+    return NextResponse.json(
+      { error: "Media item not found" },
+      { status: 404 },
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    "duration" in body &&
+    typeof (body as Record<string, unknown>).duration === "number"
+  ) {
+    updates.duration = (body as Record<string, unknown>).duration;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(item);
+  }
+
+  const [updated] = await db
+    .update(mediaItems)
+    .set(updates)
+    .where(eq(mediaItems.id, id))
+    .returning();
+
+  return NextResponse.json(updated);
+}

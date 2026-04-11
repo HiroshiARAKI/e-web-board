@@ -35,6 +35,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { templates } from "@/lib/templates";
+import MediaUploadZone from "@/components/dashboard/MediaUploadZone";
 import type { Board, MediaItem, Message } from "@/types";
 
 interface BoardDetail extends Board {
@@ -318,37 +319,20 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             </CardContent>
           </Card>
 
-          {/* Media items (read-only list for now, full media upload in Issue #8) */}
+          {/* Media items */}
           <Card>
             <CardHeader>
               <CardTitle>メディア</CardTitle>
               <CardDescription>
-                {board.mediaItems.length} 件のメディア（アップロード機能は Issue #8 で実装）
+                {board.mediaItems.length} 件のメディア
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {board.mediaItems.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">
-                  メディアはありません
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {board.mediaItems.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
-                    >
-                      <Badge variant="outline">{m.type}</Badge>
-                      <span className="flex-1 truncate font-mono text-xs">
-                        {m.filePath}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        #{m.displayOrder}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <MediaUploadZone
+                boardId={boardId}
+                mediaItems={board.mediaItems}
+                onUpdate={fetchBoard}
+              />
             </CardContent>
           </Card>
         </div>
