@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { updateBoardSchema } from "@/lib/validators";
+import { emitSSE } from "@/lib/sse";
 
 export async function GET(
   _request: NextRequest,
@@ -75,6 +76,8 @@ export async function PATCH(
     .where(eq(boards.id, id))
     .returning();
 
+  emitSSE(id, "board-updated");
+
   return NextResponse.json(updated);
 }
 
@@ -92,6 +95,8 @@ export async function DELETE(
   }
 
   await db.delete(boards).where(eq(boards.id, id));
+
+  emitSSE(id, "board-updated");
 
   return NextResponse.json({ success: true });
 }

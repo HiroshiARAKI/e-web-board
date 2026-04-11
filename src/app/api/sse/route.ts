@@ -1,15 +1,5 @@
+// SSE routes moved to /api/sse/[boardId]/route.ts
+// This file kept to avoid 404 on the base path
 export async function GET() {
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue("data: connected\n\n");
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
+  return new Response("Use /api/sse/:boardId", { status: 400 });
 }

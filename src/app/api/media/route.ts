@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { mediaItems, boards } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { updateMediaOrderSchema } from "@/lib/validators";
+import { emitSSE } from "@/lib/sse";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -122,6 +123,8 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
+  emitSSE(boardId, "media-updated");
+
   return NextResponse.json(created, { status: 201 });
 }
 
@@ -144,13 +147,21 @@ export async function PATCH(request: NextRequest) {
   const updates = result.data;
   const updated: unknown[] = [];
 
+  const boardIds = new Set<string>();
   for (const item of updates) {
     const [row] = await db
       .update(mediaItems)
       .set({ displayOrder: item.displayOrder })
       .where(eq(mediaItems.id, item.id))
       .returning();
-    if (row) updated.push(row);
+    if (row) {
+      updated.push(row);
+      boardIds.add((row as { boardId: string }).boardId);
+    }
+  }
+
+  for (const boardId of boardIds) {
+    emitSSE(boardId, "media-updated");
   }
 
   return NextResponse.json(updated);

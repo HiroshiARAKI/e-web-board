@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { emitSSE } from "@/lib/sse";
 
 export async function DELETE(
   _request: NextRequest,
@@ -17,6 +18,8 @@ export async function DELETE(
   }
 
   await db.delete(messages).where(eq(messages.id, id));
+
+  emitSSE(existing.boardId, "message-updated");
 
   return NextResponse.json({ success: true });
 }
