@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc, and, or, isNull, gt } from "drizzle-orm";
 import { getTemplate } from "@/lib/templates";
+import LiveBoard from "@/components/board/LiveBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +44,12 @@ export default async function BoardPage({
       )
     );
 
-  const TemplateComponent = template.component;
-
   return (
-    <TemplateComponent board={board} mediaItems={media} messages={activeMessages} />
+    <LiveBoard
+      board={board}
+      mediaItems={media}
+      messages={activeMessages}
+      TemplateComponent={template.component}
+    />
   );
 }

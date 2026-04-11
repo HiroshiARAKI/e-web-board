@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { mediaItems } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { emitSSE } from "@/lib/sse";
 import path from "path";
 import fs from "fs";
 
@@ -33,6 +34,8 @@ export async function DELETE(
 
   // Delete from DB
   await db.delete(mediaItems).where(eq(mediaItems.id, id));
+
+  emitSSE(item.boardId, "media-updated");
 
   return NextResponse.json({ success: true });
 }
@@ -79,6 +82,8 @@ export async function PATCH(
     .set(updates)
     .where(eq(mediaItems.id, id))
     .returning();
+
+  emitSSE(item.boardId, "media-updated");
 
   return NextResponse.json(updated);
 }

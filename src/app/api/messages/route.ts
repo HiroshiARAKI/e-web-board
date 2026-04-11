@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createMessageSchema } from "@/lib/validators";
+import { emitSSE } from "@/lib/sse";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
       expiresAt: expiresAt ?? null,
     })
     .returning();
+
+  emitSSE(boardId, "message-updated");
 
   return NextResponse.json(inserted, { status: 201 });
 }
