@@ -8,13 +8,26 @@ import fs from "fs";
 
 const DB_PATH = path.resolve(process.cwd(), "data", "e-web-board.db");
 
-// Ensure data directory exists
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+type DbInstance = ReturnType<typeof drizzle<typeof schema>>;
 
-const sqlite = new Database(DB_PATH);
+let _db: DbInstance | undefined;
 
-// Enable WAL mode for better concurrent read performance
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+function initDb(): DbInstance {
+  if (!_db) {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    const sqlite = new Database(DB_PATH);
+    sqlite.pragma("journal_mode = WAL");
+    sqlite.pragma("busy_timeout = 5000");
+    sqlite.pragma("foreign_keys = ON");
+    _db = drizzle(sqlite, { schema });
+  }
+  return _db;
+}
 
-export const db = drizzle(sqlite, { schema });
+// Lazy proxy: DB connection is established on first access, not at import time.
+// This prevents SQLITE_BUSY errors when Next.js build workers evaluate modules concurrently.
+export const db: DbInstance = new Proxy({} as DbInstance, {
+  get(_, prop) {
+    return (initDb() as never)[prop];
+  },
+});

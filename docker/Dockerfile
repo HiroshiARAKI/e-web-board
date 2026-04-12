@@ -34,7 +34,6 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy standalone server
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 
 # Copy drizzle migrations + migration runner
 COPY --from=builder /app/drizzle ./drizzle
