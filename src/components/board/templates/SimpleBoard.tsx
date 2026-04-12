@@ -2,6 +2,7 @@
 
 import { MediaSlider } from "@/components/board/MediaSlider";
 import { TickerText } from "@/components/board/TickerText";
+import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps } from "@/types";
 
 /** Default config for the Simple Board template */
@@ -10,6 +11,8 @@ export const simpleBoardDefaultConfig = {
   tickerSpeed: 60,
   backgroundColor: "#000000",
   textColor: "#ffffff",
+  tickerBgColor: "#1a1a2e",
+  tickerFontFamily: "",
 };
 
 type SimpleBoardConfig = typeof simpleBoardDefaultConfig;
@@ -37,6 +40,9 @@ export default function SimpleBoard({
       className="flex h-screen w-screen flex-col"
       style={{ backgroundColor: config.backgroundColor }}
     >
+      {config.tickerFontFamily && (
+        <GoogleFontLoader fonts={[config.tickerFontFamily]} />
+      )}
       {/* Main area — slideshow */}
       <div className="flex-1 min-h-0">
         <MediaSlider mediaItems={sorted} interval={config.slideInterval} />
@@ -46,9 +52,13 @@ export default function SimpleBoard({
       {tickerMessages.length > 0 && (
         <div
           className="h-14 flex items-center border-t border-white/10 px-4 text-lg font-medium"
-          style={{ color: config.textColor, backgroundColor: config.backgroundColor }}
+          style={{ color: config.textColor, backgroundColor: config.tickerBgColor }}
         >
-          <TickerText messages={tickerMessages} speed={config.tickerSpeed} />
+          <TickerText
+            messages={tickerMessages}
+            speed={config.tickerSpeed}
+            fontFamily={config.tickerFontFamily || undefined}
+          />
         </div>
       )}
     </div>

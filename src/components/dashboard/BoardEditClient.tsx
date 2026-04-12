@@ -9,6 +9,9 @@ import {
   Trash2,
   Plus,
   Save,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -20,7 +23,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -35,6 +37,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { templates } from "@/lib/templates";
+import { TemplateConfigEditor } from "@/components/dashboard/config-editors";
 import MediaUploadZone from "@/components/dashboard/MediaUploadZone";
 import type { Board, MediaItem, Message } from "@/types";
 
@@ -53,11 +56,16 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   // Edit state
   const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(true);
-  const [configText, setConfigText] = useState("");
+  const [config, setConfig] = useState<Record<string, unknown>>({});
 
   // New message state
   const [newMsgContent, setNewMsgContent] = useState("");
   const [newMsgPriority, setNewMsgPriority] = useState("0");
+
+  // Message editing state
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editMsgContent, setEditMsgContent] = useState("");
+  const [editMsgPriority, setEditMsgPriority] = useState("");
 
   const fetchBoard = useCallback(async () => {
     const res = await fetch(`/api/boards/${boardId}`);
@@ -70,13 +78,9 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
     setBoard(data);
     setName(data.name);
     setIsActive(data.isActive);
-    setConfigText(
-      JSON.stringify(
-        typeof data.config === "string" ? JSON.parse(data.config) : data.config,
-        null,
-        2,
-      ),
-    );
+    const parsed =
+      typeof data.config === "string" ? JSON.parse(data.config) : data.config;
+    setConfig(parsed && typeof parsed === "object" ? parsed : {});
     setLoading(false);
   }, [boardId]);
 
@@ -87,15 +91,6 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   async function handleSave() {
     setSaving(true);
     setError(null);
-
-    let config: Record<string, unknown>;
-    try {
-      config = JSON.parse(configText);
-    } catch {
-      setError("設定の JSON が不正です");
-      setSaving(false);
-      return;
-    }
 
     const res = await fetch(`/api/boards/${boardId}`, {
       method: "PATCH",
@@ -142,6 +137,33 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   async function handleDeleteMessage(msgId: string) {
     const res = await fetch(`/api/messages/${msgId}`, { method: "DELETE" });
     if (res.ok) {
+      await fetchBoard();
+    }
+  }
+
+  function startEditMessage(msg: Message) {
+    setEditingMsgId(msg.id);
+    setEditMsgContent(msg.content);
+    setEditMsgPriority(String(msg.priority));
+  }
+
+  function cancelEditMessage() {
+    setEditingMsgId(null);
+    setEditMsgContent("");
+    setEditMsgPriority("");
+  }
+
+  async function handleSaveMessage(msgId: string) {
+    const res = await fetch(`/api/messages/${msgId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: editMsgContent,
+        priority: parseInt(editMsgPriority, 10) || 0,
+      }),
+    });
+    if (res.ok) {
+      setEditingMsgId(null);
       await fetchBoard();
     }
   }
@@ -230,20 +252,19 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             </CardContent>
           </Card>
 
-          {/* Config JSON */}
+          {/* Config Editor */}
           <Card>
             <CardHeader>
               <CardTitle>テンプレート設定</CardTitle>
               <CardDescription>
-                JSON 形式でテンプレート固有の設定を編集できます
+                テンプレート固有の設定を編集できます
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Textarea
-                value={configText}
-                onChange={(e) => setConfigText(e.target.value)}
-                className="font-mono text-sm"
-                rows={10}
+              <TemplateConfigEditor
+                templateId={board.templateId}
+                config={config}
+                onChange={setConfig}
               />
             </CardContent>
           </Card>
@@ -296,24 +317,75 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 <div className="space-y-2">
                   {[...board.messages]
                     .sort((a, b) => b.priority - a.priority)
-                    .map((msg) => (
-                      <div
-                        key={msg.id}
-                        className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                      >
-                        <Badge variant="secondary" className="shrink-0">
-                          P{msg.priority}
-                        </Badge>
-                        <span className="flex-1 truncate">{msg.content}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => handleDeleteMessage(msg.id)}
+                    .map((msg) =>
+                      editingMsgId === msg.id ? (
+                        <div
+                          key={msg.id}
+                          className="flex items-center gap-2 rounded-md border border-primary/30 bg-accent/30 px-3 py-2 text-sm"
                         >
-                          <Trash2 className="size-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
+                          <Input
+                            value={editMsgPriority}
+                            onChange={(e) => setEditMsgPriority(e.target.value)}
+                            type="number"
+                            min={0}
+                            className="w-16 shrink-0"
+                          />
+                          <Input
+                            value={editMsgContent}
+                            onChange={(e) => setEditMsgContent(e.target.value)}
+                            className="flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                                e.preventDefault();
+                                handleSaveMessage(msg.id);
+                              }
+                              if (e.key === "Escape") {
+                                cancelEditMessage();
+                              }
+                            }}
+                            autoFocus
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => handleSaveMessage(msg.id)}
+                          >
+                            <Check className="size-3.5 text-green-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={cancelEditMessage}
+                          >
+                            <X className="size-3.5 text-muted-foreground" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          key={msg.id}
+                          className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                        >
+                          <Badge variant="secondary" className="shrink-0">
+                            P{msg.priority}
+                          </Badge>
+                          <span className="flex-1 truncate">{msg.content}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => startEditMessage(msg)}
+                          >
+                            <Pencil className="size-3.5 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => handleDeleteMessage(msg.id)}
+                          >
+                            <Trash2 className="size-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      ),
+                    )}
                 </div>
               )}
             </CardContent>
