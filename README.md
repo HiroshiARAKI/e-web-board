@@ -192,6 +192,12 @@ Issue や Pull Request は歓迎します。
 
 ---
 
+## 謝辞
+
+- 天気予報データは [天気予報 API（livedoor 天気互換）](https://weather.tsukumijima.net/) を利用させていただいています。
+
+---
+
 ## ライセンス
 
 <!-- TODO: ライセンスを決定する -->

@@ -57,3 +57,12 @@ export const messages = sqliteTable("messages", {
     .default(sql`(datetime('now'))`)
     .$onUpdate(() => new Date().toISOString()),
 });
+
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`)
+    .$onUpdate(() => new Date().toISOString()),
+});

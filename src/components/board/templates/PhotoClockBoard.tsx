@@ -2,6 +2,7 @@
 
 import { MediaSlider } from "@/components/board/MediaSlider";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
+import { WeatherDisplay } from "@/components/board/WeatherDisplay";
 import type { ClockLayout } from "@/components/board/DateTimeClock";
 import type { BoardTemplateProps } from "@/types";
 
@@ -21,6 +22,7 @@ export const photoClockDefaultConfig = {
   clockBgOpacity: 0.5,
   clockLayout: "standard" as ClockLayout,
   is24Hour: true,
+  showWeather: false,
 };
 
 type PhotoClockConfig = typeof photoClockDefaultConfig;
@@ -66,9 +68,9 @@ export default function PhotoClockBoard({
       {/* Full-screen slideshow */}
       <MediaSlider mediaItems={sorted} interval={config.slideInterval} />
 
-      {/* Clock overlay */}
+      {/* Clock + Weather overlay */}
       <div
-        className={`absolute z-10 ${positionClasses[config.clockPosition] ?? positionClasses["bottom-right"]}`}
+        className={`absolute z-10 flex flex-col gap-2 ${positionClasses[config.clockPosition] ?? positionClasses["bottom-right"]}`}
       >
         <DateTimeClock
           is24Hour={config.is24Hour}
@@ -77,6 +79,12 @@ export default function PhotoClockBoard({
           bgOpacity={config.clockBgOpacity}
           layout={config.clockLayout}
         />
+        {config.showWeather && (
+          <WeatherDisplay
+            color={config.clockColor}
+            bgOpacity={config.clockBgOpacity}
+          />
+        )}
       </div>
     </div>
   );

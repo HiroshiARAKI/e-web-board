@@ -269,7 +269,8 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             </CardContent>
           </Card>
 
-          {/* Messages */}
+          {/* Messages (not used by photo-clock template) */}
+          {board.templateId !== "photo-clock" && (
           <Card>
             <CardHeader>
               <CardTitle>メッセージ</CardTitle>
@@ -390,6 +391,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
               )}
             </CardContent>
           </Card>
+          )}
 
           {/* Media items */}
           <Card>

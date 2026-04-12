@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, MonitorPlay } from "lucide-react";
+import { LayoutDashboard, MonitorPlay, Settings } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 function SidebarLink({
@@ -41,6 +41,9 @@ export default function DashboardLayout({
         <nav className="flex-1 space-y-1 px-2 py-3">
           <SidebarLink href="/boards" icon={LayoutDashboard}>
             ボード管理
+          </SidebarLink>
+          <SidebarLink href="/settings" icon={Settings}>
+            設定
           </SidebarLink>
         </nav>
       </aside>

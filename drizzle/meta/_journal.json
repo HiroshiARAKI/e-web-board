@@ -8,6 +8,13 @@
       "when": 1775628837963,
       "tag": "0000_soft_killer_shrike",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1775960347684,
+      "tag": "0001_spicy_obadiah_stane",
+      "breakpoints": true
     }
   ]
 }
