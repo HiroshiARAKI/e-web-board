@@ -6,6 +6,9 @@ import fs from "fs";
 
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
+/** Disable static caching so newly uploaded files are served immediately. */
+export const dynamic = "force-dynamic";
+
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
