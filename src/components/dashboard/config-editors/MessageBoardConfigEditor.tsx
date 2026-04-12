@@ -2,13 +2,6 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface MessageBoardConfigEditorProps {
   config: Record<string, unknown>;
@@ -20,7 +13,7 @@ export function MessageBoardConfigEditor({
   onChange,
 }: MessageBoardConfigEditorProps) {
   const maxDisplayCount = (config.maxDisplayCount as number) ?? 10;
-  const fontSize = (config.fontSize as string) ?? "text-xl";
+  const fontSize = (config.fontSize as number) ?? 20;
   const backgroundColor = (config.backgroundColor as string) ?? "#1e293b";
   const textColor = (config.textColor as string) ?? "#f8fafc";
   const accentColor = (config.accentColor as string) ?? "#3b82f6";
@@ -47,19 +40,17 @@ export function MessageBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-fontSize">文字サイズ</Label>
-        <Select value={fontSize} onValueChange={(v) => update("fontSize", v)}>
-          <SelectTrigger id="cfg-fontSize" className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="text-base">小</SelectItem>
-            <SelectItem value="text-lg">やや小</SelectItem>
-            <SelectItem value="text-xl">中</SelectItem>
-            <SelectItem value="text-2xl">大</SelectItem>
-            <SelectItem value="text-3xl">特大</SelectItem>
-          </SelectContent>
-        </Select>
+        <Label htmlFor="cfg-fontSize">文字サイズ ({fontSize}px)</Label>
+        <input
+          id="cfg-fontSize"
+          type="range"
+          min={12}
+          max={48}
+          step={1}
+          value={fontSize}
+          onChange={(e) => update("fontSize", Number(e.target.value))}
+          className="w-48"
+        />
       </div>
 
       <div className="space-y-1.5">

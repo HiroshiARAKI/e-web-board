@@ -24,6 +24,12 @@ export function RetroBoardConfigEditor({
   const flipSpeed = (config.flipSpeed as number) ?? 0.08;
   const switchInterval = (config.switchInterval as number) ?? 5;
 
+  const colorLabels: Record<string, string> = {
+    green: "グリーン",
+    orange: "オレンジ",
+    white: "ホワイト",
+  };
+
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
   }
@@ -34,7 +40,7 @@ export function RetroBoardConfigEditor({
         <Label htmlFor="cfg-displayColor">表示カラー</Label>
         <Select value={displayColor} onValueChange={(v) => update("displayColor", v)}>
           <SelectTrigger id="cfg-displayColor" className="w-48">
-            <SelectValue />
+            <SelectValue placeholder="カラーを選択">{colorLabels[displayColor] ?? displayColor}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="green">
