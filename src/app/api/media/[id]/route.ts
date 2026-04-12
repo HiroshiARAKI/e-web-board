@@ -25,12 +25,12 @@ export async function DELETE(
   }
 
   // Delete file from disk
-  // item.filePath is stored as "/uploads/filename" — strip leading slash to
-  // avoid path.resolve treating it as an absolute path.
+  // item.filePath is "/uploads/filename" — extract the basename to build
+  // the path under the project-root uploads/ directory.
   const filePath = path.join(
     process.cwd(),
-    "public",
-    item.filePath.replace(/^\//, ""),
+    "uploads",
+    path.basename(item.filePath),
   );
   try {
     if (fs.existsSync(filePath)) {

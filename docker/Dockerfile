@@ -42,8 +42,8 @@ COPY --from=builder /app/docker/migrate.cjs ./migrate.cjs
 COPY --from=builder /app/docker/entrypoint.sh ./entrypoint.sh
 
 # Create writable directories for runtime data
-RUN mkdir -p data public/uploads && \
-    chown -R nextjs:nodejs data public/uploads
+RUN mkdir -p data uploads && \
+    chown -R nextjs:nodejs data uploads
 
 USER nextjs
 
