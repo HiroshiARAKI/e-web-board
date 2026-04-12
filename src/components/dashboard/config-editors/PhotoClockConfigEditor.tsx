@@ -30,6 +30,7 @@ export function PhotoClockConfigEditor({
   const clockLayout = (config.clockLayout as string) ?? "standard";
   const is24Hour = (config.is24Hour as boolean) ?? true;
   const showWeather = (config.showWeather as boolean) ?? false;
+  const objectFit = (config.objectFit as string) ?? "contain";
 
   const positionLabels: Record<string, string> = {
     "top-left": "左上",
@@ -65,6 +66,19 @@ export function PhotoClockConfigEditor({
           }
           className="w-24"
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cfg-objectFit">メディア表示モード</Label>
+        <Select value={objectFit} onValueChange={(v) => update("objectFit", v)}>
+          <SelectTrigger id="cfg-objectFit" className="w-72">
+            <SelectValue>{objectFit === "cover" ? "全面表示（トリミングされる場合あり）" : "全体表示（余白ができる場合あり）"}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="contain">全体表示（余白ができる場合あり）</SelectItem>
+            <SelectItem value="cover">全面表示（トリミングされる場合あり）</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5">

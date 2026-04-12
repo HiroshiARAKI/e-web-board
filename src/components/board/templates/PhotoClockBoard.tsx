@@ -25,6 +25,7 @@ export const photoClockDefaultConfig = {
   clockLayout: "standard" as ClockLayout,
   is24Hour: true,
   showWeather: false,
+  objectFit: "contain" as "contain" | "cover",
 };
 
 type PhotoClockConfig = typeof photoClockDefaultConfig;
@@ -68,7 +69,7 @@ export default function PhotoClockBoard({
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
       {/* Full-screen slideshow */}
-      <MediaSlider mediaItems={sorted} interval={config.slideInterval} />
+      <MediaSlider mediaItems={sorted} interval={config.slideInterval} objectFit={config.objectFit} />
 
       {/* Clock + Weather overlay */}
       <div

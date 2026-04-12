@@ -19,6 +19,7 @@ export const simpleBoardDefaultConfig = {
   tickerFontFamily: "",
   showClock: false,
   showWeather: false,
+  objectFit: "contain" as "contain" | "cover",
 };
 
 type SimpleBoardConfig = typeof simpleBoardDefaultConfig;
@@ -51,7 +52,7 @@ export default function SimpleBoard({
       )}
       {/* Main area — slideshow */}
       <div className="relative flex-1 min-h-0">
-        <MediaSlider mediaItems={sorted} interval={config.slideInterval} />
+        <MediaSlider mediaItems={sorted} interval={config.slideInterval} objectFit={config.objectFit} />
 
         {/* Clock & Weather overlay */}
         {(config.showClock || config.showWeather) && (

@@ -10,9 +10,11 @@ interface MediaSliderProps {
   mediaItems: MediaItem[];
   /** Interval between slides in seconds (default from board config) */
   interval?: number;
+  /** How media fits the container: "contain" (show all) or "cover" (fill, may crop) */
+  objectFit?: "contain" | "cover";
 }
 
-export function MediaSlider({ mediaItems, interval = 5 }: MediaSliderProps) {
+export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }: MediaSliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const advance = useCallback(() => {
@@ -57,7 +59,7 @@ export function MediaSlider({ mediaItems, interval = 5 }: MediaSliderProps) {
           {current.type === "video" ? (
             <video
               src={current.filePath}
-              className="h-full w-full object-contain"
+              className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`}
               autoPlay
               muted
               playsInline
@@ -67,7 +69,7 @@ export function MediaSlider({ mediaItems, interval = 5 }: MediaSliderProps) {
             <img
               src={current.filePath}
               alt=""
-              className="h-full w-full object-contain"
+              className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`}
             />
           )}
         </motion.div>
