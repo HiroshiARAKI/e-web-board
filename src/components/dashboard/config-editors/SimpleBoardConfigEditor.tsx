@@ -62,6 +62,8 @@ export function SimpleBoardConfigEditor({
   const textColor = (config.textColor as string) ?? "#ffffff";
   const tickerBgColor = (config.tickerBgColor as string) ?? "#1a1a2e";
   const tickerFontFamily = (config.tickerFontFamily as string) ?? "";
+  const tickerFontSize = (config.tickerFontSize as number) ?? 18;
+  const tickerPosition = (config.tickerPosition as string) ?? "bottom";
   const showClock = (config.showClock as boolean) ?? false;
   const showWeather = (config.showWeather as boolean) ?? false;
   const objectFit = (config.objectFit as string) ?? "contain";
@@ -176,6 +178,37 @@ export function SimpleBoardConfigEditor({
               }
               className="w-24"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-tickerFontSize">文字サイズ ({tickerFontSize}px)</Label>
+            <input
+              id="cfg-tickerFontSize"
+              type="range"
+              min={12}
+              max={64}
+              step={1}
+              value={tickerFontSize}
+              onChange={(e) => update("tickerFontSize", Number(e.target.value))}
+              className="w-48"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground w-48">
+              <span>12px</span>
+              <span>64px</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-tickerPosition">表示位置</Label>
+            <Select value={tickerPosition} onValueChange={(v) => update("tickerPosition", v)}>
+              <SelectTrigger id="cfg-tickerPosition" className="w-48">
+                <SelectValue>{tickerPosition === "top" ? "上部" : "下部"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bottom">下部</SelectItem>
+                <SelectItem value="top">上部</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
