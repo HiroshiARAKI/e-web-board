@@ -64,6 +64,7 @@ export function SimpleBoardConfigEditor({
   const tickerFontFamily = (config.tickerFontFamily as string) ?? "";
   const showClock = (config.showClock as boolean) ?? false;
   const showWeather = (config.showWeather as boolean) ?? false;
+  const objectFit = (config.objectFit as string) ?? "contain";
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -124,6 +125,18 @@ export function SimpleBoardConfigEditor({
               }
               className="w-24"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-objectFit">メディア表示モード</Label>
+            <Select value={objectFit} onValueChange={(v) => update("objectFit", v)}>
+              <SelectTrigger id="cfg-objectFit" className="w-72">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contain">全体表示（余白ができる場合あり）</SelectItem>
+                <SelectItem value="cover">全面表示（トリミングされる場合あり）</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cfg-bgColor">背景色</Label>
