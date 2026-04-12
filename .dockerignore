@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+
+# next.js build output
+.next/
+out/
+
+# database & uploads (runtime data)
+data/
+*.db
+*.db-journal
+public/uploads/*
+!public/uploads/.gitignore
+!public/uploads/.gitkeep
+
+# git
+.git/
+.gitignore
+
+# env
+.env
+.env.local
+.env.*.local
+
+# editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# debug
+npm-debug.log*
+pnpm-debug.log*
+
+# misc
+.turbo/
+.vercel/
+tsconfig.tsbuildinfo
+README.md
+DESIGN.md

@@ -6,8 +6,19 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./data:/app/data
-      - ./public/uploads:/app/public/uploads
+      - db-data:/app/data
+      - upload-data:/app/public/uploads
     environment:
       - NODE_ENV=production
+      - HOSTNAME=0.0.0.0
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  db-data:
+  upload-data:
