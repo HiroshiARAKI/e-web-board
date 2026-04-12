@@ -185,9 +185,12 @@ export async function DELETE() {
   const items = await db.select().from(mediaItems);
 
   const boardIds = new Set<string>();
+  const deletedFiles = new Set<string>();
   for (const item of items) {
     boardIds.add(item.boardId);
-    const filePath = path.join(UPLOAD_DIR, path.basename(item.filePath));
+    const basename = path.basename(item.filePath);
+    const filePath = path.join(UPLOAD_DIR, basename);
+    deletedFiles.add(basename);
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
@@ -198,6 +201,20 @@ export async function DELETE() {
   }
 
   await db.delete(mediaItems);
+
+  // Also delete any orphan files on disk that have no DB record
+  if (fs.existsSync(UPLOAD_DIR)) {
+    const remaining = fs.readdirSync(UPLOAD_DIR);
+    for (const name of remaining) {
+      if (name.startsWith(".")) continue;
+      if (deletedFiles.has(name)) continue;
+      try {
+        fs.unlinkSync(path.join(UPLOAD_DIR, name));
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   for (const boardId of boardIds) {
     emitSSE(boardId, "media-updated");

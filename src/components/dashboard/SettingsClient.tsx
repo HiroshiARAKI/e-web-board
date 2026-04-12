@@ -15,16 +15,13 @@ import { Button } from "@/components/ui/button";
 import { WEATHER_AREAS, DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import type { WeatherPrefecture } from "@/lib/weather-areas";
 
-interface MediaItemWithBoard {
-  id: string;
-  boardId: string;
-  type: string;
+interface UploadedFile {
+  filename: string;
   filePath: string;
-  displayOrder: number;
-  duration: number;
-  createdAt: string;
-  updatedAt: string;
-  boardName: string | null;
+  type: string;
+  size: number;
+  modifiedAt: string;
+  boards: { boardId: string; boardName: string | null }[];
 }
 
 export function SettingsClient() {
@@ -37,13 +34,13 @@ export function SettingsClient() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [deleteResult, setDeleteResult] = useState<string | null>(null);
-  const [mediaList, setMediaList] = useState<MediaItemWithBoard[]>([]);
+  const [mediaList, setMediaList] = useState<UploadedFile[]>([]);
   const [mediaLoading, setMediaLoading] = useState(true);
-  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [deletingFile, setDeletingFile] = useState<string | null>(null);
 
   const fetchMedia = useCallback(async () => {
     try {
-      const res = await fetch("/api/media");
+      const res = await fetch("/api/media/files");
       if (res.ok) {
         setMediaList(await res.json());
       }
@@ -116,7 +113,7 @@ export function SettingsClient() {
       if (res.ok) {
         const data = await res.json();
         setDeleteResult(`${data.deleted} 件のメディアを削除しました`);
-        setMediaList([]);
+        await fetchMedia();
       } else {
         setDeleteResult("削除に失敗しました");
       }
@@ -127,19 +124,30 @@ export function SettingsClient() {
     }
   }
 
-  async function handleDeleteItem(item: MediaItemWithBoard) {
-    const boardLabel = item.boardName ?? item.boardId;
-    const msg = `このメディアはボード「${boardLabel}」で使用されています。\n削除するとボードからも除外されます。\n\n削除しますか？`;
+  async function handleDeleteFile(file: UploadedFile) {
+    const boardNames = file.boards
+      .map((b) => b.boardName ?? b.boardId)
+      .join("、");
+    const msg =
+      file.boards.length > 0
+        ? `このファイルはボード「${boardNames}」で使用されています。\n削除するとボードからも除外されます。\n\n削除しますか？`
+        : `このファイルを削除しますか？\n（どのボードにも紐付けられていません）`;
     if (!confirm(msg)) return;
 
-    setDeletingItemId(item.id);
+    setDeletingFile(file.filename);
     try {
-      const res = await fetch(`/api/media/${item.id}`, { method: "DELETE" });
+      const res = await fetch("/api/media/files", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.filename }),
+      });
       if (res.ok) {
-        setMediaList((prev) => prev.filter((m) => m.id !== item.id));
+        setMediaList((prev) =>
+          prev.filter((m) => m.filename !== file.filename),
+        );
       }
     } finally {
-      setDeletingItemId(null);
+      setDeletingFile(null);
     }
   }
 
@@ -239,22 +247,22 @@ export function SettingsClient() {
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {mediaList.map((item) => (
+              {mediaList.map((file) => (
                 <div
-                  key={item.id}
+                  key={file.filename}
                   className="flex items-start gap-3 rounded-md border p-3"
                 >
                   {/* Thumbnail */}
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded bg-muted">
-                    {item.type === "image" ? (
+                    {file.type === "image" ? (
                       <img
-                        src={item.filePath}
+                        src={file.filePath}
                         alt=""
                         className="h-full w-full object-cover"
                       />
                     ) : (
                       <video
-                        src={item.filePath}
+                        src={file.filePath}
                         muted
                         className="h-full w-full object-cover"
                       />
@@ -263,19 +271,31 @@ export function SettingsClient() {
                   {/* Info + delete button */}
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="truncate text-xs text-muted-foreground">
-                      {item.type === "image" ? "画像" : "動画"}
+                      {file.type === "image" ? "画像" : "動画"} ・{" "}
+                      {file.size < 1024 * 1024
+                        ? `${Math.round(file.size / 1024)} KB`
+                        : `${(file.size / 1024 / 1024).toFixed(1)} MB`}
                     </span>
-                    <span className="truncate text-xs">
-                      ボード: {item.boardName ?? "不明"}
-                    </span>
+                    {file.boards.length > 0 ? (
+                      <span className="truncate text-xs">
+                        ボード:{" "}
+                        {file.boards
+                          .map((b) => b.boardName ?? b.boardId)
+                          .join(", ")}
+                      </span>
+                    ) : (
+                      <span className="truncate text-xs text-amber-600">
+                        未使用（どのボードにも紐付けなし）
+                      </span>
+                    )}
                     <Button
                       variant="destructive"
                       size="sm"
                       className="mt-1 w-fit text-xs"
-                      disabled={deletingItemId === item.id}
-                      onClick={() => handleDeleteItem(item)}
+                      disabled={deletingFile === file.filename}
+                      onClick={() => handleDeleteFile(file)}
                     >
-                      {deletingItemId === item.id ? "削除中..." : "削除"}
+                      {deletingFile === file.filename ? "削除中..." : "削除"}
                     </Button>
                   </div>
                 </div>
