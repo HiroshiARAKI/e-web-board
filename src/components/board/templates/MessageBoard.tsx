@@ -4,6 +4,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { DateTimeClock } from "@/components/board/DateTimeClock";
+import { WeatherDisplay } from "@/components/board/WeatherDisplay";
 import type { BoardTemplateProps, Message } from "@/types";
 
 /** Default config for the Message Board template */
@@ -13,6 +15,8 @@ export const messageBoardDefaultConfig = {
   backgroundColor: "#1e293b",
   textColor: "#f8fafc",
   accentColor: "#3b82f6",
+  showClock: false,
+  showWeather: false,
 };
 
 type MessageBoardConfig = typeof messageBoardDefaultConfig;
@@ -128,9 +132,19 @@ export default function MessageBoard({
         style={{ borderColor: config.accentColor + "40" }}
       >
         <h1 className="text-2xl font-bold">{board.name}</h1>
-        <div className="flex items-center gap-2 text-sm opacity-60">
-          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
-          LIVE
+        <div className="flex items-center gap-4">
+          {config.showClock && (
+            <DateTimeClock
+              timeFontSize={20}
+              color={config.textColor}
+              bgOpacity={0}
+              layout="compact"
+            />
+          )}
+          <div className="flex items-center gap-2 text-sm opacity-60">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
+            LIVE
+          </div>
         </div>
       </div>
 
@@ -198,6 +212,16 @@ export default function MessageBoard({
           </AnimatePresence>
         )}
       </div>
+
+      {/* Weather bar */}
+      {config.showWeather && (
+        <div
+          className="border-t px-6 py-2"
+          style={{ borderColor: config.accentColor + "40" }}
+        >
+          <WeatherDisplay color={config.textColor} bgOpacity={0} />
+        </div>
+      )}
 
       {/* Footer */}
       <div

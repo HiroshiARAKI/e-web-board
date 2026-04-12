@@ -4,6 +4,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { DateTimeClock } from "@/components/board/DateTimeClock";
+import { WeatherDisplay } from "@/components/board/WeatherDisplay";
 import type { BoardTemplateProps } from "@/types";
 
 /** Default config for the Retro Board template */
@@ -12,6 +14,8 @@ export const retroBoardDefaultConfig = {
   rows: 5,
   flipSpeed: 0.08,
   switchInterval: 5,
+  showClock: false,
+  showWeather: false,
 };
 
 type RetroBoardConfig = typeof retroBoardDefaultConfig;
@@ -148,13 +152,37 @@ export default function RetroBoard({
         >
           {board.name}
         </span>
-        <span
-          className="font-mono text-sm tracking-wider opacity-70"
-          style={{ color }}
-        >
-          ● LIVE
-        </span>
+        <div className="flex items-center gap-4">
+          <span
+            className="font-mono text-sm tracking-wider opacity-70"
+            style={{ color }}
+          >
+            ● LIVE
+          </span>
+        </div>
       </div>
+
+      {/* Clock & Weather bar */}
+      {(config.showClock || config.showWeather) && (
+        <div
+          className="flex items-center justify-between border-b px-6 py-1"
+          style={{ borderColor: color + "40" }}
+        >
+          <div className="flex-1">
+            {config.showWeather && (
+              <WeatherDisplay color={color} bgOpacity={0} />
+            )}
+          </div>
+          {config.showClock && (
+            <DateTimeClock
+              timeFontSize={18}
+              color={color}
+              bgOpacity={0}
+              layout="compact"
+            />
+          )}
+        </div>
+      )}
 
       {/* Message rows */}
       <div className="flex flex-1 flex-col justify-center">

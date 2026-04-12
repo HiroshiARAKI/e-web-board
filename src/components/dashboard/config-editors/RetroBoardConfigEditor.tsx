@@ -4,6 +4,7 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,8 @@ export function RetroBoardConfigEditor({
   const rows = (config.rows as number) ?? 5;
   const flipSpeed = (config.flipSpeed as number) ?? 0.08;
   const switchInterval = (config.switchInterval as number) ?? 5;
+  const showClock = (config.showClock as boolean) ?? false;
+  const showWeather = (config.showWeather as boolean) ?? false;
 
   const colorLabels: Record<string, string> = {
     green: "グリーン",
@@ -112,6 +115,29 @@ export function RetroBoardConfigEditor({
           className="w-24"
         />
       </div>
+
+      <div className="flex items-center gap-3">
+        <Switch
+          id="cfg-showClock"
+          checked={showClock}
+          onCheckedChange={(v) => update("showClock", v)}
+        />
+        <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Switch
+          id="cfg-showWeather"
+          checked={showWeather}
+          onCheckedChange={(v) => update("showWeather", v)}
+        />
+        <Label htmlFor="cfg-showWeather">天気予報を表示</Label>
+      </div>
+      {showWeather && (
+        <p className="text-xs text-muted-foreground">
+          表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+        </p>
+      )}
     </div>
   );
 }
