@@ -1,3 +1,5 @@
+// Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+// SPDX-License-Identifier: Apache-2.0
 import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 

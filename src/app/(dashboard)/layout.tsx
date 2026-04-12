@@ -1,3 +1,5 @@
+// Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+// SPDX-License-Identifier: Apache-2.0
 import Link from "next/link";
 import { LayoutDashboard, MonitorPlay, Settings } from "lucide-react";
 import { Separator } from "@/components/ui/separator";

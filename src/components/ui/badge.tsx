@@ -1,3 +1,5 @@
+// Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+// SPDX-License-Identifier: Apache-2.0
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"

@@ -1,3 +1,5 @@
+// Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+// SPDX-License-Identifier: Apache-2.0
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
