@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 
 interface WeatherData {
+  location: { city: string; prefecture: string };
   telop: string;
   image: { url: string; title: string; width: number; height: number };
   chanceOfRain: {
@@ -21,18 +22,6 @@ interface WeatherData {
 interface WeatherDisplayProps {
   color?: string;
   bgOpacity?: number;
-}
-
-/** Get the current time slot label */
-function currentRainSlot(rain: WeatherData["chanceOfRain"]): {
-  label: string;
-  value: string;
-} {
-  const hour = new Date().getHours();
-  if (hour < 6) return { label: "0-6時", value: rain.T00_06 };
-  if (hour < 12) return { label: "6-12時", value: rain.T06_12 };
-  if (hour < 18) return { label: "12-18時", value: rain.T12_18 };
-  return { label: "18-24時", value: rain.T18_24 };
 }
 
 export function WeatherDisplay({
@@ -61,7 +50,7 @@ export function WeatherDisplay({
 
   if (!weather) return null;
 
-  const rain = currentRainSlot(weather.chanceOfRain);
+  const rain = weather.chanceOfRain;
 
   return (
     <div
@@ -84,12 +73,9 @@ export function WeatherDisplay({
       )}
 
       <div className="flex flex-col gap-0.5 text-sm leading-tight">
-        {/* Telop (e.g. 晴れ) */}
-        <span className="font-bold text-base">{weather.telop}</span>
-
-        {/* Chance of rain */}
-        <span className="opacity-80">
-          降水 {rain.label}: {rain.value}
+        {/* Location header */}
+        <span className="font-bold text-base">
+          {weather.location?.city ?? ""}の天気: {weather.telop}
         </span>
 
         {/* Temperature */}
@@ -105,6 +91,15 @@ export function WeatherDisplay({
               `最低 ${weather.temperature.min.celsius}°C`}
           </span>
         )}
+
+        {/* Chance of rain — all time slots */}
+        <div className="flex gap-2 opacity-80 text-xs">
+          <span>降水確率:</span>
+          <span>0-6時 {rain.T00_06}</span>
+          <span>6-12時 {rain.T06_12}</span>
+          <span>12-18時 {rain.T12_18}</span>
+          <span>18-24時 {rain.T18_24}</span>
+        </div>
       </div>
     </div>
   );

@@ -53,15 +53,6 @@ const positionClasses: Record<ClockPosition, string> = {
   center: "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
 };
 
-/** Weather widget position — placed opposite the clock to avoid overlap */
-const weatherPositionClasses: Record<ClockPosition, string> = {
-  "top-left": "top-6 right-6",
-  "top-right": "top-6 left-6",
-  "bottom-left": "top-6 left-6",
-  "bottom-right": "top-6 left-6",
-  center: "top-6 left-6",
-};
-
 export default function PhotoClockBoard({
   board,
   mediaItems,
@@ -77,9 +68,9 @@ export default function PhotoClockBoard({
       {/* Full-screen slideshow */}
       <MediaSlider mediaItems={sorted} interval={config.slideInterval} />
 
-      {/* Clock overlay */}
+      {/* Clock + Weather overlay */}
       <div
-        className={`absolute z-10 ${positionClasses[config.clockPosition] ?? positionClasses["bottom-right"]}`}
+        className={`absolute z-10 flex flex-col gap-2 ${positionClasses[config.clockPosition] ?? positionClasses["bottom-right"]}`}
       >
         <DateTimeClock
           is24Hour={config.is24Hour}
@@ -88,19 +79,13 @@ export default function PhotoClockBoard({
           bgOpacity={config.clockBgOpacity}
           layout={config.clockLayout}
         />
-      </div>
-
-      {/* Weather overlay */}
-      {config.showWeather && (
-        <div
-          className={`absolute z-10 ${weatherPositionClasses[config.clockPosition] ?? weatherPositionClasses["bottom-right"]}`}
-        >
+        {config.showWeather && (
           <WeatherDisplay
             color={config.clockColor}
             bgOpacity={config.clockBgOpacity}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
