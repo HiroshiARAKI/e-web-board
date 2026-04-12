@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { thumbUrl } from "@/lib/utils";
 import type { MediaItem } from "@/types";
 
 interface MediaUploadZoneProps {
@@ -265,9 +266,13 @@ export default function MediaUploadZone({
               <div className="relative size-12 shrink-0 overflow-hidden rounded border bg-muted">
                 {item.type === "image" ? (
                   <img
-                    src={item.filePath}
+                    src={thumbUrl(item.filePath)}
                     alt=""
                     className="size-full object-cover"
+                    onError={(e) => {
+                      // Fall back to full image if thumbnail not found
+                      (e.target as HTMLImageElement).src = item.filePath;
+                    }}
                   />
                 ) : (
                   <div className="flex size-full items-center justify-center">

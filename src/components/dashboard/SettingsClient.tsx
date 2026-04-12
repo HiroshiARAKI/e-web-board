@@ -12,12 +12,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { WEATHER_AREAS, DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import type { WeatherPrefecture } from "@/lib/weather-areas";
 
 interface UploadedFile {
   filename: string;
   filePath: string;
+  thumbPath: string | null;
   type: string;
   size: number;
   modifiedAt: string;
@@ -37,6 +40,10 @@ export function SettingsClient() {
   const [mediaList, setMediaList] = useState<UploadedFile[]>([]);
   const [mediaLoading, setMediaLoading] = useState(true);
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
+  const [maxLongEdge, setMaxLongEdge] = useState(3840);
+  const [resizeEnabled, setResizeEnabled] = useState(true);
+  const [imageSaving, setImageSaving] = useState(false);
+  const [imageSaved, setImageSaved] = useState(false);
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -63,6 +70,17 @@ export function SettingsClient() {
           p.cities.some((c) => c.id === saved),
         );
         if (pref) setSelectedPref(pref);
+        // Load image resize setting
+        if (data.imageMaxLongEdge !== undefined) {
+          const val = parseInt(data.imageMaxLongEdge, 10);
+          if (val === 0) {
+            setResizeEnabled(false);
+            setMaxLongEdge(3840);
+          } else {
+            setResizeEnabled(true);
+            setMaxLongEdge(val);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -99,6 +117,22 @@ export function SettingsClient() {
       if (res.ok) setSaved(true);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleImageSettingSave() {
+    setImageSaving(true);
+    setImageSaved(false);
+    try {
+      const value = resizeEnabled ? String(maxLongEdge) : "0";
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageMaxLongEdge: value }),
+      });
+      if (res.ok) setImageSaved(true);
+    } finally {
+      setImageSaving(false);
     }
   }
 
@@ -232,6 +266,62 @@ export function SettingsClient() {
         )}
       </div>
 
+      {/* Image Resize Settings */}
+      <div className="rounded-lg border p-6">
+        <h2 className="mb-4 text-lg font-semibold">画像リサイズ設定</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          アップロード時に画像の長辺を指定ピクセル数以下にリサイズします。
+          サムネイル（600px）も自動生成されます。
+        </p>
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="resize-enabled"
+              checked={resizeEnabled}
+              onCheckedChange={setResizeEnabled}
+            />
+            <Label htmlFor="resize-enabled">リサイズを有効にする</Label>
+          </div>
+
+          {resizeEnabled && (
+            <div className="space-y-1.5">
+              <Label htmlFor="max-long-edge">長辺の最大ピクセル数</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="max-long-edge"
+                  type="number"
+                  min={100}
+                  step={100}
+                  value={maxLongEdge}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (v >= 100) setMaxLongEdge(v);
+                  }}
+                  className="w-32"
+                />
+                <span className="text-sm text-muted-foreground">px</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                デフォルト: 3840px（4K相当）
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleImageSettingSave}
+              disabled={imageSaving}
+            >
+              {imageSaving ? "保存中..." : "保存"}
+            </Button>
+            {imageSaved && (
+              <span className="text-sm text-green-600">保存しました</span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Media Management */}
       <div className="rounded-lg border border-red-200 p-6">
         <h2 className="mb-4 text-lg font-semibold">メディア管理</h2>
@@ -256,7 +346,7 @@ export function SettingsClient() {
                   <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded bg-muted">
                     {file.type === "image" ? (
                       <img
-                        src={file.filePath}
+                        src={file.thumbPath ?? file.filePath}
                         alt=""
                         className="h-full w-full object-cover"
                       />
