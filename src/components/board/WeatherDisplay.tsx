@@ -56,7 +56,7 @@ export function WeatherDisplay({
 
   return (
     <div
-      className="flex items-center gap-3 rounded-xl px-4 py-2"
+      className="flex items-center gap-4 rounded-xl px-5 py-3"
       style={{
         backgroundColor: `rgba(0,0,0,${bgOpacity})`,
         color,
@@ -67,16 +67,16 @@ export function WeatherDisplay({
         <Image
           src={weather.image.url}
           alt={weather.image.title || weather.telop}
-          width={70}
-          height={56}
+          width={90}
+          height={72}
           className="shrink-0"
           unoptimized
         />
       )}
 
-      <div className="flex flex-col gap-1 text-base leading-snug">
+      <div className="flex flex-col gap-1 text-lg leading-snug">
         {/* Location header */}
-        <span className="font-bold text-lg">
+        <span className="font-bold text-xl">
           {weather.location?.city ?? ""}の天気: {weather.telop}
         </span>
 
@@ -95,11 +95,14 @@ export function WeatherDisplay({
         )}
 
         {/* Chance of rain — all time slots */}
-        <div className="flex gap-2 opacity-80 text-sm">
+        <div className="flex items-center gap-1 opacity-80 text-base">
           <span>降水確率:</span>
           <span>0-6時 {r(rain.T00_06)}</span>
+          <span className="opacity-40">|</span>
           <span>6-12時 {r(rain.T06_12)}</span>
+          <span className="opacity-40">|</span>
           <span>12-18時 {r(rain.T12_18)}</span>
+          <span className="opacity-40">|</span>
           <span>18-24時 {r(rain.T18_24)}</span>
         </div>
       </div>
