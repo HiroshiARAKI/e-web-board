@@ -90,7 +90,7 @@ function RetroRow({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="flex overflow-hidden font-mono text-2xl font-bold tracking-widest md:text-3xl lg:text-4xl"
+          className="flex overflow-hidden text-2xl font-bold tracking-widest md:text-3xl lg:text-4xl"
         >
           {text.split("").map((char, i) => (
             <FlipChar
@@ -142,7 +142,7 @@ export default function RetroBoard({
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-[#0a0a0a]" style={{ fontFamily: config.fontFamily || undefined }}>
+    <div className="flex h-screen w-screen flex-col bg-[#0a0a0a]" style={{ fontFamily: config.fontFamily || "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
       {config.fontFamily && (
         <GoogleFontLoader fonts={[config.fontFamily]} />
       )}
@@ -152,14 +152,14 @@ export default function RetroBoard({
         style={{ borderColor: color }}
       >
         <span
-          className="font-mono text-sm font-bold uppercase tracking-[0.3em]"
+          className="text-sm font-bold uppercase tracking-[0.3em]"
           style={{ color, textShadow: glow }}
         >
           {board.name}
         </span>
         <div className="flex items-center gap-4">
           <span
-            className="font-mono text-sm tracking-wider opacity-70"
+            className="text-sm tracking-wider opacity-70"
             style={{ color }}
           >
             ● LIVE
