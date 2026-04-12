@@ -27,6 +27,14 @@ interface UploadedFile {
   boards: { boardId: string; boardName: string | null }[];
 }
 
+interface VersionInfo {
+  current: string;
+  releaseUrl: string;
+  latest: string | null;
+  latestUrl: string | null;
+  hasUpdate: boolean;
+}
+
 export function SettingsClient() {
   const [cityId, setCityId] = useState(DEFAULT_CITY_ID);
   const [selectedPref, setSelectedPref] = useState<WeatherPrefecture | null>(
@@ -44,6 +52,7 @@ export function SettingsClient() {
   const [resizeEnabled, setResizeEnabled] = useState(true);
   const [imageSaving, setImageSaving] = useState(false);
   const [imageSaved, setImageSaved] = useState(false);
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -86,6 +95,10 @@ export function SettingsClient() {
       }
     })();
     fetchMedia();
+    fetch("/api/version")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setVersionInfo(data); })
+      .catch(() => {});
   }, [fetchMedia]);
 
   function handlePrefChange(prefName: string | null) {
@@ -195,6 +208,39 @@ export function SettingsClient() {
 
   return (
     <div className="space-y-6">
+      {/* Version Info */}
+      {versionInfo && (
+        <div className="rounded-lg border p-6">
+          <h2 className="mb-4 text-lg font-semibold">バージョン情報</h2>
+          <div className="space-y-2">
+            <p className="text-sm">
+              現在のバージョン:{" "}
+              <a
+                href={versionInfo.releaseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono font-semibold text-blue-600 hover:underline"
+              >
+                v{versionInfo.current}
+              </a>
+            </p>
+            {versionInfo.hasUpdate && versionInfo.latest && (
+              <p className="text-sm text-amber-600">
+                新しいバージョンがリリースされています:{" "}
+                <a
+                  href={versionInfo.latestUrl ?? versionInfo.releaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono font-semibold hover:underline"
+                >
+                  v{versionInfo.latest}
+                </a>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Weather Area Selection */}
       <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">天気予報の地域設定</h2>
