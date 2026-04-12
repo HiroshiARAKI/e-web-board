@@ -1,3 +1,5 @@
+// Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+// SPDX-License-Identifier: Apache-2.0
 /**
  * Lightweight migration runner for Docker container startup.
  * Reads drizzle migration SQL files and applies them using better-sqlite3.

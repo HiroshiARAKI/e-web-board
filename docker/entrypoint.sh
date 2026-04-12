@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+# SPDX-License-Identifier: Apache-2.0
 set -e
 
 echo "[entrypoint] Running database migrations..."

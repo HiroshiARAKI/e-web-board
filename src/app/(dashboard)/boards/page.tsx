@@ -1,3 +1,5 @@
+// Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+// SPDX-License-Identifier: Apache-2.0
 import Link from "next/link";
 import { db } from "@/db";
 import { boards } from "@/db/schema";

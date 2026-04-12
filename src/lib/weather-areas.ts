@@ -1,3 +1,5 @@
+// Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
+// SPDX-License-Identifier: Apache-2.0
 /** Weather area data from https://weather.tsukumijima.net/primary_area.xml */
 
 export interface WeatherCity {
