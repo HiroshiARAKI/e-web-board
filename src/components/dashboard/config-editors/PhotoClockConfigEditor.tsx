@@ -12,6 +12,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { GOOGLE_FONTS, buildGoogleFontsUrl } from "@/lib/fonts";
+import { useEffect } from "react";
+
+/** Load ALL Google Fonts so the dropdown and preview can display them */
+function useLoadAllGoogleFonts() {
+  useEffect(() => {
+    const families = GOOGLE_FONTS.map((f) => f.value).filter(Boolean);
+    const url = buildGoogleFontsUrl(families);
+    if (!url) return;
+
+    const linkId = "google-fonts-all";
+    if (document.getElementById(linkId)) return;
+
+    const link = document.createElement("link");
+    link.id = linkId;
+    link.rel = "stylesheet";
+    link.href = url;
+    document.head.appendChild(link);
+  }, []);
+}
 
 interface PhotoClockConfigEditorProps {
   config: Record<string, unknown>;
@@ -22,6 +42,8 @@ export function PhotoClockConfigEditor({
   config,
   onChange,
 }: PhotoClockConfigEditorProps) {
+  useLoadAllGoogleFonts();
+
   const slideInterval = (config.slideInterval as number) ?? 8;
   const clockPosition = (config.clockPosition as string) ?? "bottom-right";
   const clockFontSize = (config.clockFontSize as number) ?? 48;
@@ -31,6 +53,7 @@ export function PhotoClockConfigEditor({
   const is24Hour = (config.is24Hour as boolean) ?? true;
   const showWeather = (config.showWeather as boolean) ?? false;
   const objectFit = (config.objectFit as string) ?? "contain";
+  const fontFamily = (config.fontFamily as string) ?? "";
 
   const positionLabels: Record<string, string> = {
     "top-left": "左上",
@@ -187,6 +210,31 @@ export function PhotoClockConfigEditor({
           表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
         </p>
       )}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cfg-font">フォント</Label>
+        <Select
+          value={fontFamily}
+          onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
+        >
+          <SelectTrigger id="cfg-font" className="w-64">
+            <SelectValue placeholder="フォントを選択">
+              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {GOOGLE_FONTS.map((f) => (
+              <SelectItem
+                key={f.value || "__default__"}
+                value={f.value || "__default__"}
+                style={f.value ? { fontFamily: f.value } : undefined}
+              >
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

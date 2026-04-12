@@ -5,6 +5,7 @@
 import { MediaSlider } from "@/components/board/MediaSlider";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { WeatherDisplay } from "@/components/board/WeatherDisplay";
+import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { ClockLayout } from "@/components/board/DateTimeClock";
 import type { BoardTemplateProps } from "@/types";
 
@@ -26,6 +27,7 @@ export const photoClockDefaultConfig = {
   is24Hour: true,
   showWeather: false,
   objectFit: "contain" as "contain" | "cover",
+  fontFamily: "",
 };
 
 type PhotoClockConfig = typeof photoClockDefaultConfig;
@@ -68,6 +70,9 @@ export default function PhotoClockBoard({
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
+      {config.fontFamily && (
+        <GoogleFontLoader fonts={[config.fontFamily]} />
+      )}
       {/* Full-screen slideshow */}
       <MediaSlider mediaItems={sorted} interval={config.slideInterval} objectFit={config.objectFit} />
 
@@ -81,11 +86,13 @@ export default function PhotoClockBoard({
           color={config.clockColor}
           bgOpacity={config.clockBgOpacity}
           layout={config.clockLayout}
+          fontFamily={config.fontFamily || undefined}
         />
         {config.showWeather && (
           <WeatherDisplay
             color={config.clockColor}
             bgOpacity={config.clockBgOpacity}
+            fontFamily={config.fontFamily || undefined}
           />
         )}
       </div>

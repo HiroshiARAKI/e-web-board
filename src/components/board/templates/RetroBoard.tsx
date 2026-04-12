@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { WeatherDisplay } from "@/components/board/WeatherDisplay";
+import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps } from "@/types";
 
 /** Default config for the Retro Board template */
@@ -16,6 +17,7 @@ export const retroBoardDefaultConfig = {
   switchInterval: 5,
   showClock: false,
   showWeather: false,
+  fontFamily: "",
 };
 
 type RetroBoardConfig = typeof retroBoardDefaultConfig;
@@ -140,7 +142,10 @@ export default function RetroBoard({
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-[#0a0a0a]">
+    <div className="flex h-screen w-screen flex-col bg-[#0a0a0a]" style={{ fontFamily: config.fontFamily || undefined }}>
+      {config.fontFamily && (
+        <GoogleFontLoader fonts={[config.fontFamily]} />
+      )}
       {/* Header bar */}
       <div
         className="flex items-center justify-between border-b-2 px-6 py-3"
@@ -170,7 +175,7 @@ export default function RetroBoard({
         >
           <div className="flex-1">
             {config.showWeather && (
-              <WeatherDisplay color={color} bgOpacity={0} />
+              <WeatherDisplay color={color} bgOpacity={0} fontFamily={config.fontFamily || undefined} />
             )}
           </div>
           {config.showClock && (
@@ -179,6 +184,7 @@ export default function RetroBoard({
               color={color}
               bgOpacity={0}
               layout="compact"
+              fontFamily={config.fontFamily || undefined}
             />
           )}
         </div>

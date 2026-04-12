@@ -63,10 +63,11 @@ export default function SimpleBoard({
                 color="#ffffff"
                 bgOpacity={0.5}
                 layout="compact"
+                fontFamily={config.tickerFontFamily || undefined}
               />
             )}
             {config.showWeather && (
-              <WeatherDisplay color="#ffffff" bgOpacity={0.5} />
+              <WeatherDisplay color="#ffffff" bgOpacity={0.5} fontFamily={config.tickerFontFamily || undefined} />
             )}
           </div>
         )}

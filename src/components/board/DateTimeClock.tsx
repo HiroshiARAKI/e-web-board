@@ -19,6 +19,8 @@ interface DateTimeClockProps {
   bgOpacity?: number;
   /** Clock layout variant */
   layout?: ClockLayout;
+  /** Custom font family */
+  fontFamily?: string;
 }
 
 export function DateTimeClock({
@@ -27,6 +29,7 @@ export function DateTimeClock({
   color = "#ffffff",
   bgOpacity = 0.5,
   layout = "standard",
+  fontFamily,
 }: DateTimeClockProps) {
   const [now, setNow] = useState<Date | null>(null);
 
@@ -63,7 +66,7 @@ export function DateTimeClock({
     return (
       <div
         className="inline-flex items-center gap-4 rounded-lg px-5 py-2"
-        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontFamily || undefined }}
       >
         <span
           className="font-mono font-bold tabular-nums tracking-wider"
@@ -85,7 +88,7 @@ export function DateTimeClock({
     return (
       <div
         className="inline-flex flex-col items-center rounded-lg px-8 py-4"
-        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontFamily || undefined }}
       >
         <span
           className="font-mono font-bold tabular-nums tracking-wider"
@@ -113,7 +116,7 @@ export function DateTimeClock({
     return (
       <div
         className="inline-flex flex-col items-center rounded-lg px-6 py-3"
-        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontFamily || undefined }}
       >
         <span
           className="font-medium opacity-90"
@@ -135,7 +138,7 @@ export function DateTimeClock({
   return (
     <div
       className="inline-flex flex-col items-center rounded-lg px-6 py-3"
-      style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+      style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontFamily || undefined }}
     >
       <span
         className="font-mono font-bold tabular-nums tracking-wider"

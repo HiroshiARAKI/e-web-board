@@ -5,6 +5,33 @@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { GOOGLE_FONTS, buildGoogleFontsUrl } from "@/lib/fonts";
+import { useEffect } from "react";
+
+/** Load ALL Google Fonts so the dropdown and preview can display them */
+function useLoadAllGoogleFonts() {
+  useEffect(() => {
+    const families = GOOGLE_FONTS.map((f) => f.value).filter(Boolean);
+    const url = buildGoogleFontsUrl(families);
+    if (!url) return;
+
+    const linkId = "google-fonts-all";
+    if (document.getElementById(linkId)) return;
+
+    const link = document.createElement("link");
+    link.id = linkId;
+    link.rel = "stylesheet";
+    link.href = url;
+    document.head.appendChild(link);
+  }, []);
+}
 
 interface MessageBoardConfigEditorProps {
   config: Record<string, unknown>;
@@ -15,6 +42,8 @@ export function MessageBoardConfigEditor({
   config,
   onChange,
 }: MessageBoardConfigEditorProps) {
+  useLoadAllGoogleFonts();
+
   const maxDisplayCount = (config.maxDisplayCount as number) ?? 10;
   const fontSize = (config.fontSize as number) ?? 20;
   const backgroundColor = (config.backgroundColor as string) ?? "#1e293b";
@@ -22,6 +51,7 @@ export function MessageBoardConfigEditor({
   const accentColor = (config.accentColor as string) ?? "#3b82f6";
   const showClock = (config.showClock as boolean) ?? false;
   const showWeather = (config.showWeather as boolean) ?? false;
+  const fontFamily = (config.fontFamily as string) ?? "";
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -136,6 +166,31 @@ export function MessageBoardConfigEditor({
             maxLength={7}
           />
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cfg-font">フォント</Label>
+        <Select
+          value={fontFamily}
+          onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
+        >
+          <SelectTrigger id="cfg-font" className="w-64">
+            <SelectValue placeholder="フォントを選択">
+              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {GOOGLE_FONTS.map((f) => (
+              <SelectItem
+                key={f.value || "__default__"}
+                value={f.value || "__default__"}
+                style={f.value ? { fontFamily: f.value } : undefined}
+              >
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { WeatherDisplay } from "@/components/board/WeatherDisplay";
+import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps, Message } from "@/types";
 
 /** Default config for the Message Board template */
@@ -17,6 +18,7 @@ export const messageBoardDefaultConfig = {
   accentColor: "#3b82f6",
   showClock: false,
   showWeather: false,
+  fontFamily: "",
 };
 
 type MessageBoardConfig = typeof messageBoardDefaultConfig;
@@ -124,8 +126,11 @@ export default function MessageBoard({
   return (
     <div
       className="flex h-screen w-screen flex-col overflow-hidden"
-      style={{ backgroundColor: config.backgroundColor, color: config.textColor }}
+      style={{ backgroundColor: config.backgroundColor, color: config.textColor, fontFamily: config.fontFamily || undefined }}
     >
+      {config.fontFamily && (
+        <GoogleFontLoader fonts={[config.fontFamily]} />
+      )}
       {/* Header */}
       <div
         className="flex items-center justify-between border-b px-6 py-4"
@@ -139,6 +144,7 @@ export default function MessageBoard({
               color={config.textColor}
               bgOpacity={0}
               layout="compact"
+              fontFamily={config.fontFamily || undefined}
             />
           )}
           <div className="flex items-center gap-2 text-sm opacity-60">
@@ -219,7 +225,7 @@ export default function MessageBoard({
           className="border-t px-6 py-2"
           style={{ borderColor: config.accentColor + "40" }}
         >
-          <WeatherDisplay color={config.textColor} bgOpacity={0} />
+          <WeatherDisplay color={config.textColor} bgOpacity={0} fontFamily={config.fontFamily || undefined} />
         </div>
       )}
 
