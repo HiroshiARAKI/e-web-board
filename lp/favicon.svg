@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Board frame -->
+  <rect x="2" y="4" width="28" height="24" rx="4" ry="4" fill="#1a1a1a"/>
+  <!-- Board inner -->
+  <rect x="4" y="6" width="24" height="20" rx="2.5" ry="2.5" fill="#dce4ed"/>
+  <!-- Sky gradient -->
+  <defs>
+    <clipPath id="board">
+      <rect x="4" y="6" width="24" height="20" rx="2.5" ry="2.5"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#board)">
+    <!-- Sky -->
+    <rect x="4" y="6" width="24" height="12" fill="#c8d6e5"/>
+    <!-- Distant mountain -->
+    <polygon points="4,20 12,12 20,18 28,11 28,20" fill="#a4b0be" opacity="0.5"/>
+    <!-- Near mountain -->
+    <polygon points="4,22 10,15 18,20 24,14 28,18 28,26 4,26" fill="#8395a7" opacity="0.45"/>
+    <!-- Ground -->
+    <rect x="4" y="22" width="24" height="4" fill="#b8c6d4" opacity="0.3"/>
+  </g>
+  <!-- "e" letter -->
+  <text x="16" y="22" font-family="Helvetica Neue, Arial, sans-serif" font-size="18" font-weight="800" fill="#1a1a1a" text-anchor="middle">e</text>
+</svg>
