@@ -51,6 +51,8 @@ export function WeatherDisplay({
   if (!weather) return null;
 
   const rain = weather.chanceOfRain;
+  /** "--%" → "0%" */
+  const r = (v: string) => (v === "--%" ? "0%" : v);
 
   return (
     <div
@@ -65,16 +67,16 @@ export function WeatherDisplay({
         <Image
           src={weather.image.url}
           alt={weather.image.title || weather.telop}
-          width={50}
-          height={40}
+          width={70}
+          height={56}
           className="shrink-0"
           unoptimized
         />
       )}
 
-      <div className="flex flex-col gap-0.5 text-sm leading-tight">
+      <div className="flex flex-col gap-1 text-base leading-snug">
         {/* Location header */}
-        <span className="font-bold text-base">
+        <span className="font-bold text-lg">
           {weather.location?.city ?? ""}の天気: {weather.telop}
         </span>
 
@@ -93,12 +95,12 @@ export function WeatherDisplay({
         )}
 
         {/* Chance of rain — all time slots */}
-        <div className="flex gap-2 opacity-80 text-xs">
+        <div className="flex gap-2 opacity-80 text-sm">
           <span>降水確率:</span>
-          <span>0-6時 {rain.T00_06}</span>
-          <span>6-12時 {rain.T06_12}</span>
-          <span>12-18時 {rain.T12_18}</span>
-          <span>18-24時 {rain.T18_24}</span>
+          <span>0-6時 {r(rain.T00_06)}</span>
+          <span>6-12時 {r(rain.T06_12)}</span>
+          <span>12-18時 {r(rain.T12_18)}</span>
+          <span>18-24時 {r(rain.T18_24)}</span>
         </div>
       </div>
     </div>
