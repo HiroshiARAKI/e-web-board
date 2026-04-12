@@ -19,7 +19,7 @@ export function TickerText({
   fontFamily,
 }: TickerTextProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
   const [contentWidth, setContentWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [ready, setReady] = useState(false);
@@ -27,9 +27,9 @@ export function TickerText({
   const text = messages.length > 0 ? messages.join("　　　") : "";
 
   const measure = useCallback(() => {
-    if (!containerRef.current || !contentRef.current) return;
+    if (!containerRef.current || !measureRef.current) return;
     const cw = containerRef.current.offsetWidth;
-    const tw = contentRef.current.offsetWidth;
+    const tw = measureRef.current.offsetWidth;
     if (cw > 0 && tw > 0) {
       setContainerWidth(cw);
       setContentWidth(tw);
@@ -62,35 +62,41 @@ export function TickerText({
 
   const totalDistance = contentWidth + containerWidth;
   const duration = totalDistance / speed;
+  const fontStyle = fontFamily ? { fontFamily } : undefined;
 
   return (
     <div
       ref={containerRef}
       className={`relative overflow-hidden whitespace-nowrap ${className}`}
     >
-      <motion.div
-        initial={{ x: containerWidth || "100%" }}
-        animate={ready ? { x: -contentWidth } : { x: "100%" }}
-        transition={
-          ready
-            ? {
-                duration,
-                ease: "linear",
-                repeat: Infinity,
-                repeatType: "loop",
-              }
-            : { duration: 0 }
-        }
-        key={`${text}-${ready}`}
+      {/* Hidden span for measurement — always in DOM */}
+      <span
+        ref={measureRef}
+        className="pointer-events-none invisible absolute whitespace-nowrap"
+        style={fontStyle}
+        aria-hidden
       >
-        <span
-          ref={contentRef}
-          className="inline-block"
-          style={fontFamily ? { fontFamily } : undefined}
+        {text}
+      </span>
+
+      {/* Animated ticker — only rendered after measurement */}
+      {ready && (
+        <motion.div
+          initial={{ x: containerWidth }}
+          animate={{ x: -contentWidth }}
+          transition={{
+            duration,
+            ease: "linear",
+            repeat: Infinity,
+            repeatType: "loop",
+          }}
+          key={text}
         >
-          {text}
-        </span>
-      </motion.div>
+          <span className="inline-block" style={fontStyle}>
+            {text}
+          </span>
+        </motion.div>
+      )}
     </div>
   );
 }

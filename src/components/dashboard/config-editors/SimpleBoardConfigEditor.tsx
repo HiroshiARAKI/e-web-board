@@ -9,7 +9,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GOOGLE_FONTS } from "@/lib/fonts";
+import { GOOGLE_FONTS, buildGoogleFontsUrl } from "@/lib/fonts";
+import { useEffect } from "react";
+
+/** Load ALL Google Fonts so the dropdown and preview can display them */
+function useLoadAllGoogleFonts() {
+  useEffect(() => {
+    const families = GOOGLE_FONTS.map((f) => f.value).filter(Boolean);
+    const url = buildGoogleFontsUrl(families);
+    if (!url) return;
+
+    const linkId = "google-fonts-all";
+    if (document.getElementById(linkId)) return;
+
+    const link = document.createElement("link");
+    link.id = linkId;
+    link.rel = "stylesheet";
+    link.href = url;
+    document.head.appendChild(link);
+  }, []);
+}
 
 /** Ticker color/style presets */
 const TICKER_PRESETS = [
@@ -32,6 +51,8 @@ export function SimpleBoardConfigEditor({
   config,
   onChange,
 }: SimpleBoardConfigEditorProps) {
+  useLoadAllGoogleFonts();
+
   const slideInterval = (config.slideInterval as number) ?? 5;
   const tickerSpeed = (config.tickerSpeed as number) ?? 60;
   const backgroundColor = (config.backgroundColor as string) ?? "#000000";
@@ -201,7 +222,11 @@ export function SimpleBoardConfigEditor({
               </SelectTrigger>
               <SelectContent>
                 {GOOGLE_FONTS.map((f) => (
-                  <SelectItem key={f.value || "__default__"} value={f.value || "__default__"}>
+                  <SelectItem
+                    key={f.value || "__default__"}
+                    value={f.value || "__default__"}
+                    style={f.value ? { fontFamily: f.value } : undefined}
+                  >
                     {f.label}
                   </SelectItem>
                 ))}
