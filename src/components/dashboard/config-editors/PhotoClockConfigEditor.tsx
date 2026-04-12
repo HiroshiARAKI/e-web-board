@@ -27,6 +27,7 @@ export function PhotoClockConfigEditor({
   const clockBgOpacity = (config.clockBgOpacity as number) ?? 0.5;
   const clockLayout = (config.clockLayout as string) ?? "standard";
   const is24Hour = (config.is24Hour as boolean) ?? true;
+  const showWeather = (config.showWeather as boolean) ?? false;
 
   const positionLabels: Record<string, string> = {
     "top-left": "左上",
@@ -156,6 +157,20 @@ export function PhotoClockConfigEditor({
         />
         <Label htmlFor="cfg-24h">24時間表示（OFFで12時間+AM/PM表記）</Label>
       </div>
+
+      <div className="flex items-center gap-3">
+        <Switch
+          id="cfg-weather"
+          checked={showWeather}
+          onCheckedChange={(v) => update("showWeather", v)}
+        />
+        <Label htmlFor="cfg-weather">天気予報を表示</Label>
+      </div>
+      {showWeather && (
+        <p className="text-xs text-muted-foreground">
+          表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+        </p>
+      )}
     </div>
   );
 }

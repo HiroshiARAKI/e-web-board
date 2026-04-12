@@ -7,6 +7,15 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "50mb",
     },
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "www.jma.go.jp",
+        pathname: "/bosai/forecast/img/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
