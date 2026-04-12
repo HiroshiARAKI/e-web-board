@@ -7,7 +7,7 @@ services:
       - "3000:3000"
     volumes:
       - db-data:/app/data
-      - upload-data:/app/public/uploads
+      - upload-data:/app/uploads
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0

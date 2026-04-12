@@ -25,7 +25,13 @@ export async function DELETE(
   }
 
   // Delete file from disk
-  const filePath = path.resolve(process.cwd(), "public", item.filePath);
+  // item.filePath is "/uploads/filename" — extract the basename to build
+  // the path under the public/uploads/ directory.
+  const filePath = path.join(
+    process.cwd(),
+    "uploads",
+    path.basename(item.filePath),
+  );
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

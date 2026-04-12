@@ -9,9 +9,9 @@ out/
 data/
 *.db
 *.db-journal
-public/uploads/*
-!public/uploads/.gitignore
-!public/uploads/.gitkeep
+uploads/*
+!uploads/.gitignore
+!uploads/.gitkeep
 
 # git
 .git/

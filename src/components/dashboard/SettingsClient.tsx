@@ -23,6 +23,8 @@ export function SettingsClient() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<string | null>(null);
 
   // Load current settings
   useEffect(() => {
@@ -73,6 +75,27 @@ export function SettingsClient() {
       if (res.ok) setSaved(true);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteAllMedia() {
+    if (!confirm("すべてのメディアファイルを削除します。この操作は取り消せません。\n本当に実行しますか？")) {
+      return;
+    }
+    setDeleting(true);
+    setDeleteResult(null);
+    try {
+      const res = await fetch("/api/media", { method: "DELETE" });
+      if (res.ok) {
+        const data = await res.json();
+        setDeleteResult(`${data.deleted} 件のメディアを削除しました`);
+      } else {
+        setDeleteResult("削除に失敗しました");
+      }
+    } catch {
+      setDeleteResult("削除に失敗しました");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -155,6 +178,29 @@ export function SettingsClient() {
             {cityId}）
           </p>
         )}
+      </div>
+
+      {/* Media Management */}
+      <div className="rounded-lg border border-red-200 p-6">
+        <h2 className="mb-4 text-lg font-semibold">メディア管理</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          アップロード済みのすべてのメディアファイル（画像・動画）を一括で削除します。
+          全ボードからメディアが削除されます。
+        </p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAllMedia}
+            disabled={deleting}
+          >
+            {deleting ? "削除中..." : "すべてのメディアを削除"}
+          </Button>
+          {deleteResult && (
+            <span className="text-sm text-muted-foreground">
+              {deleteResult}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

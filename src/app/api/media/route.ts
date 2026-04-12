@@ -10,7 +10,7 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "public", "uploads");
+const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -167,4 +167,30 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json(updated);
+}
+
+export async function DELETE() {
+  // Delete all media items and their files on disk
+  const items = await db.select().from(mediaItems);
+
+  const boardIds = new Set<string>();
+  for (const item of items) {
+    boardIds.add(item.boardId);
+    const filePath = path.join(UPLOAD_DIR, path.basename(item.filePath));
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch {
+      // continue even if file deletion fails
+    }
+  }
+
+  await db.delete(mediaItems);
+
+  for (const boardId of boardIds) {
+    emitSSE(boardId, "media-updated");
+  }
+
+  return NextResponse.json({ success: true, deleted: items.length });
 }
