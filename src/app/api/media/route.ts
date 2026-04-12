@@ -24,8 +24,19 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export async function GET() {
   const items = await db
-    .select()
+    .select({
+      id: mediaItems.id,
+      boardId: mediaItems.boardId,
+      type: mediaItems.type,
+      filePath: mediaItems.filePath,
+      displayOrder: mediaItems.displayOrder,
+      duration: mediaItems.duration,
+      createdAt: mediaItems.createdAt,
+      updatedAt: mediaItems.updatedAt,
+      boardName: boards.name,
+    })
     .from(mediaItems)
+    .leftJoin(boards, eq(mediaItems.boardId, boards.id))
     .orderBy(asc(mediaItems.displayOrder));
   return NextResponse.json(items);
 }
