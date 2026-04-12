@@ -25,7 +25,13 @@ export async function DELETE(
   }
 
   // Delete file from disk
-  const filePath = path.resolve(process.cwd(), "public", item.filePath);
+  // item.filePath is stored as "/uploads/filename" — strip leading slash to
+  // avoid path.resolve treating it as an absolute path.
+  const filePath = path.join(
+    process.cwd(),
+    "public",
+    item.filePath.replace(/^\//, ""),
+  );
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
