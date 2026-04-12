@@ -19,6 +19,8 @@ interface DateTimeClockProps {
   bgOpacity?: number;
   /** Clock layout variant */
   layout?: ClockLayout;
+  /** Custom font family */
+  fontFamily?: string;
 }
 
 export function DateTimeClock({
@@ -27,6 +29,7 @@ export function DateTimeClock({
   color = "#ffffff",
   bgOpacity = 0.5,
   layout = "standard",
+  fontFamily,
 }: DateTimeClockProps) {
   const [now, setNow] = useState<Date | null>(null);
 
@@ -59,14 +62,16 @@ export function DateTimeClock({
 
   const dateFontSize = Math.max(14, Math.round(timeFontSize * 0.35));
 
+  const fontStyle = fontFamily || "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+
   if (layout === "compact") {
     return (
       <div
         className="inline-flex items-center gap-4 rounded-lg px-5 py-2"
-        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontStyle }}
       >
         <span
-          className="font-mono font-bold tabular-nums tracking-wider"
+          className="font-bold tabular-nums tracking-wider"
           style={{ fontSize: timeFontSize }}
         >
           {timeStr}
@@ -85,16 +90,16 @@ export function DateTimeClock({
     return (
       <div
         className="inline-flex flex-col items-center rounded-lg px-8 py-4"
-        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontStyle }}
       >
         <span
-          className="font-mono font-bold tabular-nums tracking-wider"
+          className="font-bold tabular-nums tracking-wider"
           style={{ fontSize: timeFontSize * 1.3 }}
         >
           {hoursStr}:{minutes}
         </span>
         <span
-          className="font-mono tabular-nums opacity-70"
+          className="tabular-nums opacity-70"
           style={{ fontSize: Math.round(timeFontSize * 0.5) }}
         >
           :{seconds}{period}
@@ -113,7 +118,7 @@ export function DateTimeClock({
     return (
       <div
         className="inline-flex flex-col items-center rounded-lg px-6 py-3"
-        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+        style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontStyle }}
       >
         <span
           className="font-medium opacity-90"
@@ -122,7 +127,7 @@ export function DateTimeClock({
           {dateStr}
         </span>
         <span
-          className="mt-1 font-mono font-bold tabular-nums tracking-wider"
+          className="mt-1 font-bold tabular-nums tracking-wider"
           style={{ fontSize: timeFontSize }}
         >
           {timeStr}
@@ -135,10 +140,10 @@ export function DateTimeClock({
   return (
     <div
       className="inline-flex flex-col items-center rounded-lg px-6 py-3"
-      style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color }}
+      style={{ backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`, color, fontFamily: fontStyle }}
     >
       <span
-        className="font-mono font-bold tabular-nums tracking-wider"
+        className="font-bold tabular-nums tracking-wider"
         style={{ fontSize: timeFontSize }}
       >
         {timeStr}

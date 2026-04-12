@@ -18,6 +18,8 @@ export const GOOGLE_FONTS = [
   { value: "Reggae One", label: "Reggae One" },
   { value: "RocknRoll One", label: "RocknRoll One" },
   { value: "Train One", label: "Train One" },
+  { value: "DotGothic16", label: "DotGothic16（ドット風）" },
+  { value: "Source Code Pro", label: "Source Code Pro（等幅）" },
 ] as const;
 
 /**

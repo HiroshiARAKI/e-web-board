@@ -24,11 +24,14 @@ interface WeatherData {
 interface WeatherDisplayProps {
   color?: string;
   bgOpacity?: number;
+  /** Custom font family */
+  fontFamily?: string;
 }
 
 export function WeatherDisplay({
   color = "#ffffff",
   bgOpacity = 0.5,
+  fontFamily,
 }: WeatherDisplayProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
@@ -62,6 +65,7 @@ export function WeatherDisplay({
       style={{
         backgroundColor: `rgba(0,0,0,${bgOpacity})`,
         color,
+        fontFamily: fontFamily || undefined,
       }}
     >
       {/* Weather icon */}

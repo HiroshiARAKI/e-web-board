@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { WeatherDisplay } from "@/components/board/WeatherDisplay";
+import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps } from "@/types";
 
 /** Default config for the Retro Board template */
@@ -16,6 +17,7 @@ export const retroBoardDefaultConfig = {
   switchInterval: 5,
   showClock: false,
   showWeather: false,
+  fontFamily: "",
 };
 
 type RetroBoardConfig = typeof retroBoardDefaultConfig;
@@ -88,7 +90,7 @@ function RetroRow({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="flex overflow-hidden font-mono text-2xl font-bold tracking-widest md:text-3xl lg:text-4xl"
+          className="flex overflow-hidden text-2xl font-bold tracking-widest md:text-3xl lg:text-4xl"
         >
           {text.split("").map((char, i) => (
             <FlipChar
@@ -140,21 +142,24 @@ export default function RetroBoard({
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-[#0a0a0a]">
+    <div className="flex h-screen w-screen flex-col bg-[#0a0a0a]" style={{ fontFamily: config.fontFamily || "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
+      {config.fontFamily && (
+        <GoogleFontLoader fonts={[config.fontFamily]} />
+      )}
       {/* Header bar */}
       <div
         className="flex items-center justify-between border-b-2 px-6 py-3"
         style={{ borderColor: color }}
       >
         <span
-          className="font-mono text-sm font-bold uppercase tracking-[0.3em]"
+          className="text-sm font-bold uppercase tracking-[0.3em]"
           style={{ color, textShadow: glow }}
         >
           {board.name}
         </span>
         <div className="flex items-center gap-4">
           <span
-            className="font-mono text-sm tracking-wider opacity-70"
+            className="text-sm tracking-wider opacity-70"
             style={{ color }}
           >
             ● LIVE
@@ -170,7 +175,7 @@ export default function RetroBoard({
         >
           <div className="flex-1">
             {config.showWeather && (
-              <WeatherDisplay color={color} bgOpacity={0} />
+              <WeatherDisplay color={color} bgOpacity={0} fontFamily={config.fontFamily || undefined} />
             )}
           </div>
           {config.showClock && (
@@ -179,6 +184,7 @@ export default function RetroBoard({
               color={color}
               bgOpacity={0}
               layout="compact"
+              fontFamily={config.fontFamily || undefined}
             />
           )}
         </div>
