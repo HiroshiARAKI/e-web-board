@@ -67,7 +67,7 @@ export function TickerText({
   return (
     <div
       ref={containerRef}
-      className={`relative overflow-hidden whitespace-nowrap ${className}`}
+      className={`relative w-full overflow-hidden whitespace-nowrap ${className}`}
     >
       {/* Hidden span for measurement — always in DOM */}
       <span
