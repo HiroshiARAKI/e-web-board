@@ -130,7 +130,7 @@ export function SimpleBoardConfigEditor({
             <Label htmlFor="cfg-objectFit">メディア表示モード</Label>
             <Select value={objectFit} onValueChange={(v) => update("objectFit", v)}>
               <SelectTrigger id="cfg-objectFit" className="w-72">
-                <SelectValue />
+                <SelectValue>{objectFit === "cover" ? "全面表示（トリミングされる場合あり）" : "全体表示（余白ができる場合あり）"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="contain">全体表示（余白ができる場合あり）</SelectItem>
