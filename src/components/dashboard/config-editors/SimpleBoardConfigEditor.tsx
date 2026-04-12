@@ -218,7 +218,9 @@ export function SimpleBoardConfigEditor({
               onValueChange={(v) => update("tickerFontFamily", v === "__default__" ? "" : v)}
             >
               <SelectTrigger id="cfg-font" className="w-64">
-                <SelectValue placeholder="フォントを選択" />
+                <SelectValue placeholder="フォントを選択">
+                  {GOOGLE_FONTS.find((f) => f.value === tickerFontFamily)?.label ?? "デフォルト"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {GOOGLE_FONTS.map((f) => (

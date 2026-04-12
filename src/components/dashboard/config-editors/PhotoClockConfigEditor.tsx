@@ -28,6 +28,21 @@ export function PhotoClockConfigEditor({
   const clockLayout = (config.clockLayout as string) ?? "standard";
   const is24Hour = (config.is24Hour as boolean) ?? true;
 
+  const positionLabels: Record<string, string> = {
+    "top-left": "左上",
+    "top-right": "右上",
+    center: "中央",
+    "bottom-left": "左下",
+    "bottom-right": "右下",
+  };
+
+  const layoutLabels: Record<string, string> = {
+    standard: "スタンダード（時刻 → 日付）",
+    compact: "コンパクト（横並び）",
+    "large-time": "大時刻（時分を大きく表示）",
+    "date-top": "日付上（日付 → 時刻）",
+  };
+
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
   }
@@ -53,7 +68,7 @@ export function PhotoClockConfigEditor({
         <Label htmlFor="cfg-clockPos">時計の位置</Label>
         <Select value={clockPosition} onValueChange={(v) => update("clockPosition", v)}>
           <SelectTrigger id="cfg-clockPos" className="w-48">
-            <SelectValue />
+            <SelectValue placeholder="位置を選択">{positionLabels[clockPosition] ?? clockPosition}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="top-left">左上</SelectItem>
@@ -69,7 +84,7 @@ export function PhotoClockConfigEditor({
         <Label htmlFor="cfg-clockLayout">時計レイアウト</Label>
         <Select value={clockLayout} onValueChange={(v) => update("clockLayout", v)}>
           <SelectTrigger id="cfg-clockLayout" className="w-64">
-            <SelectValue />
+            <SelectValue placeholder="レイアウトを選択">{layoutLabels[clockLayout] ?? clockLayout}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="standard">スタンダード（時刻 → 日付）</SelectItem>
