@@ -20,7 +20,7 @@ data/
 *.db-journal
 
 # uploads
-public/uploads/
+uploads/
 
 # os
 .DS_Store

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "public", "uploads");
+const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",

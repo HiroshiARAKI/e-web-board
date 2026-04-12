@@ -29,7 +29,6 @@ export async function DELETE(
   // the path under the public/uploads/ directory.
   const filePath = path.join(
     process.cwd(),
-    "public",
     "uploads",
     path.basename(item.filePath),
   );

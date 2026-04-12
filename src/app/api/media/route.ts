@@ -10,7 +10,7 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "public", "uploads");
+const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
