@@ -17,6 +17,8 @@ export const simpleBoardDefaultConfig = {
   textColor: "#ffffff",
   tickerBgColor: "#1a1a2e",
   tickerFontFamily: "",
+  tickerFontSize: 18,
+  tickerPosition: "bottom" as "top" | "bottom",
   showClock: false,
   showWeather: false,
   objectFit: "contain" as "contain" | "cover",
@@ -42,6 +44,29 @@ export default function SimpleBoard({
 
   const tickerMessages = messages.map((m) => m.content);
 
+  // Dynamic ticker height based on font size + padding
+  const tickerHeight = config.tickerFontSize + 24;
+
+  const tickerElement = tickerMessages.length > 0 && (
+    <div
+      className="flex items-center border-white/10 px-4 font-medium shrink-0"
+      style={{
+        color: config.textColor,
+        backgroundColor: config.tickerBgColor,
+        height: tickerHeight,
+        fontSize: config.tickerFontSize,
+        borderTop: config.tickerPosition === "bottom" ? "1px solid rgba(255,255,255,0.1)" : undefined,
+        borderBottom: config.tickerPosition === "top" ? "1px solid rgba(255,255,255,0.1)" : undefined,
+      }}
+    >
+      <TickerText
+        messages={tickerMessages}
+        speed={config.tickerSpeed}
+        fontFamily={config.tickerFontFamily || undefined}
+      />
+    </div>
+  );
+
   return (
     <div
       className="flex h-screen w-screen flex-col"
@@ -50,6 +75,10 @@ export default function SimpleBoard({
       {config.tickerFontFamily && (
         <GoogleFontLoader fonts={[config.tickerFontFamily]} />
       )}
+
+      {/* Top ticker */}
+      {config.tickerPosition === "top" && tickerElement}
+
       {/* Main area — slideshow */}
       <div className="relative flex-1 min-h-0">
         <MediaSlider mediaItems={sorted} interval={config.slideInterval} objectFit={config.objectFit} />
@@ -74,18 +103,7 @@ export default function SimpleBoard({
       </div>
 
       {/* Bottom ticker */}
-      {tickerMessages.length > 0 && (
-        <div
-          className="h-14 flex items-center border-t border-white/10 px-4 text-lg font-medium"
-          style={{ color: config.textColor, backgroundColor: config.tickerBgColor }}
-        >
-          <TickerText
-            messages={tickerMessages}
-            speed={config.tickerSpeed}
-            fontFamily={config.tickerFontFamily || undefined}
-          />
-        </div>
-      )}
+      {config.tickerPosition === "bottom" && tickerElement}
     </div>
   );
 }
