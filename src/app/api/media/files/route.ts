@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { mediaItems, boards } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { emitSSE } from "@/lib/sse";
+import { deleteThumbnail } from "@/lib/image";
 import path from "path";
 import fs from "fs";
 
@@ -26,7 +27,7 @@ export async function GET() {
 
   const entries = fs.readdirSync(UPLOAD_DIR);
   const files = entries.filter((name) => {
-    if (name.startsWith(".")) return false;
+    if (name.startsWith(".") || name === "thumbs") return false;
     const ext = path.extname(name).toLowerCase();
     return MEDIA_EXTS.has(ext);
   });
@@ -54,13 +55,27 @@ export async function GET() {
     fileToBoards.set(basename, existing);
   }
 
+  const thumbDir = path.join(UPLOAD_DIR, "thumbs");
   const result = files.map((filename) => {
     const ext = path.extname(filename).toLowerCase();
     const stat = fs.statSync(path.join(UPLOAD_DIR, filename));
+    const isImage = IMAGE_EXTS.has(ext);
+
+    // Determine thumbnail path (GIF thumbnails are stored as .jpg)
+    let thumbPath: string | null = null;
+    if (isImage) {
+      const thumbExt = ext === ".gif" ? ".jpg" : ext;
+      const thumbFilename = path.basename(filename, ext) + thumbExt;
+      if (fs.existsSync(path.join(thumbDir, thumbFilename))) {
+        thumbPath = `/uploads/thumbs/${thumbFilename}`;
+      }
+    }
+
     return {
       filename,
       filePath: `/uploads/${filename}`,
-      type: IMAGE_EXTS.has(ext) ? "image" : "video",
+      thumbPath,
+      type: isImage ? "image" : "video",
       size: stat.size,
       modifiedAt: stat.mtime.toISOString(),
       boards: fileToBoards.get(filename) ?? [],
@@ -109,6 +124,9 @@ export async function DELETE(request: NextRequest) {
       { status: 500 },
     );
   }
+
+  // Delete thumbnail
+  deleteThumbnail(sanitized);
 
   // Delete all DB records that reference this file and notify boards
   const dbPath = `/uploads/${sanitized}`;

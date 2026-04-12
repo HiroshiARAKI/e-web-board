@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { mediaItems, boards } from "@/db/schema";
+import { mediaItems, boards, settings } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { updateMediaOrderSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
+import {
+  resizeImage,
+  generateThumbnail,
+  deleteThumbnail,
+  DEFAULT_IMAGE_MAX_LONG_EDGE,
+} from "@/lib/image";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -106,8 +112,24 @@ export async function POST(request: NextRequest) {
   // Ensure upload directory exists
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-  // Write file to disk
-  const buffer = Buffer.from(await file.arrayBuffer());
+  // Write file to disk (resize images if needed)
+  let buffer: Buffer = Buffer.from(await file.arrayBuffer());
+
+  if (mediaType === "image") {
+    // Read the max long edge setting
+    const maxSetting = await db.query.settings.findFirst({
+      where: eq(settings.key, "imageMaxLongEdge"),
+    });
+    const maxLongEdge = maxSetting
+      ? parseInt(maxSetting.value, 10)
+      : DEFAULT_IMAGE_MAX_LONG_EDGE;
+
+    buffer = Buffer.from(await resizeImage(buffer, sanitizedExt, maxLongEdge));
+
+    // Generate thumbnail
+    await generateThumbnail(buffer, filename);
+  }
+
   fs.writeFileSync(filePath, buffer);
 
   // Calculate display order (append at end)
@@ -198,6 +220,7 @@ export async function DELETE() {
     } catch {
       // continue even if file deletion fails
     }
+    deleteThumbnail(basename);
   }
 
   await db.delete(mediaItems);
@@ -206,14 +229,25 @@ export async function DELETE() {
   if (fs.existsSync(UPLOAD_DIR)) {
     const remaining = fs.readdirSync(UPLOAD_DIR);
     for (const name of remaining) {
-      if (name.startsWith(".")) continue;
+      if (name.startsWith(".") || name === "thumbs") continue;
       if (deletedFiles.has(name)) continue;
       try {
         fs.unlinkSync(path.join(UPLOAD_DIR, name));
       } catch {
         // ignore
       }
+      deleteThumbnail(name);
     }
+  }
+
+  // Clean up thumbs directory entirely
+  const thumbDir = path.join(UPLOAD_DIR, "thumbs");
+  try {
+    if (fs.existsSync(thumbDir)) {
+      fs.rmSync(thumbDir, { recursive: true });
+    }
+  } catch {
+    // ignore
   }
 
   for (const boardId of boardIds) {

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { mediaItems } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { emitSSE } from "@/lib/sse";
+import { deleteThumbnail } from "@/lib/image";
 import path from "path";
 import fs from "fs";
 
@@ -39,6 +40,9 @@ export async function DELETE(
   } catch {
     // File may already be deleted; continue with DB cleanup
   }
+
+  // Delete thumbnail
+  deleteThumbnail(path.basename(item.filePath));
 
   // Delete from DB
   await db.delete(mediaItems).where(eq(mediaItems.id, id));
