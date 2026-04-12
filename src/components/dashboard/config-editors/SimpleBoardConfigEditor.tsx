@@ -4,6 +4,7 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -61,6 +62,8 @@ export function SimpleBoardConfigEditor({
   const textColor = (config.textColor as string) ?? "#ffffff";
   const tickerBgColor = (config.tickerBgColor as string) ?? "#1a1a2e";
   const tickerFontFamily = (config.tickerFontFamily as string) ?? "";
+  const showClock = (config.showClock as boolean) ?? false;
+  const showWeather = (config.showWeather as boolean) ?? false;
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -76,6 +79,34 @@ export function SimpleBoardConfigEditor({
 
   return (
     <div className="space-y-6">
+      {/* Clock & Weather */}
+      <div>
+        <h4 className="mb-3 text-sm font-semibold">時計・天気</h4>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="cfg-showClock"
+              checked={showClock}
+              onCheckedChange={(v) => update("showClock", v)}
+            />
+            <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch
+              id="cfg-showWeather"
+              checked={showWeather}
+              onCheckedChange={(v) => update("showWeather", v)}
+            />
+            <Label htmlFor="cfg-showWeather">天気予報を表示</Label>
+          </div>
+          {showWeather && (
+            <p className="text-xs text-muted-foreground">
+              表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Slideshow settings */}
       <div>
         <h4 className="mb-3 text-sm font-semibold">スライドショー</h4>

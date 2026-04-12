@@ -5,6 +5,8 @@
 import { MediaSlider } from "@/components/board/MediaSlider";
 import { TickerText } from "@/components/board/TickerText";
 import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
+import { DateTimeClock } from "@/components/board/DateTimeClock";
+import { WeatherDisplay } from "@/components/board/WeatherDisplay";
 import type { BoardTemplateProps } from "@/types";
 
 /** Default config for the Simple Board template */
@@ -15,6 +17,8 @@ export const simpleBoardDefaultConfig = {
   textColor: "#ffffff",
   tickerBgColor: "#1a1a2e",
   tickerFontFamily: "",
+  showClock: false,
+  showWeather: false,
 };
 
 type SimpleBoardConfig = typeof simpleBoardDefaultConfig;
@@ -46,8 +50,25 @@ export default function SimpleBoard({
         <GoogleFontLoader fonts={[config.tickerFontFamily]} />
       )}
       {/* Main area — slideshow */}
-      <div className="flex-1 min-h-0">
+      <div className="relative flex-1 min-h-0">
         <MediaSlider mediaItems={sorted} interval={config.slideInterval} />
+
+        {/* Clock & Weather overlay */}
+        {(config.showClock || config.showWeather) && (
+          <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+            {config.showClock && (
+              <DateTimeClock
+                timeFontSize={36}
+                color="#ffffff"
+                bgOpacity={0.5}
+                layout="compact"
+              />
+            )}
+            {config.showWeather && (
+              <WeatherDisplay color="#ffffff" bgOpacity={0.5} />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bottom ticker */}

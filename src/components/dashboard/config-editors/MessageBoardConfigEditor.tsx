@@ -4,6 +4,7 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 interface MessageBoardConfigEditorProps {
   config: Record<string, unknown>;
@@ -19,6 +20,8 @@ export function MessageBoardConfigEditor({
   const backgroundColor = (config.backgroundColor as string) ?? "#1e293b";
   const textColor = (config.textColor as string) ?? "#f8fafc";
   const accentColor = (config.accentColor as string) ?? "#3b82f6";
+  const showClock = (config.showClock as boolean) ?? false;
+  const showWeather = (config.showWeather as boolean) ?? false;
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -26,6 +29,29 @@ export function MessageBoardConfigEditor({
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Switch
+          id="cfg-showClock"
+          checked={showClock}
+          onCheckedChange={(v) => update("showClock", v)}
+        />
+        <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Switch
+          id="cfg-showWeather"
+          checked={showWeather}
+          onCheckedChange={(v) => update("showWeather", v)}
+        />
+        <Label htmlFor="cfg-showWeather">天気予報を表示</Label>
+      </div>
+      {showWeather && (
+        <p className="text-xs text-muted-foreground">
+          表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+        </p>
+      )}
+
       <div className="space-y-1.5">
         <Label htmlFor="cfg-maxDisplay">最大表示件数</Label>
         <Input
