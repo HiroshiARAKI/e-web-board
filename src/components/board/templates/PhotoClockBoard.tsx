@@ -2,25 +2,45 @@
 
 import { MediaSlider } from "@/components/board/MediaSlider";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
+import type { ClockLayout } from "@/components/board/DateTimeClock";
 import type { BoardTemplateProps } from "@/types";
+
+type ClockPosition =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right"
+  | "center";
 
 /** Default config for the Photo-Clock Board template */
 export const photoClockDefaultConfig = {
   slideInterval: 8,
   clockPosition: "bottom-right" as ClockPosition,
-  clockFontSize: "text-5xl",
+  clockFontSize: 48,
   clockColor: "#ffffff",
   clockBgOpacity: 0.5,
+  clockLayout: "standard" as ClockLayout,
   is24Hour: true,
 };
-
-type ClockPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 type PhotoClockConfig = typeof photoClockDefaultConfig;
 
 function parseConfig(raw: unknown): PhotoClockConfig {
   const cfg = (raw && typeof raw === "object" ? raw : {}) as Partial<PhotoClockConfig>;
-  return { ...photoClockDefaultConfig, ...cfg };
+
+  // Migrate old Tailwind class fontSize to pixel value
+  const merged = { ...photoClockDefaultConfig, ...cfg };
+  if (typeof merged.clockFontSize === "string") {
+    const sizeMap: Record<string, number> = {
+      "text-3xl": 30,
+      "text-5xl": 48,
+      "text-7xl": 72,
+      "text-9xl": 128,
+    };
+    merged.clockFontSize =
+      sizeMap[merged.clockFontSize as string] ?? 48;
+  }
+  return merged;
 }
 
 const positionClasses: Record<ClockPosition, string> = {
@@ -28,6 +48,7 @@ const positionClasses: Record<ClockPosition, string> = {
   "top-right": "top-6 right-6",
   "bottom-left": "bottom-6 left-6",
   "bottom-right": "bottom-6 right-6",
+  center: "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
 };
 
 export default function PhotoClockBoard({
@@ -51,9 +72,10 @@ export default function PhotoClockBoard({
       >
         <DateTimeClock
           is24Hour={config.is24Hour}
-          fontSize={config.clockFontSize}
+          timeFontSize={config.clockFontSize}
           color={config.clockColor}
           bgOpacity={config.clockBgOpacity}
+          layout={config.clockLayout}
         />
       </div>
     </div>

@@ -7,7 +7,7 @@ import type { BoardTemplateProps, Message } from "@/types";
 /** Default config for the Message Board template */
 export const messageBoardDefaultConfig = {
   maxDisplayCount: 10,
-  fontSize: "text-xl" as string,
+  fontSize: 20 as number,
   backgroundColor: "#1e293b",
   textColor: "#f8fafc",
   accentColor: "#3b82f6",
@@ -15,9 +15,25 @@ export const messageBoardDefaultConfig = {
 
 type MessageBoardConfig = typeof messageBoardDefaultConfig;
 
+/** Migration map: old Tailwind class → pixel size */
+const tailwindToPx: Record<string, number> = {
+  "text-base": 16,
+  "text-lg": 18,
+  "text-xl": 20,
+  "text-2xl": 24,
+  "text-3xl": 30,
+};
+
 function parseConfig(raw: unknown): MessageBoardConfig {
   const cfg = (raw && typeof raw === "object" ? raw : {}) as Partial<MessageBoardConfig>;
-  return { ...messageBoardDefaultConfig, ...cfg };
+  // Migrate old Tailwind class values to pixel numbers
+  let fontSize = messageBoardDefaultConfig.fontSize;
+  if (typeof cfg.fontSize === "string" && cfg.fontSize in tailwindToPx) {
+    fontSize = tailwindToPx[cfg.fontSize];
+  } else if (typeof cfg.fontSize === "number" && cfg.fontSize > 0) {
+    fontSize = cfg.fontSize;
+  }
+  return { ...messageBoardDefaultConfig, ...cfg, fontSize };
 }
 
 /** Priority badge color */
@@ -120,7 +136,7 @@ export default function MessageBoard({
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {currentMessages.length === 0 ? (
           <div className="flex h-full items-center justify-center opacity-40">
-            <p className={config.fontSize}>メッセージはありません</p>
+            <p style={{ fontSize: `${config.fontSize}px` }}>メッセージはありません</p>
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
@@ -173,7 +189,7 @@ export default function MessageBoard({
                       </span>
                     )}
                   </div>
-                  <p className={`${config.fontSize} leading-relaxed`}>{msg.content}</p>
+                  <p className="leading-relaxed" style={{ fontSize: `${config.fontSize}px` }}>{msg.content}</p>
                 </motion.div>
               );
             })}

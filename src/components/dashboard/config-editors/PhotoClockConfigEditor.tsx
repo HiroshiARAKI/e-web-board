@@ -22,9 +22,10 @@ export function PhotoClockConfigEditor({
 }: PhotoClockConfigEditorProps) {
   const slideInterval = (config.slideInterval as number) ?? 8;
   const clockPosition = (config.clockPosition as string) ?? "bottom-right";
-  const clockFontSize = (config.clockFontSize as string) ?? "text-5xl";
+  const clockFontSize = (config.clockFontSize as number) ?? 48;
   const clockColor = (config.clockColor as string) ?? "#ffffff";
   const clockBgOpacity = (config.clockBgOpacity as number) ?? 0.5;
+  const clockLayout = (config.clockLayout as string) ?? "standard";
   const is24Hour = (config.is24Hour as boolean) ?? true;
 
   function update(key: string, value: unknown) {
@@ -57,6 +58,7 @@ export function PhotoClockConfigEditor({
           <SelectContent>
             <SelectItem value="top-left">左上</SelectItem>
             <SelectItem value="top-right">右上</SelectItem>
+            <SelectItem value="center">中央</SelectItem>
             <SelectItem value="bottom-left">左下</SelectItem>
             <SelectItem value="bottom-right">右下</SelectItem>
           </SelectContent>
@@ -64,18 +66,36 @@ export function PhotoClockConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-clockSize">時計のサイズ</Label>
-        <Select value={clockFontSize} onValueChange={(v) => update("clockFontSize", v)}>
-          <SelectTrigger id="cfg-clockSize" className="w-48">
+        <Label htmlFor="cfg-clockLayout">時計レイアウト</Label>
+        <Select value={clockLayout} onValueChange={(v) => update("clockLayout", v)}>
+          <SelectTrigger id="cfg-clockLayout" className="w-64">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="text-3xl">小</SelectItem>
-            <SelectItem value="text-5xl">中</SelectItem>
-            <SelectItem value="text-7xl">大</SelectItem>
-            <SelectItem value="text-9xl">特大</SelectItem>
+            <SelectItem value="standard">スタンダード（時刻 → 日付）</SelectItem>
+            <SelectItem value="compact">コンパクト（横並び）</SelectItem>
+            <SelectItem value="large-time">大時刻（時分を大きく表示）</SelectItem>
+            <SelectItem value="date-top">日付上（日付 → 時刻）</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cfg-clockSize">時計の文字サイズ: {clockFontSize}px</Label>
+        <input
+          id="cfg-clockSize"
+          type="range"
+          min={24}
+          max={160}
+          step={4}
+          value={clockFontSize}
+          onChange={(e) => update("clockFontSize", parseInt(e.target.value, 10))}
+          className="w-64"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground w-64">
+          <span>24px</span>
+          <span>160px</span>
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -119,7 +139,7 @@ export function PhotoClockConfigEditor({
           checked={is24Hour}
           onCheckedChange={(v) => update("is24Hour", v)}
         />
-        <Label htmlFor="cfg-24h">24時間表示</Label>
+        <Label htmlFor="cfg-24h">24時間表示（OFFで12時間+AM/PM表記）</Label>
       </div>
     </div>
   );

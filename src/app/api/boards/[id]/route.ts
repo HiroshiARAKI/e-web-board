@@ -63,7 +63,7 @@ export async function PATCH(
   const updates: Record<string, unknown> = {};
   if (result.data.name !== undefined) updates.name = result.data.name;
   if (result.data.templateId !== undefined) updates.templateId = result.data.templateId;
-  if (result.data.config !== undefined) updates.config = JSON.stringify(result.data.config);
+  if (result.data.config !== undefined) updates.config = result.data.config;
   if (result.data.isActive !== undefined) updates.isActive = result.data.isActive;
 
   if (Object.keys(updates).length === 0) {
