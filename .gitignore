@@ -39,6 +39,9 @@ pnpm-debug.log*
 # turbo
 .turbo/
 
+# planning docs
+PLANNED*
+
 # vercel
 .vercel/
 tsconfig.tsbuildinfo
