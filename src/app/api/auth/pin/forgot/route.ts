@@ -6,6 +6,20 @@ import { settings, pinResetTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateResetToken, PIN_SETTINGS, RESET_TOKEN_TTL_MS } from "@/lib/pin";
 import { isSmtpConfigured, sendPinResetEmail } from "@/lib/mail";
+import { networkInterfaces } from "os";
+
+/** Get the first non-internal IPv4 address */
+function getLocalIp(): string | null {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] ?? []) {
+      if (net.family === "IPv4" && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return null;
+}
 
 /** POST /api/auth/pin/forgot — verify email and issue reset token */
 export async function POST(request: NextRequest) {
@@ -34,9 +48,12 @@ export async function POST(request: NextRequest) {
 
   await db.insert(pinResetTokens).values({ token, expiresAt });
 
-  // Build reset URL
-  const host = request.headers.get("host") || "localhost:3000";
+  // Build reset URL — prefer local network IP so other devices can access it
+  const requestHost = request.headers.get("host") || "localhost:3000";
   const protocol = request.headers.get("x-forwarded-proto") || "http";
+  const localIp = getLocalIp();
+  const port = requestHost.includes(":") ? `:${requestHost.split(":")[1]}` : "";
+  const host = localIp ? `${localIp}${port}` : requestHost;
   const resetUrl = `${protocol}://${host}/pin/reset/${token}`;
 
   // If SMTP is configured, send email; otherwise return URL directly
