@@ -68,3 +68,25 @@ export const settings = sqliteTable("settings", {
     .default(sql`(datetime('now'))`)
     .$onUpdate(() => new Date().toISOString()),
 });
+
+export const pinResetTokens = sqliteTable("pin_reset_tokens", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  token: text("token").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
+export const pinAttempts = sqliteTable("pin_attempts", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  ipAddress: text("ip_address").notNull(),
+  attemptedAt: text("attempted_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
