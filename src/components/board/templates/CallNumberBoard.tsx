@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
+import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps } from "@/types";
 
 /** Default config for the Call Number Board template */
@@ -72,6 +73,8 @@ export default function CallNumberBoard({
       className="flex h-screen w-screen flex-col overflow-hidden"
       style={{ backgroundColor: config.backgroundColor }}
     >
+      <GoogleFontLoader fonts={["Noto Sans JP"]} />
+
       {/* Header with clock */}
       {config.showClock && (
         <div className="flex shrink-0 items-center justify-end px-6 py-3">
@@ -112,8 +115,8 @@ export default function CallNumberBoard({
               {waiting.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-3xl font-bold tabular-nums"
-                  style={{ color: config.waitingTextColor }}
+                  className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-3xl font-bold"
+                  style={{ color: config.waitingTextColor, fontFamily: '"Noto Sans JP", system-ui, sans-serif', fontVariantNumeric: "tabular-nums" }}
                 >
                   {m.content}
                 </div>
@@ -151,24 +154,17 @@ export default function CallNumberBoard({
                 return (
                   <div
                     key={m.id}
-                    className={`flex items-center justify-center rounded-xl px-6 py-4 text-3xl font-bold tabular-nums transition-all ${
+                    className={`flex items-center justify-center rounded-xl px-6 py-4 transition-colors ${
                       highlighted
-                        ? "animate-pulse border-2 shadow-lg scale-110"
-                        : "border border-white/10 bg-white/5"
+                        ? "animate-pulse text-4xl font-extrabold"
+                        : "border border-white/10 bg-white/5 text-3xl font-bold"
                     }`}
                     style={{
                       color: highlighted
                         ? config.highlightColor
                         : config.calledTextColor,
-                      backgroundColor: highlighted
-                        ? `${config.highlightColor}20`
-                        : undefined,
-                      borderColor: highlighted
-                        ? config.highlightColor
-                        : undefined,
-                      boxShadow: highlighted
-                        ? `0 0 24px ${config.highlightColor}40`
-                        : undefined,
+                      fontFamily: '"Noto Sans JP", system-ui, sans-serif',
+                      fontVariantNumeric: "tabular-nums",
                     }}
                   >
                     {m.content}

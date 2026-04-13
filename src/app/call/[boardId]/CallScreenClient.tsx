@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useSSE } from "@/hooks/useSSE";
+import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { Message } from "@/types";
 
 interface CallScreenClientProps {
@@ -21,6 +22,8 @@ export default function CallScreenClient({
   const [issuing, setIssuing] = useState(false);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showIssueInput, setShowIssueInput] = useState(false);
+  const [issueNumber, setIssueNumber] = useState("");
 
   // Refetch messages on SSE events
   const refetchMessages = useCallback(async () => {
@@ -51,6 +54,15 @@ export default function CallScreenClient({
     [messages],
   );
 
+  // Called messages (priority >= 1), most recent first
+  const called = useMemo(
+    () =>
+      messages
+        .filter((m) => m.priority >= 1)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [messages],
+  );
+
   async function handleCall(msg: Message) {
     setCalling(true);
     try {
@@ -75,28 +87,37 @@ export default function CallScreenClient({
     }
   }
 
-  /** Compute next sequential number (e.g. "00001", "00002") */
+  /** Compute next sequential number (e.g. "00001", "00002"), wraps after 99999 */
   function getNextNumber(): string {
     let maxNum = 0;
     for (const m of messages) {
       const n = parseInt(m.content, 10);
       if (!isNaN(n) && n > maxNum) maxNum = n;
     }
-    return String(maxNum + 1).padStart(5, "0");
+    const next = maxNum >= 99999 ? 1 : maxNum + 1;
+    return String(next).padStart(5, "0");
+  }
+
+  function openIssueDialog() {
+    setIssueNumber(getNextNumber());
+    setShowIssueInput(true);
   }
 
   async function handleIssueNumber() {
+    const num = issueNumber.trim();
+    if (!num) return;
     setIssuing(true);
     try {
-      const nextNum = getNextNumber();
+      const content = /^\d+$/.test(num) ? num.padStart(5, "0") : num;
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ boardId, content: nextNum, priority: 0 }),
+        body: JSON.stringify({ boardId, content, priority: 0 }),
       });
       if (res.ok) {
         const inserted = await res.json();
         setMessages((prev) => [...prev, inserted]);
+        setShowIssueInput(false);
       }
     } catch {
       // Will be synced on next SSE event
@@ -124,6 +145,7 @@ export default function CallScreenClient({
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
+      <GoogleFontLoader fonts={["Noto Sans JP"]} />
       {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-white px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
@@ -131,11 +153,10 @@ export default function CallScreenClient({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleIssueNumber}
-              disabled={issuing}
-              className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:bg-gray-300"
+              onClick={openIssueDialog}
+              className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
             >
-              {issuing ? "発行中..." : "＋ 番号発行"}
+              ＋ 番号発行
             </button>
             <button
               type="button"
@@ -178,7 +199,8 @@ export default function CallScreenClient({
                 key={msg.id}
                 type="button"
                 onClick={() => setConfirmTarget(msg)}
-                className="flex items-center justify-center rounded-xl border-2 border-gray-200 bg-white px-3 py-5 text-2xl font-bold tabular-nums text-gray-900 shadow-sm transition-all active:scale-95 hover:border-blue-400 hover:bg-blue-50 sm:text-3xl"
+                className="flex items-center justify-center rounded-xl border-2 border-gray-200 bg-white px-3 py-5 text-2xl font-bold text-gray-900 shadow-sm transition-all active:scale-95 hover:border-blue-400 hover:bg-blue-50 sm:text-3xl"
+                style={{ fontFamily: '"Noto Sans JP", system-ui, sans-serif', fontVariantNumeric: "tabular-nums" }}
               >
                 {msg.content}
               </button>
@@ -186,6 +208,24 @@ export default function CallScreenClient({
           </div>
         )}
       </main>
+
+      {/* Called numbers section */}
+      {called.length > 0 && (
+        <div className="mx-auto w-full max-w-2xl border-t border-gray-200 px-4 pb-4 pt-2">
+          <p className="mb-2 text-xs font-medium text-gray-400">呼び出し済み ({called.length}件)</p>
+          <div className="flex flex-wrap gap-1.5">
+            {called.map((msg) => (
+              <span
+                key={msg.id}
+                className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-400"
+                style={{ fontFamily: '"Noto Sans JP", system-ui, sans-serif', fontVariantNumeric: "tabular-nums" }}
+              >
+                {msg.content}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Confirm dialog */}
       {confirmTarget && (
@@ -214,6 +254,44 @@ export default function CallScreenClient({
                 className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
               >
                 {calling ? "処理中..." : "はい"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Issue number dialog */}
+      {showIssueInput && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xs rounded-2xl bg-white p-6 shadow-xl">
+            <p className="mb-4 text-center text-lg font-semibold text-gray-900">
+              番号発行
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={issueNumber}
+              onChange={(e) => setIssueNumber(e.target.value)}
+              className="mb-4 w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-2xl font-bold tracking-widest text-gray-900 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+              style={{ fontFamily: '"Noto Sans JP", system-ui, sans-serif', fontVariantNumeric: "tabular-nums" }}
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowIssueInput(false)}
+                disabled={issuing}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleIssueNumber}
+                disabled={issuing || !issueNumber.trim()}
+                className="flex-1 rounded-lg bg-green-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-green-700 disabled:bg-gray-300"
+              >
+                {issuing ? "発行中..." : "発行"}
               </button>
             </div>
           </div>
