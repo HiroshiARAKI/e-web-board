@@ -11,6 +11,12 @@ services:
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      # SMTP settings for PIN reset email (optional)
+      # - SMTP_HOST=smtp.example.com
+      # - SMTP_PORT=587
+      # - SMTP_USER=noreply@example.com
+      # - SMTP_PASS=your-password-here
+      # - SMTP_FROM=noreply@example.com
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))\""]
