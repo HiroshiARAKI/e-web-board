@@ -31,11 +31,30 @@ export default function CallScreenAdmin({
   config,
   onUpdateConfig,
 }: CallScreenAdminProps) {
-  const origin =
-    typeof window !== "undefined" ? window.location.origin : "";
+  const [networkOrigin, setNetworkOrigin] = useState("");
   const [copied, setCopied] = useState(false);
 
   const passcode = (config.passcode as string) ?? "";
+
+  // Fetch local network IP for the URL
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/network");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ip) {
+          const port = window.location.port;
+          const protocol = window.location.protocol;
+          setNetworkOrigin(`${protocol}//${data.ip}${port ? `:${port}` : ""}`);
+        } else {
+          setNetworkOrigin(window.location.origin);
+        }
+      } catch {
+        setNetworkOrigin(window.location.origin);
+      }
+    })();
+  }, []);
 
   // Auto-generate passcode if empty
   useEffect(() => {
@@ -48,7 +67,7 @@ export default function CallScreenAdmin({
     onUpdateConfig({ ...config, passcode: generatePasscode() });
   }, [config, onUpdateConfig]);
 
-  const callUrl = `${origin}/call/${boardId}`;
+  const callUrl = `${networkOrigin}/call/${boardId}`;
   const callUrlWithPasscode = `${callUrl}?passcode=${passcode}`;
 
   async function handleCopyUrl() {
@@ -116,7 +135,7 @@ export default function CallScreenAdmin({
         </div>
 
         {/* QR Code */}
-        {origin && passcode && (
+        {networkOrigin && passcode && (
           <div className="space-y-2">
             <label className="text-sm font-medium">
               QRコード（パスコード込み）

@@ -18,6 +18,9 @@ export default function CallScreenClient({
   const [messages, setMessages] = useState(initialMessages);
   const [confirmTarget, setConfirmTarget] = useState<Message | null>(null);
   const [calling, setCalling] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Refetch messages on SSE events
   const refetchMessages = useCallback(async () => {
@@ -72,15 +75,80 @@ export default function CallScreenClient({
     }
   }
 
+  /** Compute next sequential number (e.g. "00001", "00002") */
+  function getNextNumber(): string {
+    let maxNum = 0;
+    for (const m of messages) {
+      const n = parseInt(m.content, 10);
+      if (!isNaN(n) && n > maxNum) maxNum = n;
+    }
+    return String(maxNum + 1).padStart(5, "0");
+  }
+
+  async function handleIssueNumber() {
+    setIssuing(true);
+    try {
+      const nextNum = getNextNumber();
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boardId, content: nextNum, priority: 0 }),
+      });
+      if (res.ok) {
+        const inserted = await res.json();
+        setMessages((prev) => [...prev, inserted]);
+      }
+    } catch {
+      // Will be synced on next SSE event
+    } finally {
+      setIssuing(false);
+    }
+  }
+
+  async function handleDeleteAll() {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/boards/${boardId}/messages`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setMessages([]);
+        setShowDeleteAll(false);
+      }
+    } catch {
+      // Will be synced on next SSE event
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-white px-4 py-3 shadow-sm">
-        <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900">呼び出し画面</h1>
-          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-            待機中: {waiting.length}件
-          </span>
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
+          <h1 className="shrink-0 text-lg font-bold text-gray-900">呼び出し画面</h1>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleIssueNumber}
+              disabled={issuing}
+              className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:bg-gray-300"
+            >
+              {issuing ? "発行中..." : "＋ 番号発行"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteAll(true)}
+              disabled={messages.length === 0}
+              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:bg-gray-300"
+            >
+              全削除
+            </button>
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+              待機中: {waiting.length}件
+            </span>
+          </div>
         </div>
       </header>
 
@@ -146,6 +214,38 @@ export default function CallScreenClient({
                 className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
               >
                 {calling ? "処理中..." : "はい"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete all confirmation dialog */}
+      {showDeleteAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xs rounded-2xl bg-white p-6 shadow-xl">
+            <p className="mb-2 text-center text-lg font-bold text-gray-900">
+              全ての番号を削除
+            </p>
+            <p className="mb-6 text-center text-sm text-gray-500">
+              全 {messages.length} 件の番号を完全に削除します。この操作は取り消せません。
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAll(false)}
+                disabled={deleting}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAll}
+                disabled={deleting}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 disabled:bg-gray-300"
+              >
+                {deleting ? "削除中..." : "削除する"}
               </button>
             </div>
           </div>
