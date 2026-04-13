@@ -10,6 +10,7 @@ export default function PinForgotPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [resetUrl, setResetUrl] = useState("");
+  const [method, setMethod] = useState<"email" | "link" | "">("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -34,6 +35,7 @@ export default function PinForgotPage() {
       }
 
       setSubmitted(true);
+      if (data.method) setMethod(data.method);
       if (data.resetUrl) {
         setResetUrl(data.resetUrl);
       }
@@ -90,7 +92,15 @@ export default function PinForgotPage() {
             </form>
           ) : (
             <div className="space-y-4">
-              {resetUrl ? (
+              {method === "email" ? (
+                <p className="text-center text-sm text-gray-600">
+                  メールアドレスが登録されている場合、初期化リンクをメールで送信しました。
+                  <br />
+                  <span className="text-xs text-gray-400">
+                    メールが届かない場合は迷惑メールフォルダをご確認ください。
+                  </span>
+                </p>
+              ) : resetUrl ? (
                 <>
                   <p className="text-center text-sm text-gray-600">
                     メールアドレスが確認されました。以下のリンクからPINを再設定してください。

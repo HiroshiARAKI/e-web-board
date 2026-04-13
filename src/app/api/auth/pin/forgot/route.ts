@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { settings, pinResetTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateResetToken, PIN_SETTINGS, RESET_TOKEN_TTL_MS } from "@/lib/pin";
+import { isSmtpConfigured, sendPinResetEmail } from "@/lib/mail";
 
 /** POST /api/auth/pin/forgot — verify email and issue reset token */
 export async function POST(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   if (!row?.value || row.value !== email) {
     // Always return success to prevent email enumeration
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, method: isSmtpConfigured() ? "email" : "link" });
   }
 
   // Generate reset token
@@ -38,5 +39,11 @@ export async function POST(request: NextRequest) {
   const protocol = request.headers.get("x-forwarded-proto") || "http";
   const resetUrl = `${protocol}://${host}/pin/reset/${token}`;
 
-  return NextResponse.json({ success: true, resetUrl });
+  // If SMTP is configured, send email; otherwise return URL directly
+  if (isSmtpConfigured()) {
+    await sendPinResetEmail(email, resetUrl);
+    return NextResponse.json({ success: true, method: "email" });
+  }
+
+  return NextResponse.json({ success: true, method: "link", resetUrl });
 }
