@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { eq, and, or, isNull, gt } from "drizzle-orm";
+import { emitSSE } from "@/lib/sse";
 
 export async function GET(
   _request: NextRequest,
@@ -31,4 +32,25 @@ export async function GET(
     );
 
   return NextResponse.json(activeMessages);
+}
+
+/** DELETE /api/boards/[id]/messages — delete all messages for a board */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+
+  const board = await db.query.boards.findFirst({
+    where: eq(boards.id, id),
+  });
+  if (!board) {
+    return NextResponse.json({ error: "Board not found" }, { status: 404 });
+  }
+
+  await db.delete(messages).where(eq(messages.boardId, id));
+
+  emitSSE(id, "message-updated");
+
+  return NextResponse.json({ success: true });
 }

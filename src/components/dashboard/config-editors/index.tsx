@@ -6,6 +6,7 @@ import { SimpleBoardConfigEditor } from "./SimpleBoardConfigEditor";
 import { PhotoClockConfigEditor } from "./PhotoClockConfigEditor";
 import { RetroBoardConfigEditor } from "./RetroBoardConfigEditor";
 import { MessageBoardConfigEditor } from "./MessageBoardConfigEditor";
+import { CallNumberConfigEditor } from "./CallNumberConfigEditor";
 
 interface ConfigEditorProps {
   config: Record<string, unknown>;
@@ -17,6 +18,7 @@ const editors: Record<string, React.ComponentType<ConfigEditorProps>> = {
   "photo-clock": PhotoClockConfigEditor,
   retro: RetroBoardConfigEditor,
   message: MessageBoardConfigEditor,
+  "call-number": CallNumberConfigEditor,
 };
 
 export function TemplateConfigEditor({

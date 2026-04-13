@@ -14,7 +14,7 @@ export type NewMediaItem = InferInsertModel<typeof mediaItems>;
 export type NewMessage = InferInsertModel<typeof messages>;
 
 // Template types
-export type TemplateId = "simple" | "photo-clock" | "retro" | "message";
+export type TemplateId = "simple" | "photo-clock" | "retro" | "message" | "call-number";
 
 export interface BoardTemplate {
   id: TemplateId;
