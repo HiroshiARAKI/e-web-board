@@ -173,8 +173,8 @@ export function SettingsClient() {
     }
   }
 
-  async function handlePinChange() {
-    if (confirmPin !== newPin) {
+  async function handlePinChange(completedPin: string) {
+    if (completedPin !== newPin) {
       setPinChangeResult({ ok: false, msg: "新しいPINが一致しません" });
       setConfirmPin("");
       setPinStep("confirm");
@@ -186,7 +186,7 @@ export function SettingsClient() {
       const res = await fetch("/api/auth/pin/change", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "changePin", currentPin, newPin }),
+        body: JSON.stringify({ action: "changePin", currentPin, newPin: completedPin }),
       });
       const data = await res.json();
       if (res.ok) {
