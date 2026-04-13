@@ -48,12 +48,21 @@ export async function POST(request: NextRequest) {
 
   await db.insert(pinResetTokens).values({ token, expiresAt });
 
-  // Build reset URL — prefer local network IP so other devices can access it
+  // Build reset URL
+  // If accessed via localhost, replace with local network IP for cross-device access.
+  // If accessed via a real domain, keep it as-is.
   const requestHost = request.headers.get("host") || "localhost:3000";
   const protocol = request.headers.get("x-forwarded-proto") || "http";
-  const localIp = getLocalIp();
-  const port = requestHost.includes(":") ? `:${requestHost.split(":")[1]}` : "";
-  const host = localIp ? `${localIp}${port}` : requestHost;
+  const hostname = requestHost.split(":")[0];
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+  let host = requestHost;
+  if (isLocalhost) {
+    const localIp = getLocalIp();
+    if (localIp) {
+      const port = requestHost.includes(":") ? `:${requestHost.split(":")[1]}` : "";
+      host = `${localIp}${port}`;
+    }
+  }
   const resetUrl = `${protocol}://${host}/pin/reset/${token}`;
 
   // If SMTP is configured, send email; otherwise return URL directly
