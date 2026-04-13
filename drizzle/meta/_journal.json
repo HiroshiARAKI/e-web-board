@@ -15,6 +15,13 @@
       "when": 1775960347684,
       "tag": "0001_spicy_obadiah_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776087028300,
+      "tag": "0002_equal_salo",
+      "breakpoints": true
     }
   ]
 }

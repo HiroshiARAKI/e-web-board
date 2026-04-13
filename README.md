@@ -81,7 +81,22 @@ cd e-web-board
 docker compose up -d
 ```
 
-ブラウザで http://localhost:3000 にアクセスしてください。
+ブラウザで http://localhost:3000 にアクセスし、初回は管理者 PIN (6桁) を登録してください。
+
+#### SMTP 設定 (任意)
+
+PIN リセット時にメールで初期化リンクを送信したい場合は、`docker-compose.yml` の環境変数を設定してください。
+
+```yaml
+environment:
+  - SMTP_HOST=smtp.example.com
+  - SMTP_PORT=587
+  - SMTP_USER=noreply@example.com
+  - SMTP_PASS=your-password-here
+  - SMTP_FROM=noreply@example.com
+```
+
+> **Note:** SMTP 未設定でもリセットリンクは画面に直接表示されます。
 
 ```bash
 # 停止
@@ -103,7 +118,14 @@ pnpm db:migrate   # データベースのセットアップ
 pnpm dev           # 開発サーバー起動
 ```
 
-http://localhost:3000 で管理画面、http://localhost:3000/board/[id] でボード表示画面を確認できます。
+http://localhost:3000 にアクセスし、初回は管理者 PIN (6桁) を登録してください。
+
+SMTP を設定する場合は `.env.example` をコピーして `.env` を作成してください。
+
+```bash
+cp .env.example .env
+# .env を編集して SMTP 情報を入力
+```
 
 ---
 

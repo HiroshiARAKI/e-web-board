@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { WEATHER_AREAS, DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import type { WeatherPrefecture } from "@/lib/weather-areas";
+import { PinInput } from "@/components/auth/PinInput";
 
 interface UploadedFile {
   filename: string;
@@ -53,6 +54,19 @@ export function SettingsClient() {
   const [imageSaving, setImageSaving] = useState(false);
   const [imageSaved, setImageSaved] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
+
+  // PIN/Email change states
+  const [pinConfigured, setPinConfigured] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinStep, setPinStep] = useState<"current" | "new" | "confirm">("current");
+  const [pinChanging, setPinChanging] = useState(false);
+  const [pinChangeResult, setPinChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [storedEmail, setStoredEmail] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSaved, setEmailSaved] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -98,6 +112,16 @@ export function SettingsClient() {
     fetch("/api/version")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) setVersionInfo(data); })
+      .catch(() => {});
+    // Load PIN status and email
+    fetch("/api/auth/pin/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) {
+          setPinConfigured(data.configured);
+          if (data.email) setStoredEmail(data.email);
+        }
+      })
       .catch(() => {});
   }, [fetchMedia]);
 
@@ -147,6 +171,103 @@ export function SettingsClient() {
     } finally {
       setImageSaving(false);
     }
+  }
+
+  async function handleVerifyCurrentPin(pin: string) {
+    setPinChanging(true);
+    setPinChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verifyCurrentPin", currentPin: pin }),
+      });
+      if (res.ok) {
+        setCurrentPin(pin);
+        setPinStep("new");
+      } else {
+        const data = await res.json();
+        setPinChangeResult({ ok: false, msg: data.error ?? "PINが正しくありません" });
+        setCurrentPin("");
+      }
+    } catch {
+      setPinChangeResult({ ok: false, msg: "検証に失敗しました" });
+      setCurrentPin("");
+    } finally {
+      setPinChanging(false);
+    }
+  }
+
+  async function handlePinChange(completedPin: string) {
+    if (completedPin !== newPin) {
+      setPinChangeResult({ ok: false, msg: "新しいPINが一致しません" });
+      setConfirmPin("");
+      setPinStep("confirm");
+      return;
+    }
+    setPinChanging(true);
+    setPinChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "changePin", currentPin, newPin: completedPin }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPinChangeResult({ ok: true, msg: "PINを変更しました" });
+        resetPinForm();
+      } else {
+        setPinChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+        // If current PIN was wrong, go back to step 1
+        if (res.status === 401) {
+          setCurrentPin("");
+          setNewPin("");
+          setConfirmPin("");
+          setPinStep("current");
+        }
+      }
+    } catch {
+      setPinChangeResult({ ok: false, msg: "変更に失敗しました" });
+    } finally {
+      setPinChanging(false);
+    }
+  }
+
+  function resetPinForm() {
+    setCurrentPin("");
+    setNewPin("");
+    setConfirmPin("");
+    setPinStep("current");
+  }
+
+  async function handleEmailChange() {
+    setEmailSaving(true);
+    setEmailSaved(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "changeEmail", newEmail }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStoredEmail(newEmail);
+        setNewEmail("");
+        setEmailSaved({ ok: true, msg: "メールアドレスを変更しました" });
+      } else {
+        setEmailSaved({ ok: false, msg: data.error ?? "変更に失敗しました" });
+      }
+    } catch {
+      setEmailSaved({ ok: false, msg: "変更に失敗しました" });
+    } finally {
+      setEmailSaving(false);
+    }
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/pin/logout", { method: "POST" });
+    window.location.href = "/pin";
   }
 
   async function handleDeleteAllMedia() {
@@ -367,6 +488,114 @@ export function SettingsClient() {
           </div>
         </div>
       </div>
+
+      {/* Security / PIN Settings */}
+      {pinConfigured && (
+        <div className="rounded-lg border p-6">
+          <h2 className="mb-4 text-lg font-semibold">セキュリティ</h2>
+
+          {/* PIN Change */}
+          <div className="mb-6">
+            <h3 className="mb-2 text-sm font-medium">PIN変更</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              管理画面ログイン用の6桁PINを変更します。
+            </p>
+
+            {pinStep === "current" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">現在のPINを入力</Label>
+                <PinInput
+                  value={currentPin}
+                  onChange={(v) => { setCurrentPin(v); setPinChangeResult(null); }}
+                  onComplete={handleVerifyCurrentPin}
+                  disabled={pinChanging}
+                  error={pinChangeResult?.ok === false && pinStep === "current"}
+                />
+              </div>
+            )}
+
+            {pinStep === "new" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">新しいPINを入力</Label>
+                <PinInput
+                  value={newPin}
+                  onChange={setNewPin}
+                  onComplete={() => setPinStep("confirm")}
+                />
+              </div>
+            )}
+
+            {pinStep === "confirm" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">新しいPINを再入力</Label>
+                <PinInput
+                  value={confirmPin}
+                  onChange={setConfirmPin}
+                  onComplete={handlePinChange}
+                  disabled={pinChanging}
+                  error={pinChangeResult?.ok === false && confirmPin.length < 6}
+                />
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-3">
+              {pinStep !== "current" && (
+                <Button variant="outline" size="sm" onClick={resetPinForm} disabled={pinChanging}>
+                  リセット
+                </Button>
+              )}
+              {pinChangeResult && (
+                <span className={`text-sm ${pinChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+                  {pinChangeResult.msg}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Email Change */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">リカバリーメールアドレス</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              PINを忘れた場合のリセットに使用するメールアドレスです。
+            </p>
+            {storedEmail && (
+              <p className="mb-3 text-sm">
+                現在の設定: <span className="font-mono">{storedEmail}</span>
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <Input
+                type="email"
+                placeholder="新しいメールアドレス"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailSaved(null);
+                }}
+                className="max-w-sm"
+              />
+              <Button
+                onClick={handleEmailChange}
+                disabled={emailSaving || !newEmail || !newEmail.includes("@")}
+              >
+                {emailSaving ? "保存中..." : "変更"}
+              </Button>
+            </div>
+            {emailSaved && (
+              <span className={`mt-2 block text-sm ${emailSaved.ok ? "text-green-600" : "text-red-600"}`}>
+                {emailSaved.msg}
+              </span>
+            )}
+          </div>
+
+          {/* Logout */}
+          <div className="mt-6 border-t pt-4">
+            <Button variant="outline" onClick={handleLogout}>
+              ログアウト
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Media Management */}
       <div className="rounded-lg border border-red-200 p-6">

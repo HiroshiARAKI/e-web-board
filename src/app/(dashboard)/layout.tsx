@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { LayoutDashboard, MonitorPlay, Settings } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { settings } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { PIN_SESSION_COOKIE, PIN_SETTINGS } from "@/lib/pin";
 
 function SidebarLink({
   href,
@@ -24,11 +30,36 @@ function SidebarLink({
   );
 }
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Check if PIN is configured
+  const pinRow = await db.query.settings.findFirst({
+    where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
+  });
+
+  if (!pinRow?.value) {
+    redirect("/pin/setup");
+  }
+
+  // Check session cookie
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(PIN_SESSION_COOKIE)?.value;
+
+  if (!sessionToken) {
+    redirect("/pin");
+  }
+
+  const storedSession = await db.query.settings.findFirst({
+    where: eq(settings.key, PIN_SETTINGS.SESSION_SECRET),
+  });
+
+  if (!storedSession?.value || storedSession.value !== sessionToken) {
+    redirect("/pin");
+  }
+
   return (
     <div className="flex min-h-full">
       {/* Sidebar */}
