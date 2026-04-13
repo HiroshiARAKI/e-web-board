@@ -30,11 +30,30 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json();
   const { action, currentPin, newPin, newEmail } = body as {
-    action: "changePin" | "changeEmail";
+    action: "verifyCurrentPin" | "changePin" | "changeEmail";
     currentPin?: string;
     newPin?: string;
     newEmail?: string;
   };
+
+  if (action === "verifyCurrentPin") {
+    if (!currentPin || !/^\d{6}$/.test(currentPin)) {
+      return NextResponse.json(
+        { error: "PINを正しく入力してください" },
+        { status: 400 },
+      );
+    }
+    const row = await db.query.settings.findFirst({
+      where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
+    });
+    if (!row?.value || !verifyPin(currentPin, row.value)) {
+      return NextResponse.json(
+        { error: "PINが正しくありません" },
+        { status: 401 },
+      );
+    }
+    return NextResponse.json({ success: true });
+  }
 
   if (action === "changePin") {
     if (!currentPin || !/^\d{6}$/.test(currentPin)) {

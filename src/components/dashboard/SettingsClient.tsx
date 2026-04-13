@@ -173,6 +173,31 @@ export function SettingsClient() {
     }
   }
 
+  async function handleVerifyCurrentPin(pin: string) {
+    setPinChanging(true);
+    setPinChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verifyCurrentPin", currentPin: pin }),
+      });
+      if (res.ok) {
+        setCurrentPin(pin);
+        setPinStep("new");
+      } else {
+        const data = await res.json();
+        setPinChangeResult({ ok: false, msg: data.error ?? "PINが正しくありません" });
+        setCurrentPin("");
+      }
+    } catch {
+      setPinChangeResult({ ok: false, msg: "検証に失敗しました" });
+      setCurrentPin("");
+    } finally {
+      setPinChanging(false);
+    }
+  }
+
   async function handlePinChange(completedPin: string) {
     if (completedPin !== newPin) {
       setPinChangeResult({ ok: false, msg: "新しいPINが一致しません" });
@@ -481,8 +506,10 @@ export function SettingsClient() {
                 <Label className="text-sm text-muted-foreground">現在のPINを入力</Label>
                 <PinInput
                   value={currentPin}
-                  onChange={setCurrentPin}
-                  onComplete={() => setPinStep("new")}
+                  onChange={(v) => { setCurrentPin(v); setPinChangeResult(null); }}
+                  onComplete={handleVerifyCurrentPin}
+                  disabled={pinChanging}
+                  error={pinChangeResult?.ok === false && pinStep === "current"}
                 />
               </div>
             )}
