@@ -9,7 +9,7 @@ export const boards = sqliteTable("boards", {
     .primaryKey()
     .$defaultFn(() => randomUUID()),
   name: text("name").notNull(),
-  templateId: text("template_id").notNull(), // "simple" | "photo-clock" | "retro" | "message"
+  templateId: text("template_id").notNull(), // "simple" | "photo-clock" | "retro" | "message" | "call-number"
   config: text("config", { mode: "json" }).notNull().default("{}"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   createdAt: text("created_at")

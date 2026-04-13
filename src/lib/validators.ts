@@ -9,6 +9,7 @@ export const templateIdSchema = z.enum([
   "photo-clock",
   "retro",
   "message",
+  "call-number",
 ]);
 
 export const createBoardSchema = z.object({

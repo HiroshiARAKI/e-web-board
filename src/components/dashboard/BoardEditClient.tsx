@@ -41,6 +41,7 @@ import {
 import { templates } from "@/lib/templates";
 import { TemplateConfigEditor } from "@/components/dashboard/config-editors";
 import MediaUploadZone from "@/components/dashboard/MediaUploadZone";
+import CallScreenAdmin from "@/components/dashboard/CallScreenAdmin";
 import type { Board, MediaItem, Message } from "@/types";
 
 interface BoardDetail extends Board {
@@ -271,13 +272,22 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             </CardContent>
           </Card>
 
+          {/* Call screen admin (call-number template only) */}
+          {board.templateId === "call-number" && (
+            <CallScreenAdmin
+              boardId={boardId}
+              config={config}
+              onUpdateConfig={setConfig}
+            />
+          )}
+
           {/* Messages (not used by photo-clock template) */}
           {board.templateId !== "photo-clock" && (
           <Card>
             <CardHeader>
-              <CardTitle>メッセージ</CardTitle>
+              <CardTitle>{board.templateId === "call-number" ? "番号管理" : "メッセージ"}</CardTitle>
               <CardDescription>
-                {board.messages.length} 件のメッセージ
+                {board.messages.length} 件の{board.templateId === "call-number" ? "番号" : "メッセージ"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -286,7 +296,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 <Input
                   value={newMsgContent}
                   onChange={(e) => setNewMsgContent(e.target.value)}
-                  placeholder="メッセージを入力..."
+                  placeholder={board.templateId === "call-number" ? "番号を入力..." : "メッセージを入力..."}
                   className="flex-1"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
@@ -295,6 +305,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                     }
                   }}
                 />
+                {board.templateId !== "call-number" && (
                 <Input
                   value={newMsgPriority}
                   onChange={(e) => setNewMsgPriority(e.target.value)}
@@ -303,6 +314,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                   min={0}
                   className="w-20"
                 />
+                )}
                 <Button type="button" size="sm" onClick={handleAddMessage}>
                   <Plus data-icon="inline-start" />
                   追加

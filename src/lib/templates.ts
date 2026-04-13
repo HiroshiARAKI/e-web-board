@@ -13,6 +13,9 @@ import RetroBoard, {
 import MessageBoard, {
   messageBoardDefaultConfig,
 } from "@/components/board/templates/MessageBoard";
+import CallNumberBoard, {
+  callNumberDefaultConfig,
+} from "@/components/board/templates/CallNumberBoard";
 
 /** Registry of all available board templates */
 export const templates: Record<TemplateId, BoardTemplate> = {
@@ -46,6 +49,14 @@ export const templates: Record<TemplateId, BoardTemplate> = {
       "外部APIからのメッセージをリアルタイム表示する掲示板",
     defaultConfig: messageBoardDefaultConfig,
     component: MessageBoard,
+  },
+  "call-number": {
+    id: "call-number",
+    name: "呼び出し番号",
+    description:
+      "病院や飲食店の呼び出し番号を表示するテンプレート",
+    defaultConfig: callNumberDefaultConfig,
+    component: CallNumberBoard,
   },
 };
 
