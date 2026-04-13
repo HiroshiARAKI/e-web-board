@@ -62,7 +62,7 @@ export function CallNumberConfigEditor({
   const highlightColor = (config.highlightColor as string) ?? "#ff6b35";
   const layout = (config.layout as string) ?? "horizontal";
   const calledExpireMinutes = (config.calledExpireMinutes as number) ?? 5;
-  const numberFontSize = (config.numberFontSize as number) ?? 48;
+  const numberFontSize = (config.numberFontSize as number) ?? 60;
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -117,16 +117,21 @@ export function CallNumberConfigEditor({
         <h4 className="mb-3 text-sm font-semibold">番号表示</h4>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-numberFontSize">番号のフォントサイズ (px)</Label>
-            <Input
+            <Label htmlFor="cfg-numberFontSize">番号のフォントサイズ ({numberFontSize}px)</Label>
+            <input
               id="cfg-numberFontSize"
-              type="number"
+              type="range"
               min={24}
               max={120}
+              step={2}
               value={numberFontSize}
-              onChange={(e) => update("numberFontSize", parseInt(e.target.value, 10) || 48)}
-              className="w-28"
+              onChange={(e) => update("numberFontSize", Number(e.target.value))}
+              className="w-48"
             />
+            <div className="flex w-48 justify-between text-xs text-muted-foreground">
+              <span>24px</span>
+              <span>120px</span>
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cfg-calledExpire">呼び出し済み番号の自動削除 (分)</Label>

@@ -19,7 +19,7 @@ export const callNumberDefaultConfig = {
   calledLabel: "お呼び出し中",
   passcode: "",
   calledExpireMinutes: 5,
-  numberFontSize: 48,
+  numberFontSize: 60,
 };
 
 type CallNumberConfig = typeof callNumberDefaultConfig;
@@ -83,7 +83,7 @@ export default function CallNumberBoard({
   }, [messages, now, expireMs]);
 
   const isHorizontal = config.layout === "horizontal";
-  const baseFontSize = config.numberFontSize ?? 48;
+  const baseFontSize = config.numberFontSize ?? 60;
   const highlightFontSize = Math.round(baseFontSize * 1.3);
 
   return (
@@ -107,15 +107,16 @@ export default function CallNumberBoard({
 
       {/* Main content */}
       <div
-        className={`flex flex-1 min-h-0 gap-1 p-4 ${
+        className={`flex flex-1 min-h-0 gap-0 p-4 ${
           isHorizontal ? "flex-row" : "flex-col"
         }`}
       >
         {/* Waiting lane */}
         <div
-          className={`flex flex-col rounded-2xl bg-white/5 ${
+          className={`flex flex-col rounded-2xl ${
             isHorizontal ? "flex-1" : "flex-1"
           }`}
+          style={{ backgroundColor: `${config.waitingTextColor}08` }}
         >
           <div className="shrink-0 px-6 py-4">
             <h2
@@ -148,11 +149,20 @@ export default function CallNumberBoard({
           </div>
         </div>
 
+        {/* Lane divider */}
+        <div
+          className={`shrink-0 ${
+            isHorizontal ? "mx-1 w-px self-stretch" : "my-1 h-px self-stretch"
+          }`}
+          style={{ backgroundColor: `${config.waitingTextColor}20` }}
+        />
+
         {/* Called lane */}
         <div
-          className={`flex flex-col rounded-2xl bg-white/5 ${
+          className={`flex flex-col rounded-2xl ${
             isHorizontal ? "flex-1" : "flex-1"
           }`}
+          style={{ backgroundColor: `${config.calledTextColor}08` }}
         >
           <div className="shrink-0 px-6 py-4">
             <h2
@@ -174,7 +184,7 @@ export default function CallNumberBoard({
                     key={m.id}
                     className={`flex items-center justify-center rounded-xl px-6 py-4 transition-colors ${
                       highlighted
-                        ? "animate-pulse font-extrabold"
+                        ? "font-extrabold"
                         : "border border-white/10 bg-white/5 font-bold"
                     }`}
                     style={{
