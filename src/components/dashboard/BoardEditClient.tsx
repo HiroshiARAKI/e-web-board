@@ -281,8 +281,8 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             />
           )}
 
-          {/* Messages (not used by photo-clock template) */}
-          {board.templateId !== "photo-clock" && (
+          {/* Messages (not used by photo-clock or call-number template) */}
+          {board.templateId !== "photo-clock" && board.templateId !== "call-number" && (
           <Card>
             <CardHeader>
               <CardTitle>{board.templateId === "call-number" ? "番号管理" : "メッセージ"}</CardTitle>
@@ -407,7 +407,8 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           </Card>
           )}
 
-          {/* Media items */}
+          {/* Media items (not used by call-number template) */}
+          {board.templateId !== "call-number" && (
           <Card>
             <CardHeader>
               <CardTitle>メディア</CardTitle>
@@ -423,6 +424,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
               />
             </CardContent>
           </Card>
+          )}
         </div>
 
         {/* Right: Actions sidebar */}

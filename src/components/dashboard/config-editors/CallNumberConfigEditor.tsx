@@ -61,6 +61,8 @@ export function CallNumberConfigEditor({
   const calledTextColor = (config.calledTextColor as string) ?? "#00ff88";
   const highlightColor = (config.highlightColor as string) ?? "#ff6b35";
   const layout = (config.layout as string) ?? "horizontal";
+  const calledExpireMinutes = (config.calledExpireMinutes as number) ?? 5;
+  const numberFontSize = (config.numberFontSize as number) ?? 48;
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -107,6 +109,40 @@ export function CallNumberConfigEditor({
               <SelectItem value="vertical">縦レイアウト</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {/* Number display */}
+      <div>
+        <h4 className="mb-3 text-sm font-semibold">番号表示</h4>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-numberFontSize">番号のフォントサイズ (px)</Label>
+            <Input
+              id="cfg-numberFontSize"
+              type="number"
+              min={24}
+              max={120}
+              value={numberFontSize}
+              onChange={(e) => update("numberFontSize", parseInt(e.target.value, 10) || 48)}
+              className="w-28"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cfg-calledExpire">呼び出し済み番号の自動削除 (分)</Label>
+            <Input
+              id="cfg-calledExpire"
+              type="number"
+              min={1}
+              max={60}
+              value={calledExpireMinutes}
+              onChange={(e) => update("calledExpireMinutes", parseInt(e.target.value, 10) || 5)}
+              className="w-28"
+            />
+            <p className="text-xs text-muted-foreground">
+              呼び出し後、指定時間が経過した番号はボード画面から自動で削除されます
+            </p>
+          </div>
         </div>
       </div>
 

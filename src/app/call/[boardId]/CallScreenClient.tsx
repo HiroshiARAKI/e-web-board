@@ -118,6 +118,8 @@ export default function CallScreenClient({
         const inserted = await res.json();
         setMessages((prev) => [...prev, inserted]);
         setShowIssueInput(false);
+        // Scroll to top so the new number is visible below the sticky header
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     } catch {
       // Will be synced on next SSE event

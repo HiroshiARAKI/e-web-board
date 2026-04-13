@@ -18,6 +18,8 @@ export const callNumberDefaultConfig = {
   waitingLabel: "お待ちの番号",
   calledLabel: "お呼び出し中",
   passcode: "",
+  calledExpireMinutes: 5,
+  numberFontSize: 48,
 };
 
 type CallNumberConfig = typeof callNumberDefaultConfig;
@@ -36,6 +38,7 @@ export default function CallNumberBoard({
 }: BoardTemplateProps) {
   const config = parseConfig(board.config);
   const [now, setNow] = useState(() => Date.now());
+  const expireMs = (config.calledExpireMinutes ?? 5) * 60_000;
 
   // Tick every 5s to re-evaluate "recently called" highlights
   useEffect(() => {
@@ -43,17 +46,30 @@ export default function CallNumberBoard({
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-delete called numbers that have expired
+  useEffect(() => {
+    if (expireMs <= 0) return;
+    const expired = messages.filter(
+      (m) => m.priority >= 1 && now - new Date(m.updatedAt).getTime() >= expireMs,
+    );
+    for (const m of expired) {
+      fetch(`/api/messages/${m.id}`, { method: "DELETE" }).catch(() => {});
+    }
+  }, [now, messages, expireMs]);
+
   const isRecentlyCalled = useCallback(
     (updatedAt: string) => now - new Date(updatedAt).getTime() < HIGHLIGHT_DURATION,
     [now],
   );
 
-  // Split messages into waiting (priority=0) and called (priority>=1)
+  // Split messages into waiting (priority=0) and called (priority>=1, not expired)
   const { waiting, called } = useMemo(() => {
     const w: typeof messages = [];
     const c: typeof messages = [];
     for (const m of messages) {
       if (m.priority >= 1) {
+        // Hide expired called numbers from display
+        if (expireMs > 0 && now - new Date(m.updatedAt).getTime() >= expireMs) continue;
         c.push(m);
       } else {
         w.push(m);
@@ -64,9 +80,11 @@ export default function CallNumberBoard({
     // Sort called: recently called first, then by updatedAt desc
     c.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return { waiting: w, called: c };
-  }, [messages]);
+  }, [messages, now, expireMs]);
 
   const isHorizontal = config.layout === "horizontal";
+  const baseFontSize = config.numberFontSize ?? 48;
+  const highlightFontSize = Math.round(baseFontSize * 1.3);
 
   return (
     <div
@@ -115,8 +133,8 @@ export default function CallNumberBoard({
               {waiting.map((m) => (
                 <div
                   key={m.id}
-                  className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-3xl font-bold"
-                  style={{ color: config.waitingTextColor, fontFamily: '"Noto Sans JP", system-ui, sans-serif', fontVariantNumeric: "tabular-nums" }}
+                  className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-4 font-bold"
+                  style={{ color: config.waitingTextColor, fontFamily: '"Noto Sans JP", system-ui, sans-serif', fontVariantNumeric: "tabular-nums", fontSize: baseFontSize }}
                 >
                   {m.content}
                 </div>
@@ -156,8 +174,8 @@ export default function CallNumberBoard({
                     key={m.id}
                     className={`flex items-center justify-center rounded-xl px-6 py-4 transition-colors ${
                       highlighted
-                        ? "animate-pulse text-4xl font-extrabold"
-                        : "border border-white/10 bg-white/5 text-3xl font-bold"
+                        ? "animate-pulse font-extrabold"
+                        : "border border-white/10 bg-white/5 font-bold"
                     }`}
                     style={{
                       color: highlighted
@@ -165,6 +183,7 @@ export default function CallNumberBoard({
                         : config.calledTextColor,
                       fontFamily: '"Noto Sans JP", system-ui, sans-serif',
                       fontVariantNumeric: "tabular-nums",
+                      fontSize: highlighted ? highlightFontSize : baseFontSize,
                     }}
                   >
                     {m.content}
