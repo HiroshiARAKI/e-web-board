@@ -67,7 +67,7 @@ export default async function DashboardLayout({
 
   return (
     <ThemeProvider>
-      <div id="dashboard-theme-root" className="flex min-h-full bg-background text-foreground">
+      <div id="dashboard-theme-root" className="flex min-h-dvh bg-background text-foreground">
         {/* Sidebar */}
         <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
           <div className="flex h-14 items-center px-4">
