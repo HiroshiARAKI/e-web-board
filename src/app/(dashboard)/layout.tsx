@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { settings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { PIN_SESSION_COOKIE, PIN_SETTINGS } from "@/lib/pin";
+import { ThemeProvider } from "@/components/dashboard/ThemeProvider";
 
 function SidebarLink({
   href,
@@ -65,30 +66,32 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-full">
-      {/* Sidebar */}
-      <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-        <div className="flex h-14 items-center px-4">
-          <Link href="/boards" className="flex items-center gap-2 font-bold">
-            <MonitorPlay className="size-5" />
-            <span>e-Web Board</span>
-          </Link>
-        </div>
-        <Separator />
-        <nav className="flex-1 space-y-1 px-2 py-3">
-          <SidebarLink href="/boards" icon={LayoutDashboard}>
-            ボード管理
-          </SidebarLink>
-          <SidebarLink href="/settings" icon={Settings}>
-            設定
-          </SidebarLink>
-        </nav>
-      </aside>
+    <ThemeProvider>
+      <div id="dashboard-theme-root" className="flex min-h-dvh bg-background text-foreground">
+        {/* Sidebar */}
+        <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
+          <div className="flex h-14 items-center px-4">
+            <Link href="/boards" className="flex items-center gap-2 font-bold">
+              <MonitorPlay className="size-5" />
+              <span>e-Web Board</span>
+            </Link>
+          </div>
+          <Separator />
+          <nav className="flex-1 space-y-1 px-2 py-3">
+            <SidebarLink href="/boards" icon={LayoutDashboard}>
+              ボード管理
+            </SidebarLink>
+            <SidebarLink href="/settings" icon={Settings}>
+              設定
+            </SidebarLink>
+          </nav>
+        </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-6 py-8">{children}</div>
-      </main>
-    </div>
+        {/* Main content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-5xl px-6 py-8">{children}</div>
+        </main>
+      </div>
+    </ThemeProvider>
   );
 }

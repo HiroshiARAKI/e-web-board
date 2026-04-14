@@ -130,3 +130,10 @@
     @apply font-sans;
   }
 }
+
+/* Smooth theme transition for dashboard dark mode */
+#dashboard-theme-root,
+#dashboard-theme-root * {
+  transition: background-color 300ms ease, color 300ms ease,
+    border-color 300ms ease;
+}

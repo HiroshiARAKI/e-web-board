@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { WEATHER_AREAS, DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import type { WeatherPrefecture } from "@/lib/weather-areas";
 import { PinInput } from "@/components/auth/PinInput";
+import { useTheme, type Theme } from "@/components/dashboard/ThemeProvider";
 
 interface UploadedFile {
   filename: string;
@@ -54,6 +55,7 @@ export function SettingsClient() {
   const [imageSaving, setImageSaving] = useState(false);
   const [imageSaved, setImageSaved] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
+  const { theme, setTheme } = useTheme();
 
   // PIN/Email change states
   const [pinConfigured, setPinConfigured] = useState(false);
@@ -361,6 +363,33 @@ export function SettingsClient() {
           </div>
         </div>
       )}
+
+      {/* Theme Selection */}
+      <div className="rounded-lg border p-6">
+        <h2 className="mb-4 text-lg font-semibold">テーマ設定</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          管理画面の表示テーマを選択します。
+        </p>
+        <div className="flex gap-3">
+          {([
+            { value: "system" as Theme, label: "システムに準拠" },
+            { value: "light" as Theme, label: "ライト" },
+            { value: "dark" as Theme, label: "ダーク" },
+          ]).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setTheme(opt.value)}
+              className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
+                theme === opt.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Weather Area Selection */}
       <div className="rounded-lg border p-6">
