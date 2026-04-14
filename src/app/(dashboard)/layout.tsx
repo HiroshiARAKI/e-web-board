@@ -35,6 +35,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Read cookies first to signal Next.js that this layout is dynamic.
+  // This prevents static prerendering from hitting DB queries during build
+  // when the database has not been migrated yet (e.g. Docker build).
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(PIN_SESSION_COOKIE)?.value;
+
   // Check if PIN is configured
   const pinRow = await db.query.settings.findFirst({
     where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
@@ -45,8 +51,6 @@ export default async function DashboardLayout({
   }
 
   // Check session cookie
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(PIN_SESSION_COOKIE)?.value;
 
   if (!sessionToken) {
     redirect("/pin");
