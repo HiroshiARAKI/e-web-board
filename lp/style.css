@@ -19,7 +19,7 @@
   --color-border: #e0e0e0;
   --color-accent: #111;
   --color-accent-hover: #333;
-  --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+  --font-sans: "Inter", "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
   --max-width: 960px;
   --radius: 6px;
@@ -64,54 +64,82 @@ img {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
-  transition: height 0.3s;
 }
 
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  transition: padding 0.3s;
 }
 
 .logo-link {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   text-decoration: none;
   color: var(--color-text);
 }
 
 .logo-icon {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   transition: width 0.3s, height 0.3s;
 }
 
+.logo-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transition: gap 0.3s;
+}
+
 .logo-text {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .logo-subtitle {
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--color-text-secondary);
+  line-height: 1.2;
   opacity: 1;
-  transition: opacity 0.3s, width 0.3s, margin 0.3s;
-  white-space: nowrap;
+  max-height: 20px;
+  transition: opacity 0.3s, max-height 0.3s, margin 0.3s;
   overflow: hidden;
 }
 
-/* Scroll state: shrink logo icon & hide subtitle */
+/* Scroll state: compact single-line header */
+.header--scrolled .header-inner {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
 .header--scrolled .logo-icon {
   width: 24px;
   height: 24px;
 }
 
+.header--scrolled .logo-body {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.header--scrolled .logo-text {
+  font-size: 16px;
+}
+
 .header--scrolled .logo-subtitle {
   opacity: 0;
-  width: 0;
+  max-height: 0;
   margin: 0;
   pointer-events: none;
 }
@@ -528,6 +556,11 @@ p code {
 
   .logo-subtitle {
     display: none;
+  }
+
+  .header-inner {
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 }
 
