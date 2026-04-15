@@ -73,7 +73,7 @@ export default async function DashboardLayout({
           <div className="flex h-14 items-center px-4">
             <Link href="/boards" className="flex items-center gap-2 font-bold">
               <MonitorPlay className="size-5" />
-              <span>e-Web Board</span>
+              <span>Keinage</span>
             </Link>
           </div>
           <Separator />

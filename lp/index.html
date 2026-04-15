@@ -3,21 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>e-Web Board — カスタマイズ可能な電子掲示板ツール</title>
-  <meta name="description" content="病院、飲食店、スーパーマーケットなど、あらゆる場所で使えるオープンソースの電子掲示板。Docker で 1 コマンド起動。">
-  <meta property="og:title" content="e-Web Board — カスタマイズ可能な電子掲示板ツール">
-  <meta property="og:description" content="病院、飲食店、スーパーマーケットなど、あらゆる場所で使えるオープンソースの電子掲示板。Docker で 1 コマンド起動。">
+  <title>Keinage — Open Source Signage</title>
+  <meta name="description" content="病院、飲食店、スーパーマーケットなど、あらゆる場所で使えるオープンソースのデジタルサイネージ。Docker で 1 コマンド起動。">
+  <meta property="og:title" content="Keinage — Open Source Signage">
+  <meta property="og:description" content="病院、飲食店、スーパーマーケットなど、あらゆる場所で使えるオープンソースのデジタルサイネージ。Docker で 1 コマンド起動。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://e-web-board.araki.tech/">
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" href="logos/keinage.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <!-- Header -->
-  <header class="header">
+  <header class="header" id="site-header">
     <div class="container header-inner">
-      <span class="logo">e-Web Board</span>
+      <a href="#" class="logo-link">
+        <img src="logos/keinage.png" alt="Keinage" class="logo-icon" width="32" height="32">
+        <span class="logo-text">Keinage</span>
+        <span class="logo-subtitle">Open Source Signage</span>
+      </a>
       <nav class="header-nav">
         <a href="#features">特徴</a>
         <a href="#templates">テンプレート</a>
@@ -30,8 +34,11 @@
   <!-- Hero -->
   <section class="hero">
     <div class="container">
-      <h1>e-Web Board</h1>
-      <p class="hero-subtitle">Web 上で動作する、カスタマイズ可能な電子掲示板ツール</p>
+      <div class="hero-logo">
+        <img src="logos/keinage.png" alt="Keinage" width="80" height="80">
+      </div>
+      <h1>Keinage</h1>
+      <p class="hero-subtitle">Open Source Signage</p>
       <p class="hero-badge">オープンソース・完全無料</p>
       <p class="hero-description">
         病院の待合室、スーパーマーケット、飲食店など、あらゆる場所で情報を掲示するためのフリーツールです。<br>
@@ -229,6 +236,25 @@ cd e-web-board</code></pre>
       <p class="footer-license">Licensed under <a href="https://github.com/HiroshiARAKI/e-web-board/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a></p>
     </div>
   </footer>
+
+  <!-- Scroll animation: header shrinks logo & hides subtitle -->
+  <script>
+    (function () {
+      const header = document.getElementById('site-header');
+      let scrolled = false;
+
+      function onScroll() {
+        const shouldShrink = window.scrollY > 60;
+        if (shouldShrink !== scrolled) {
+          scrolled = shouldShrink;
+          header.classList.toggle('header--scrolled', shouldShrink);
+        }
+      }
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    })();
+  </script>
 
 </body>
 </html>
