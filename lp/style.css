@@ -70,9 +70,9 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 16px;
-  padding-bottom: 16px;
-  transition: padding 0.3s;
+  padding-top: calc(16px - 6px * var(--scroll-t, 0));
+  padding-bottom: calc(16px - 6px * var(--scroll-t, 0));
+  transition: none;
 }
 
 .logo-link {
@@ -84,20 +84,18 @@ img {
 }
 
 .logo-icon {
-  width: 36px;
-  height: 36px;
-  transition: width 0.3s, height 0.3s;
+  width: calc(36px - 12px * var(--scroll-t, 0));
+  height: calc(36px - 12px * var(--scroll-t, 0));
 }
 
 .logo-body {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  transition: gap 0.3s;
 }
 
 .logo-text {
-  font-size: 20px;
+  font-size: calc(20px - 4px * var(--scroll-t, 0));
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -110,38 +108,9 @@ img {
   text-transform: uppercase;
   color: var(--color-text-secondary);
   line-height: 1.2;
-  opacity: 1;
-  max-height: 20px;
-  transition: opacity 0.3s, max-height 0.3s, margin 0.3s;
+  opacity: calc(1 - var(--scroll-t, 0));
+  max-height: calc(20px * (1 - var(--scroll-t, 0)));
   overflow: hidden;
-}
-
-/* Scroll state: compact single-line header */
-.header--scrolled .header-inner {
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-
-.header--scrolled .logo-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.header--scrolled .logo-body {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.header--scrolled .logo-text {
-  font-size: 16px;
-}
-
-.header--scrolled .logo-subtitle {
-  opacity: 0;
-  max-height: 0;
-  margin: 0;
-  pointer-events: none;
 }
 
 .header-nav {
@@ -556,11 +525,6 @@ p code {
 
   .logo-subtitle {
     display: none;
-  }
-
-  .header-inner {
-    padding-top: 12px;
-    padding-bottom: 12px;
   }
 }
 

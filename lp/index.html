@@ -245,14 +245,17 @@ cd e-web-board</code></pre>
   <!-- Scroll animation: header shrinks logo & hides subtitle -->
   <script>
     (function () {
-      const header = document.getElementById('site-header');
-      let scrolled = false;
+      var header = document.getElementById('site-header');
+      var prev = -1;
 
       function onScroll() {
-        const shouldShrink = window.scrollY > 60;
-        if (shouldShrink !== scrolled) {
-          scrolled = shouldShrink;
-          header.classList.toggle('header--scrolled', shouldShrink);
+        // Map scrollY 0‥80 → 0‥1, clamped
+        var t = Math.min(Math.max(window.scrollY / 80, 0), 1);
+        // Round to 3 decimals to avoid excessive style recalc
+        t = Math.round(t * 1000) / 1000;
+        if (t !== prev) {
+          prev = t;
+          header.style.setProperty('--scroll-t', t);
         }
       }
 
