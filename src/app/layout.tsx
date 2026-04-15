@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "e-Web Board",
+  title: "Keinage",
   description: "カスタマイズ可能なデジタルサイネージ Web アプリ",
 };
 

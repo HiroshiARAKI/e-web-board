@@ -1,5 +1,5 @@
 /* ===========================
-   e-Web Board Landing Page
+   Keinage Landing Page
    Minimal, clean design
    =========================== */
 
@@ -19,7 +19,7 @@
   --color-border: #e0e0e0;
   --color-accent: #111;
   --color-accent-hover: #333;
-  --font-sans: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+  --font-sans: "Inter", "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", monospace;
   --max-width: 960px;
   --radius: 6px;
@@ -70,13 +70,47 @@ img {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
+  padding-top: calc(16px - 6px * var(--scroll-t, 0));
+  padding-bottom: calc(16px - 6px * var(--scroll-t, 0));
+  transition: none;
 }
 
-.logo {
-  font-size: 18px;
+.logo-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.logo-icon {
+  width: calc(36px - 12px * var(--scroll-t, 0));
+  height: calc(36px - 12px * var(--scroll-t, 0));
+}
+
+.logo-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.logo-text {
+  font-size: calc(20px - 4px * var(--scroll-t, 0));
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.logo-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  line-height: 1.2;
+  opacity: calc(1 - var(--scroll-t, 0));
+  max-height: calc(20px * (1 - var(--scroll-t, 0)));
+  overflow: hidden;
 }
 
 .header-nav {
@@ -100,16 +134,26 @@ img {
   text-align: center;
 }
 
+.hero-logo {
+  margin-bottom: 20px;
+}
+
+.hero-logo img {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+}
+
 .hero h1 {
-  font-size: 48px;
+  font-size: 56px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .hero-subtitle {
-  font-size: 20px;
+  font-size: 18px;
   color: var(--color-text-secondary);
   margin-bottom: 16px;
 }
@@ -439,11 +483,16 @@ p code {
   }
 
   .hero h1 {
-    font-size: 32px;
+    font-size: 46px;
   }
 
   .hero-subtitle {
     font-size: 17px;
+  }
+
+  .hero-logo img {
+    width: 64px;
+    height: 64px;
   }
 
   .features-grid {
@@ -473,11 +522,15 @@ p code {
   .header-nav a {
     font-size: 13px;
   }
+
+  .logo-subtitle {
+    font-size: 8px;
+  }
 }
 
 @media (max-width: 480px) {
   .hero h1 {
-    font-size: 28px;
+    font-size: 40px;
   }
 
   .hero-actions {

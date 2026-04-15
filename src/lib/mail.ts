@@ -47,9 +47,9 @@ export async function sendPinResetEmail(
     await transporter.sendMail({
       from: config.from,
       to,
-      subject: "[e-Web Board] PIN初期化リンク",
+      subject: "[Keinage] PIN初期化リンク",
       text: [
-        "e-Web Board のPIN初期化リクエストを受け付けました。",
+        "Keinage のPIN初期化リクエストを受け付けました。",
         "",
         "以下のリンクからPINを再設定してください：",
         resetUrl,

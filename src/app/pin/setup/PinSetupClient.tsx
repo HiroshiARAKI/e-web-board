@@ -71,7 +71,7 @@ export default function PinSetupClient() {
           <div className="flex size-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg">
             <MonitorPlay className="size-7" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">e-Web Board</h1>
+          <h1 className="text-xl font-bold text-gray-900">Keinage</h1>
         </div>
 
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
