@@ -145,15 +145,15 @@ img {
 }
 
 .hero h1 {
-  font-size: 48px;
+  font-size: 56px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .hero-subtitle {
-  font-size: 20px;
+  font-size: 18px;
   color: var(--color-text-secondary);
   margin-bottom: 16px;
 }
@@ -483,7 +483,7 @@ p code {
   }
 
   .hero h1 {
-    font-size: 32px;
+    font-size: 46px;
   }
 
   .hero-subtitle {
@@ -524,13 +524,13 @@ p code {
   }
 
   .logo-subtitle {
-    display: none;
+    font-size: 8px;
   }
 }
 
 @media (max-width: 480px) {
   .hero h1 {
-    font-size: 28px;
+    font-size: 40px;
   }
 
   .hero-actions {
