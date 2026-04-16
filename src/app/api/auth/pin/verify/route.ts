@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, authSessions, pinAttempts, settings } from "@/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, isNotNull } from "drizzle-orm";
 import {
   verifyPin,
   generateSessionToken,
@@ -61,13 +61,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Find target user: prefer last-logged-in user, fallback to first admin user
-  const cookieStore = await request.cookies;
+  // Resolve target user — same logic as pin/page.tsx so they stay in sync:
+  //   1. LAST_USER_COOKIE user (if they have a PIN)
+  //   2. First user WITH a pinHash (fallback when cookie user has no PIN)
+  //   3. First user at all (ultimate fallback)
+  const cookieStore = request.cookies;
   const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
-  const adminUser = lastUserId
-    ? (await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })) ??
-      (await db.query.users.findFirst())
-    : await db.query.users.findFirst();
+  let adminUser = lastUserId
+    ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
+    : null;
+
+  if (!adminUser?.pinHash) {
+    const userWithPin = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
+    if (userWithPin) adminUser = userWithPin;
+  }
+
+  if (!adminUser) {
+    adminUser = await db.query.users.findFirst();
+  }
   if (!adminUser?.pinHash) {
     return NextResponse.json(
       { error: "PINが設定されていません" },

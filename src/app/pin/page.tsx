@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/db";
 import { users, authSessions, settings } from "@/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, isNotNull } from "drizzle-orm";
 import {
   AUTH_SESSION_COOKIE,
   DEFAULT_AUTH_EXPIRE_DAYS,
@@ -17,23 +17,33 @@ import PinLoginClient from "./PinLoginClient";
 export const dynamic = "force-dynamic";
 
 export default async function PinLoginPage() {
-  // Determine which user's PIN to request:
-  // prefer last-user cookie → fallback to first admin user
   const cookieStore = await cookies();
   const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
 
-  let adminUser = lastUserId
+  // Step 1: Try the last-logged-in user from cookie
+  let targetUser = lastUserId
     ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
     : null;
-  if (!adminUser) {
-    adminUser = await db.query.users.findFirst();
+
+  // Step 2: If that user has no PIN, fall back to the first user who has one
+  if (!targetUser?.pinHash) {
+    const userWithPin = await db.query.users.findFirst({
+      where: isNotNull(users.pinHash),
+    });
+    if (userWithPin) targetUser = userWithPin;
   }
-  if (!adminUser) {
+
+  // Step 3: Ultimate fallback — any user at all
+  if (!targetUser) {
+    targetUser = await db.query.users.findFirst();
+  }
+
+  if (!targetUser) {
     redirect("/pin/setup");
   }
 
-  // If PIN is not set, send to credentials login (PIN setup is only for first user)
-  if (!adminUser.pinHash) {
+  // If no user in the system has a PIN, go to credential login
+  if (!targetUser.pinHash) {
     redirect("/pin/login");
   }
 
@@ -51,7 +61,7 @@ export default async function PinLoginPage() {
     }
   }
 
-  // Check if full auth (email+password) is required
+  // Check if full auth (email+password) is required for the target user
   const expireSetting = await db.query.settings.findFirst({
     where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
   });
@@ -59,9 +69,9 @@ export default async function PinLoginPage() {
     ? parseInt(expireSetting.value, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
-  if (!isFullAuthValid(adminUser.lastFullAuthAt, expireDays)) {
+  if (!isFullAuthValid(targetUser.lastFullAuthAt, expireDays)) {
     redirect("/pin/login");
   }
 
-  return <PinLoginClient userId={adminUser.userId} />;
+  return <PinLoginClient userId={targetUser.userId} />;
 }
