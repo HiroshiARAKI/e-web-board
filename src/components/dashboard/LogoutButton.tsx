@@ -13,10 +13,10 @@ export function LogoutButton() {
   return (
     <button
       onClick={handleLogout}
-      title="ログアウト"
-      className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+      className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
     >
-      <LogOut className="size-4" />
+      <LogOut className="size-3.5" />
+      ログアウト
     </button>
   );
 }

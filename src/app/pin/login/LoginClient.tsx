@@ -4,6 +4,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { MonitorPlay, KeyRound } from "lucide-react";
 
 export default function LoginClient() {
@@ -37,8 +38,8 @@ export default function LoginClient() {
           return;
         }
 
-        // Full auth succeeded — now redirect to PIN login
-        router.push("/pin");
+        // Full auth succeeded — redirect directly to dashboard
+        router.push("/boards");
       } catch {
         setError("通信エラーが発生しました");
         setPassword("");
@@ -119,6 +120,15 @@ export default function LoginClient() {
               {submitting ? "認証中..." : "ログイン"}
             </button>
           </form>
+
+          <div className="mt-6 text-center">
+            <Link
+              href="/pin"
+              className="text-sm text-gray-500 hover:text-blue-600"
+            >
+              PINでログインする
+            </Link>
+          </div>
         </div>
       </div>
     </div>

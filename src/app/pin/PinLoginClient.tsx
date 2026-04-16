@@ -89,7 +89,13 @@ export default function PinLoginClient() {
             <p className="mt-3 text-center text-sm text-red-600">{error}</p>
           )}
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <Link
+              href="/pin/login"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              メールアドレスまたはIDでログインする
+            </Link>
             <Link
               href="/pin/forgot"
               className="text-sm text-gray-500 hover:text-blue-600"

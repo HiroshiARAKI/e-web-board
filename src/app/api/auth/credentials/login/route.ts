@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, pinAttempts } from "@/db/schema";
+import { users, pinAttempts, authSessions } from "@/db/schema";
 import { eq, or, and, gt } from "drizzle-orm";
-import { verifyPassword } from "@/lib/auth";
+import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
 import {
   MAX_PIN_ATTEMPTS,
   IP_BLOCK_DURATION_MS,
+  generateSessionToken,
 } from "@/lib/pin";
 
 /** POST /api/auth/credentials/login — email/userId + password login */
@@ -87,11 +88,30 @@ export async function POST(request: NextRequest) {
   // Clear IP attempts on success
   await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
 
+  const now = new Date().toISOString();
+
   // Record full-auth timestamp
   await db
     .update(users)
-    .set({ lastFullAuthAt: new Date().toISOString() })
+    .set({ lastFullAuthAt: now })
     .where(eq(users.id, user.id));
 
-  return NextResponse.json({ success: true });
+  // Create session
+  const sessionToken = generateSessionToken();
+  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString();
+
+  await db.insert(authSessions).values({
+    userId: user.id,
+    sessionToken,
+    expiresAt,
+  });
+
+  const res = NextResponse.json({ success: true });
+  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_MAX_AGE,
+  });
+  return res;
 }
