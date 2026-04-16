@@ -8,10 +8,10 @@ import PinSetupClient from "./PinSetupClient";
 export const dynamic = "force-dynamic";
 
 export default async function PinSetupPage() {
-  // If admin user exists, redirect to login
+  // If users already exist, direct to credentials login (setup is for first-time only)
   const adminUser = await db.query.users.findFirst();
   if (adminUser) {
-    redirect("/pin");
+    redirect("/pin/login");
   }
 
   return <PinSetupClient />;

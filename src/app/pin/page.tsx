@@ -32,9 +32,9 @@ export default async function PinLoginPage() {
     redirect("/pin/setup");
   }
 
-  // If PIN is not set, redirect to setup
+  // If PIN is not set, send to credentials login (PIN setup is only for first user)
   if (!adminUser.pinHash) {
-    redirect("/pin/setup");
+    redirect("/pin/login");
   }
 
   // If already authenticated, redirect to dashboard
