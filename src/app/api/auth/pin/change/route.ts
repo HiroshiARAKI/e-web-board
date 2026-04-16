@@ -2,29 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { settings } from "@/db/schema";
+import { users, authSessions } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import {
-  hashPin,
-  verifyPin,
-  PIN_SETTINGS,
-  PIN_SESSION_COOKIE,
-} from "@/lib/pin";
+import { hashPin, verifyPin } from "@/lib/pin";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { cookies } from "next/headers";
 
-/** PATCH /api/auth/pin/change — change PIN (requires current PIN) or email */
+/** PATCH /api/auth/pin/change — change PIN or email (requires active session) */
 export async function PATCH(request: NextRequest) {
   // Verify session
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(PIN_SESSION_COOKIE)?.value;
+  const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
   if (!sessionToken) {
     return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   }
 
-  const storedSession = await db.query.settings.findFirst({
-    where: eq(settings.key, PIN_SETTINGS.SESSION_SECRET),
+  const session = await db.query.authSessions.findFirst({
+    where: eq(authSessions.sessionToken, sessionToken),
+    with: { user: true },
   });
-  if (!storedSession?.value || storedSession.value !== sessionToken) {
+  if (!session || session.expiresAt < new Date().toISOString()) {
     return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   }
 
@@ -36,6 +33,13 @@ export async function PATCH(request: NextRequest) {
     newEmail?: string;
   };
 
+  const adminUser = await db.query.users.findFirst({
+    where: eq(users.id, session.userId),
+  });
+  if (!adminUser) {
+    return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
+  }
+
   if (action === "verifyCurrentPin") {
     if (!currentPin || !/^\d{6}$/.test(currentPin)) {
       return NextResponse.json(
@@ -43,10 +47,7 @@ export async function PATCH(request: NextRequest) {
         { status: 400 },
       );
     }
-    const row = await db.query.settings.findFirst({
-      where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
-    });
-    if (!row?.value || !verifyPin(currentPin, row.value)) {
+    if (!adminUser.pinHash || !verifyPin(currentPin, adminUser.pinHash)) {
       return NextResponse.json(
         { error: "PINが正しくありません" },
         { status: 401 },
@@ -69,25 +70,17 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Verify current PIN
-    const row = await db.query.settings.findFirst({
-      where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
-    });
-    if (!row?.value || !verifyPin(currentPin, row.value)) {
+    if (!adminUser.pinHash || !verifyPin(currentPin, adminUser.pinHash)) {
       return NextResponse.json(
         { error: "現在のPINが正しくありません" },
         { status: 401 },
       );
     }
 
-    // Update PIN hash
     await db
-      .insert(settings)
-      .values({ key: PIN_SETTINGS.PIN_HASH, value: hashPin(newPin) })
-      .onConflictDoUpdate({
-        target: settings.key,
-        set: { value: hashPin(newPin), updatedAt: new Date().toISOString() },
-      });
+      .update(users)
+      .set({ pinHash: hashPin(newPin) })
+      .where(eq(users.id, adminUser.id));
 
     return NextResponse.json({ success: true });
   }
@@ -101,12 +94,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     await db
-      .insert(settings)
-      .values({ key: PIN_SETTINGS.PIN_EMAIL, value: newEmail })
-      .onConflictDoUpdate({
-        target: settings.key,
-        set: { value: newEmail, updatedAt: new Date().toISOString() },
-      });
+      .update(users)
+      .set({ email: newEmail })
+      .where(eq(users.id, adminUser.id));
 
     return NextResponse.json({ success: true });
   }

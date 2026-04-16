@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { settings, pinResetTokens } from "@/db/schema";
+import { users, pinResetTokens } from "@/db/schema";
 import { eq, and, isNull, gt } from "drizzle-orm";
-import { hashPin, PIN_SETTINGS } from "@/lib/pin";
+import { hashPin } from "@/lib/pin";
 
 /** POST /api/auth/pin/reset — change PIN using a valid reset token */
 export async function POST(request: NextRequest) {
@@ -48,12 +48,19 @@ export async function POST(request: NextRequest) {
     .set({ usedAt: now })
     .where(eq(pinResetTokens.id, resetToken.id));
 
-  // Update PIN hash
-  const pinHash = hashPin(pin);
+  // Update PIN hash on admin user
+  const adminUser = await db.query.users.findFirst();
+  if (!adminUser) {
+    return NextResponse.json(
+      { error: "管理者ユーザーが見つかりません" },
+      { status: 400 },
+    );
+  }
+
   await db
-    .update(settings)
-    .set({ value: pinHash, updatedAt: now })
-    .where(eq(settings.key, PIN_SETTINGS.PIN_HASH));
+    .update(users)
+    .set({ pinHash: hashPin(pin) })
+    .where(eq(users.id, adminUser.id));
 
   return NextResponse.json({ success: true });
 }

@@ -2,30 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, authSessions, pinAttempts, settings } from "@/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { users, pinAttempts, authSessions } from "@/db/schema";
+import { eq, or, and, gt } from "drizzle-orm";
+import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
 import {
-  verifyPin,
-  generateSessionToken,
   MAX_PIN_ATTEMPTS,
   IP_BLOCK_DURATION_MS,
+  generateSessionToken,
 } from "@/lib/pin";
-import {
-  AUTH_SESSION_COOKIE,
-  SESSION_MAX_AGE,
-  DEFAULT_AUTH_EXPIRE_DAYS,
-  AUTH_EXPIRE_DAYS_KEY,
-  isFullAuthValid,
-} from "@/lib/auth";
 
-/** POST /api/auth/pin/verify — verify PIN and issue session */
+/** POST /api/auth/credentials/login — email/userId + password login */
 export async function POST(request: NextRequest) {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
     "unknown";
 
-  // Check IP block
+  // IP rate-limit (shared with PIN attempts)
   const blockThreshold = new Date(
     Date.now() - IP_BLOCK_DURATION_MS,
   ).toISOString();
@@ -51,62 +44,64 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { pin } = body as { pin?: string };
+  const { identifier, password } = body as {
+    identifier?: string;
+    password?: string;
+  };
 
-  if (!pin || !/^\d{6}$/.test(pin)) {
+  if (!identifier || !password) {
     return NextResponse.json(
-      { error: "PINは6桁の数字で入力してください" },
+      { error: "ユーザーIDまたはメールアドレスとパスワードを入力してください" },
       { status: 400 },
     );
   }
 
-  // Find admin user
-  const adminUser = await db.query.users.findFirst();
-  if (!adminUser?.pinHash) {
-    return NextResponse.json(
-      { error: "PINが設定されていません" },
-      { status: 400 },
-    );
-  }
-
-  // Check full-auth validity
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
+  const user = await db.query.users.findFirst({
+    where: or(
+      eq(users.email, identifier),
+      eq(users.userId, identifier),
+    ),
   });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
-    : DEFAULT_AUTH_EXPIRE_DAYS;
 
-  if (!isFullAuthValid(adminUser.lastFullAuthAt, expireDays)) {
+  // Constant-time failure to prevent user enumeration
+  if (!user) {
+    await db.insert(pinAttempts).values({ ipAddress: ip });
     return NextResponse.json(
-      { error: "メールアドレスとパスワードによる認証が必要です", requiresFullAuth: true },
-      { status: 403 },
+      { error: "ユーザーIDまたはパスワードが正しくありません" },
+      { status: 401 },
     );
   }
 
-  if (!verifyPin(pin, adminUser.pinHash)) {
-    // Record failed attempt
+  const valid = await verifyPassword(password, user.passwordHash);
+  if (!valid) {
     await db.insert(pinAttempts).values({ ipAddress: ip });
-
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
     return NextResponse.json(
       {
-        error: `PINが正しくありません${remaining > 0 ? `（残り${remaining}回）` : ""}`,
+        error: `ユーザーIDまたはパスワードが正しくありません${remaining > 0 ? `（残り${remaining}回）` : ""}`,
         remaining,
       },
       { status: 401 },
     );
   }
 
-  // Success — clear previous attempts for this IP
+  // Clear IP attempts on success
   await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
 
-  // Create session in authSessions table
+  const now = new Date().toISOString();
+
+  // Record full-auth timestamp
+  await db
+    .update(users)
+    .set({ lastFullAuthAt: now })
+    .where(eq(users.id, user.id));
+
+  // Create session
   const sessionToken = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString();
 
   await db.insert(authSessions).values({
-    userId: adminUser.id,
+    userId: user.id,
     sessionToken,
     expiresAt,
   });

@@ -2,19 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { PIN_SETTINGS } from "@/lib/pin";
+import { users } from "@/db/schema";
 import PinSetupClient from "./PinSetupClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function PinSetupPage() {
-  // If PIN is already set, redirect to login
-  const row = await db.query.settings.findFirst({
-    where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
-  });
-  if (row?.value) {
+  // If admin user exists, redirect to login
+  const adminUser = await db.query.users.findFirst();
+  if (adminUser) {
     redirect("/pin");
   }
 

@@ -70,6 +70,19 @@ export function SettingsClient() {
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSaved, setEmailSaved] = useState<{ ok: boolean; msg: string } | null>(null);
 
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordChanging, setPasswordChanging] = useState(false);
+  const [passwordChangeResult, setPasswordChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Auth expiry (login cache period) states
+  const [authExpireDays, setAuthExpireDays] = useState(30);
+  const [authExpirySaving, setAuthExpirySaving] = useState(false);
+  const [authExpirySaved, setAuthExpirySaved] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [fullAuthExpiry, setFullAuthExpiry] = useState<string | null>(null);
+
   const fetchMedia = useCallback(async () => {
     try {
       const res = await fetch("/api/media/files");
@@ -120,8 +133,10 @@ export function SettingsClient() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {
-          setPinConfigured(data.configured);
+          setPinConfigured(data.pinConfigured);
           if (data.email) setStoredEmail(data.email);
+          if (data.authExpireDays) setAuthExpireDays(data.authExpireDays);
+          if (data.fullAuthExpiry) setFullAuthExpiry(data.fullAuthExpiry);
         }
       })
       .catch(() => {});
@@ -270,6 +285,61 @@ export function SettingsClient() {
   async function handleLogout() {
     await fetch("/api/auth/pin/logout", { method: "POST" });
     window.location.href = "/pin";
+  }
+
+  async function handlePasswordChange() {
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeResult({ ok: false, msg: "新しいパスワードが一致しません" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordChangeResult({ ok: false, msg: "パスワードは8文字以上で入力してください" });
+      return;
+    }
+    setPasswordChanging(true);
+    setPasswordChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/password/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordChangeResult({ ok: true, msg: "パスワードを変更しました" });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+      } else {
+        setPasswordChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+      }
+    } catch {
+      setPasswordChangeResult({ ok: false, msg: "通信エラーが発生しました" });
+    } finally {
+      setPasswordChanging(false);
+    }
+  }
+
+  async function handleAuthExpirySave(days: number) {
+    setAuthExpirySaving(true);
+    setAuthExpirySaved(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authExpireDays: String(days) }),
+      });
+      if (res.ok) {
+        setAuthExpireDays(days);
+        setAuthExpirySaved({ ok: true, msg: "保存しました" });
+      } else {
+        setAuthExpirySaved({ ok: false, msg: "保存に失敗しました" });
+      }
+    } catch {
+      setAuthExpirySaved({ ok: false, msg: "通信エラーが発生しました" });
+    } finally {
+      setAuthExpirySaving(false);
+    }
   }
 
   async function handleDeleteAllMedia() {
@@ -613,6 +683,110 @@ export function SettingsClient() {
             {emailSaved && (
               <span className={`mt-2 block text-sm ${emailSaved.ok ? "text-green-600" : "text-red-600"}`}>
                 {emailSaved.msg}
+              </span>
+            )}
+          </div>
+
+          {/* Password Change */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">パスワード変更</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              管理者ログイン用のパスワードを変更します。
+            </p>
+            <div className="space-y-3 max-w-sm">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">現在のパスワード</label>
+                <Input
+                  type="password"
+                  placeholder="現在のパスワード"
+                  value={currentPassword}
+                  onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（8文字以上）</label>
+                <Input
+                  type="password"
+                  placeholder="新しいパスワード"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（確認）</label>
+                <Input
+                  type="password"
+                  placeholder="もう一度入力"
+                  value={confirmNewPassword}
+                  onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={passwordChanging || !currentPassword || !newPassword || !confirmNewPassword}
+                >
+                  {passwordChanging ? "変更中..." : "パスワードを変更"}
+                </Button>
+              </div>
+              {passwordChangeResult && (
+                <span className={`text-sm ${passwordChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+                  {passwordChangeResult.msg}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Auth Expiry / Login Cache Period */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">ログイン認証キャッシュ期間</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              メールアドレス+パスワードによるログインの有効期間です。期間を過ぎると、次回PINログイン前にメールアドレスでの再認証が必要になります。
+            </p>
+            {fullAuthExpiry && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                現在の有効期限:{" "}
+                <span className="font-medium">
+                  {new Date(fullAuthExpiry).toLocaleDateString("ja-JP", {
+                    year: "numeric", month: "long", day: "numeric",
+                  })}
+                </span>
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[
+                { label: "30日", days: 30 },
+                { label: "60日", days: 60 },
+                { label: "90日", days: 90 },
+                { label: "180日", days: 180 },
+                { label: "1年", days: 365 },
+              ].map((opt) => {
+                const expiry = new Date(Date.now() + opt.days * 86_400_000);
+                return (
+                  <button
+                    key={opt.days}
+                    type="button"
+                    onClick={() => handleAuthExpirySave(opt.days)}
+                    disabled={authExpirySaving}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                      authExpireDays === opt.days
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                    title={expiry.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              現在の設定: {authExpireDays}日間
+              {authExpireDays === 30 && "（デフォルト）"}
+            </p>
+            {authExpirySaved && (
+              <span className={`mt-2 block text-sm ${authExpirySaved.ok ? "text-green-600" : "text-red-600"}`}>
+                {authExpirySaved.msg}
               </span>
             )}
           </div>

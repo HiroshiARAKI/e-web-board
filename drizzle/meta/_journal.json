@@ -22,6 +22,13 @@
       "when": 1776087028300,
       "tag": "0002_equal_salo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1776700000000,
+      "tag": "0003_users_auth_sessions",
+      "breakpoints": true
     }
   ]
 }
