@@ -67,3 +67,31 @@ export function isFullAuthValid(
   if (!expiry) return false;
   return expiry > new Date();
 }
+
+// ── Session helper ────────────────────────────────────────────────────────────
+
+import { cookies } from "next/headers";
+import { db } from "@/db";
+import { authSessions } from "@/db/schema";
+import { eq, and, gt } from "drizzle-orm";
+
+/**
+ * Read the current session from the cookie store and return the
+ * associated session row (with user) if it is valid, or null.
+ * Only for use inside Next.js request context (Route Handlers / Server
+ * Components).
+ */
+export async function getSessionUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const session = await db.query.authSessions.findFirst({
+    where: and(
+      eq(authSessions.sessionToken, token),
+      gt(authSessions.expiresAt, new Date().toISOString()),
+    ),
+    with: { user: true },
+  });
+  return session ?? null;
+}

@@ -29,6 +29,13 @@
       "when": 1776700000000,
       "tag": "0003_users_auth_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1776800000000,
+      "tag": "0004_user_color_theme",
+      "breakpoints": true
     }
   ]
 }

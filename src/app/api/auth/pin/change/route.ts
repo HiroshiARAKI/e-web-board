@@ -26,11 +26,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { action, currentPin, newPin, newEmail } = body as {
-    action: "verifyCurrentPin" | "changePin" | "changeEmail";
+  const { action, currentPin, newPin, newEmail, newUserId } = body as {
+    action: "verifyCurrentPin" | "changePin" | "changeEmail" | "changeUserId";
     currentPin?: string;
     newPin?: string;
     newEmail?: string;
+    newUserId?: string;
   };
 
   const adminUser = await db.query.users.findFirst({
@@ -96,6 +97,33 @@ export async function PATCH(request: NextRequest) {
     await db
       .update(users)
       .set({ email: newEmail })
+      .where(eq(users.id, adminUser.id));
+
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "changeUserId") {
+    if (!newUserId || !/^[a-zA-Z0-9_\-]{3,32}$/.test(newUserId)) {
+      return NextResponse.json(
+        { error: "ユーザーIDは3〜32文字の英数字・_・-のみ使用できます" },
+        { status: 400 },
+      );
+    }
+
+    // Check uniqueness
+    const existing = await db.query.users.findFirst({
+      where: eq(users.userId, newUserId),
+    });
+    if (existing && existing.id !== adminUser.id) {
+      return NextResponse.json(
+        { error: "このユーザーIDはすでに使用されています" },
+        { status: 409 },
+      );
+    }
+
+    await db
+      .update(users)
+      .set({ userId: newUserId })
       .where(eq(users.id, adminUser.id));
 
     return NextResponse.json({ success: true });

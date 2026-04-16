@@ -37,7 +37,7 @@ interface VersionInfo {
   hasUpdate: boolean;
 }
 
-export function SettingsClient() {
+export function SettingsClient({ role, currentUserId }: { role: "admin" | "general"; currentUserId: string }) {
   const [cityId, setCityId] = useState(DEFAULT_CITY_ID);
   const [selectedPref, setSelectedPref] = useState<WeatherPrefecture | null>(
     null,
@@ -82,6 +82,11 @@ export function SettingsClient() {
   const [authExpirySaving, setAuthExpirySaving] = useState(false);
   const [authExpirySaved, setAuthExpirySaved] = useState<{ ok: boolean; msg: string } | null>(null);
   const [fullAuthExpiry, setFullAuthExpiry] = useState<string | null>(null);
+
+  // UserId change states
+  const [newUserId, setNewUserId] = useState("");
+  const [userIdChanging, setUserIdChanging] = useState(false);
+  const [userIdChangeResult, setUserIdChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -342,6 +347,30 @@ export function SettingsClient() {
     }
   }
 
+  async function handleUserIdChange() {
+    if (!newUserId.trim()) return;
+    setUserIdChanging(true);
+    setUserIdChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "changeUserId", newUserId: newUserId.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUserIdChangeResult({ ok: true, msg: "ユーザーIDを変更しました" });
+        setNewUserId("");
+      } else {
+        setUserIdChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+      }
+    } catch {
+      setUserIdChangeResult({ ok: false, msg: "通信エラーが発生しました" });
+    } finally {
+      setUserIdChanging(false);
+    }
+  }
+
   async function handleDeleteAllMedia() {
     if (!confirm("すべてのメディアファイルを削除します。この操作は取り消せません。\n本当に実行しますか？")) {
       return;
@@ -448,7 +477,14 @@ export function SettingsClient() {
           ]).map((opt) => (
             <button
               key={opt.value}
-              onClick={() => setTheme(opt.value)}
+              onClick={async () => {
+                setTheme(opt.value);
+                await fetch("/api/users/me", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ colorTheme: opt.value }),
+                });
+              }}
               className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
                 theme === opt.value
                   ? "border-primary bg-primary text-primary-foreground"
@@ -461,8 +497,39 @@ export function SettingsClient() {
         </div>
       </div>
 
-      {/* Weather Area Selection */}
+      {/* Account Settings */}
       <div className="rounded-lg border p-6">
+        <h2 className="mb-4 text-lg font-semibold">アカウント設定</h2>
+        <div>
+          <h3 className="mb-2 text-sm font-medium">ユーザーID変更</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            現在のユーザーID: <span className="font-mono">{currentUserId}</span>
+          </p>
+          <div className="flex items-center gap-3">
+            <Input
+              type="text"
+              placeholder="新しいユーザーID"
+              value={newUserId}
+              onChange={(e) => { setNewUserId(e.target.value); setUserIdChangeResult(null); }}
+              className="max-w-sm"
+            />
+            <Button
+              onClick={handleUserIdChange}
+              disabled={userIdChanging || !newUserId.trim() || newUserId.trim() === currentUserId}
+            >
+              {userIdChanging ? "変更中..." : "変更"}
+            </Button>
+          </div>
+          {userIdChangeResult && (
+            <span className={`mt-2 block text-sm ${userIdChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+              {userIdChangeResult.msg}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Weather Area Selection */}
+      {role === "admin" && <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">天気予報の地域設定</h2>
         <p className="mb-4 text-sm text-muted-foreground">
           フォトクロックテンプレートの天気表示で使用する地域を設定します。
@@ -530,10 +597,10 @@ export function SettingsClient() {
             {cityId}）
           </p>
         )}
-      </div>
+      </div>}
 
       {/* Image Resize Settings */}
-      <div className="rounded-lg border p-6">
+      {role === "admin" && <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">画像リサイズ設定</h2>
         <p className="mb-4 text-sm text-muted-foreground">
           アップロード時に画像の長辺を指定ピクセル数以下にリサイズします。
@@ -586,7 +653,7 @@ export function SettingsClient() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Security / PIN Settings */}
       {pinConfigured && (
@@ -737,8 +804,8 @@ export function SettingsClient() {
             </div>
           </div>
 
-          {/* Auth Expiry / Login Cache Period */}
-          <div className="border-t pt-4">
+          {/* Auth Expiry / Login Cache Period - admin only */}
+          {role === "admin" && <div className="border-t pt-4">
             <h3 className="mb-2 text-sm font-medium">ログイン認証キャッシュ期間</h3>
             <p className="mb-4 text-sm text-muted-foreground">
               メールアドレス+パスワードによるログインの有効期間です。期間を過ぎると、次回PINログイン前にメールアドレスでの再認証が必要になります。
@@ -789,7 +856,7 @@ export function SettingsClient() {
                 {authExpirySaved.msg}
               </span>
             )}
-          </div>
+          </div>}
 
           {/* Logout */}
           <div className="mt-6 border-t pt-4">
@@ -800,8 +867,8 @@ export function SettingsClient() {
         </div>
       )}
 
-      {/* Media Management */}
-      <div className="rounded-lg border border-red-200 p-6">
+      {/* Media Management - admin only */}
+      {role === "admin" && <div className="rounded-lg border border-red-200 p-6">
         <h2 className="mb-4 text-lg font-semibold">メディア管理</h2>
 
         {/* Individual media list */}
@@ -893,7 +960,7 @@ export function SettingsClient() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

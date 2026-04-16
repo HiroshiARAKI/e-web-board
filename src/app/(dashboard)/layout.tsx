@@ -1,7 +1,7 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import Link from "next/link";
-import { LayoutDashboard, MonitorPlay, Settings } from "lucide-react";
+import { LayoutDashboard, MonitorPlay, Settings, Users } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -75,23 +75,42 @@ export default async function DashboardLayout({
     redirect("/pin");
   }
 
+  const { userId, role, colorTheme } = session.user;
+
   return (
-    <ThemeProvider>
+    <ThemeProvider initialTheme={colorTheme as "system" | "light" | "dark"}>
       <div id="dashboard-theme-root" className="flex min-h-dvh bg-background text-foreground">
         {/* Sidebar */}
         <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-          <div className="flex h-14 items-center justify-between px-4">
-            <Link href="/boards" className="flex items-center gap-2 font-bold">
-              <MonitorPlay className="size-5" />
-              <span>Keinage</span>
-            </Link>
-            <LogoutButton />
+          <div className="flex h-auto min-h-14 flex-col justify-center gap-0.5 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <Link href="/boards" className="flex items-center gap-2 font-bold">
+                <MonitorPlay className="size-5" />
+                <span>Keinage</span>
+              </Link>
+              <LogoutButton />
+            </div>
+            <div className="flex items-center gap-1.5 pl-0.5">
+              <span className="text-xs text-muted-foreground">{userId}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                role === "admin"
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                  : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+              }`}>
+                {role === "admin" ? "Admin" : "General"}
+              </span>
+            </div>
           </div>
           <Separator />
           <nav className="flex-1 space-y-1 px-2 py-3">
             <SidebarLink href="/boards" icon={LayoutDashboard}>
               ボード管理
             </SidebarLink>
+            {role === "admin" && (
+              <SidebarLink href="/users" icon={Users}>
+                ユーザー管理
+              </SidebarLink>
+            )}
             <SidebarLink href="/settings" icon={Settings}>
               設定
             </SidebarLink>
