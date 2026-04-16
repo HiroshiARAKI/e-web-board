@@ -3,27 +3,17 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, authSessions, settings } from "@/db/schema";
+import { users, authSessions } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
-import {
-  AUTH_SESSION_COOKIE,
-  DEFAULT_AUTH_EXPIRE_DAYS,
-  AUTH_EXPIRE_DAYS_KEY,
-  isFullAuthValid,
-} from "@/lib/auth";
-import PinLoginClient from "./PinLoginClient";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import LoginClient from "./LoginClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function PinLoginPage() {
+export default async function LoginPage() {
   // If admin user not configured, redirect to setup
   const adminUser = await db.query.users.findFirst();
   if (!adminUser) {
-    redirect("/pin/setup");
-  }
-
-  // If PIN is not set, redirect to setup
-  if (!adminUser.pinHash) {
     redirect("/pin/setup");
   }
 
@@ -42,17 +32,5 @@ export default async function PinLoginPage() {
     }
   }
 
-  // Check if full auth (email+password) is required
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
-  });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
-    : DEFAULT_AUTH_EXPIRE_DAYS;
-
-  if (!isFullAuthValid(adminUser.lastFullAuthAt, expireDays)) {
-    redirect("/pin/login");
-  }
-
-  return <PinLoginClient />;
+  return <LoginClient />;
 }
