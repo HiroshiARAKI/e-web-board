@@ -10,14 +10,24 @@ import {
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
+  LAST_USER_COOKIE,
 } from "@/lib/auth";
 import PinLoginClient from "./PinLoginClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function PinLoginPage() {
-  // If admin user not configured, redirect to setup
-  const adminUser = await db.query.users.findFirst();
+  // Determine which user's PIN to request:
+  // prefer last-user cookie → fallback to first admin user
+  const cookieStore = await cookies();
+  const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
+
+  let adminUser = lastUserId
+    ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
+    : null;
+  if (!adminUser) {
+    adminUser = await db.query.users.findFirst();
+  }
   if (!adminUser) {
     redirect("/pin/setup");
   }
@@ -28,7 +38,6 @@ export default async function PinLoginPage() {
   }
 
   // If already authenticated, redirect to dashboard
-  const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
   if (sessionCookie) {
     const sessionRow = await db.query.authSessions.findFirst({
@@ -54,5 +63,5 @@ export default async function PinLoginPage() {
     redirect("/pin/login");
   }
 
-  return <PinLoginClient />;
+  return <PinLoginClient userId={adminUser.userId} />;
 }

@@ -1,18 +1,49 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { users, settings, authSessions } from "@/db/schema";
+import { eq, and, gt } from "drizzle-orm";
 import {
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
   computeFullAuthExpiry,
+  AUTH_SESSION_COOKIE,
+  LAST_USER_COOKIE,
 } from "@/lib/auth";
 
 /** GET /api/auth/pin/status — check if admin user and PIN are configured */
 export async function GET() {
-  const adminUser = await db.query.users.findFirst();
+  const cookieStore = await cookies();
+
+  // Prefer the logged-in session user; fall back to last-user cookie; then first user
+  let targetUser: typeof users.$inferSelect | null | undefined = null;
+
+  const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  if (sessionToken) {
+    const session = await db.query.authSessions.findFirst({
+      where: and(
+        eq(authSessions.sessionToken, sessionToken),
+        gt(authSessions.expiresAt, new Date().toISOString()),
+      ),
+      with: { user: true },
+    });
+    targetUser = session?.user ?? null;
+  }
+
+  if (!targetUser) {
+    const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
+    if (lastUserId) {
+      targetUser = await db.query.users.findFirst({
+        where: eq(users.userId, lastUserId),
+      });
+    }
+  }
+
+  if (!targetUser) {
+    targetUser = await db.query.users.findFirst();
+  }
 
   const expireSetting = await db.query.settings.findFirst({
     where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
@@ -21,15 +52,15 @@ export async function GET() {
     ? parseInt(expireSetting.value, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
-  const fullAuthExpiry = adminUser
-    ? computeFullAuthExpiry(adminUser.lastFullAuthAt, expireDays)
+  const fullAuthExpiry = targetUser
+    ? computeFullAuthExpiry(targetUser.lastFullAuthAt, expireDays)
     : null;
 
   return NextResponse.json({
-    userConfigured: !!adminUser,
-    pinConfigured: !!adminUser?.pinHash,
-    email: adminUser?.email ?? null,
-    userId: adminUser?.userId ?? null,
+    userConfigured: !!targetUser,
+    pinConfigured: !!targetUser?.pinHash,
+    email: targetUser?.email ?? null,
+    userId: targetUser?.userId ?? null,
     fullAuthExpiry: fullAuthExpiry?.toISOString() ?? null,
     authExpireDays: expireDays,
   });

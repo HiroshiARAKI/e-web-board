@@ -35,6 +35,13 @@ export async function verifyPassword(
 /** Auth session cookie name */
 export const AUTH_SESSION_COOKIE = "auth-session";
 
+/**
+ * Cookie that stores the userId (human-readable) of the most recently
+ * authenticated user. Used to target the correct account on the PIN screen.
+ * Long-lived (1 year), httpOnly.
+ */
+export const LAST_USER_COOKIE = "last-user-id";
+
 /** PIN session duration: 24 hours (in seconds, for cookie maxAge) */
 export const SESSION_MAX_AGE = 60 * 60 * 24;
 

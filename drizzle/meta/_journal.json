@@ -36,6 +36,13 @@
       "when": 1776800000000,
       "tag": "0004_user_color_theme",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1776900000000,
+      "tag": "0005_pin_reset_token_user",
+      "breakpoints": true
     }
   ]
 }

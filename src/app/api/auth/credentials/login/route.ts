@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, pinAttempts, authSessions } from "@/db/schema";
 import { eq, or, and, gt } from "drizzle-orm";
-import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
+import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE, LAST_USER_COOKIE } from "@/lib/auth";
 import {
   MAX_PIN_ATTEMPTS,
   IP_BLOCK_DURATION_MS,
@@ -112,6 +112,13 @@ export async function POST(request: NextRequest) {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE,
+  });
+  // Remember which user last authenticated so the PIN screen can target them
+  res.cookies.set(LAST_USER_COOKIE, user.userId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
   });
   return res;
 }

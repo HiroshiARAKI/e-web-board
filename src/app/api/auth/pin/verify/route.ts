@@ -16,6 +16,7 @@ import {
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
+  LAST_USER_COOKIE,
 } from "@/lib/auth";
 
 /** POST /api/auth/pin/verify — verify PIN and issue session */
@@ -60,8 +61,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Find admin user
-  const adminUser = await db.query.users.findFirst();
+  // Find target user: prefer last-logged-in user, fallback to first admin user
+  const cookieStore = await request.cookies;
+  const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
+  const adminUser = lastUserId
+    ? (await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })) ??
+      (await db.query.users.findFirst())
+    : await db.query.users.findFirst();
   if (!adminUser?.pinHash) {
     return NextResponse.json(
       { error: "PINが設定されていません" },
