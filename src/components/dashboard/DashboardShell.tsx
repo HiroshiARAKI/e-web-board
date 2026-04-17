@@ -87,7 +87,7 @@ export function DashboardShell({
           {role === "admin" ? "Admin" : "General"}
         </span>
       </div>
-      <nav className="flex-1 space-y-1 px-2 py-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-1">
         <SidebarLink href="/boards" icon={LayoutDashboard} onClick={closeSidebar}>
           ボード管理
         </SidebarLink>
@@ -127,7 +127,7 @@ export function DashboardShell({
       {/* Backdrop overlay (mobile) — animated */}
       <div
         className={`
-          fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ease-in-out md:hidden
+          fixed inset-0 z-40 bg-black/40 transition-opacity duration-300 ease-out md:hidden
           ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}
         `}
         onClick={closeSidebar}
@@ -138,8 +138,8 @@ export function DashboardShell({
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground
-          transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]
-          md:static md:translate-x-0 md:transition-none
+          transition-transform duration-300 ease-out
+          md:sticky md:top-0 md:z-auto md:h-dvh md:translate-x-0 md:transition-none
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
