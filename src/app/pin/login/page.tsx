@@ -11,9 +11,12 @@ import LoginClient from "./LoginClient";
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
+  console.log("[/pin/login] START");
+
   // If admin user not configured, redirect to setup
   const adminUser = await db.query.users.findFirst();
   if (!adminUser) {
+    console.log("[/pin/login] No users → /pin/setup");
     redirect("/pin/setup");
   }
 
@@ -28,9 +31,12 @@ export default async function LoginPage() {
       ),
     });
     if (sessionRow) {
+      console.log("[/pin/login] Already authenticated → /boards");
       redirect("/boards");
     }
+    console.log("[/pin/login] Session cookie present but invalid/expired");
   }
 
+  console.log("[/pin/login] Rendering LoginClient");
   return <LoginClient />;
 }

@@ -63,6 +63,12 @@ export async function POST(request: NextRequest) {
     ),
   });
 
+  console.log("[credentials/login] User lookup", {
+    identifier,
+    found: !!user,
+    userId: user?.userId ?? null,
+  });
+
   // Constant-time failure to prevent user enumeration
   if (!user) {
     await db.insert(pinAttempts).values({ ipAddress: ip });
@@ -73,6 +79,11 @@ export async function POST(request: NextRequest) {
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
+  console.log("[credentials/login] Password verify result", {
+    userId: user.userId,
+    valid,
+    pwHashLen: user.passwordHash?.length ?? 0,
+  });
   if (!valid) {
     await db.insert(pinAttempts).values({ ipAddress: ip });
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
@@ -87,6 +98,8 @@ export async function POST(request: NextRequest) {
 
   // Clear IP attempts on success
   await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+
+  console.log("[credentials/login] Password verified OK for", user.userId);
 
   const now = new Date().toISOString();
 

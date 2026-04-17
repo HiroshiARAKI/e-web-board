@@ -46,7 +46,10 @@ export default async function DashboardLayout({
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
 
+  console.log("[dashboard/layout] Auth check", { hasSessionToken: !!sessionToken });
+
   if (!sessionToken) {
+    console.log("[dashboard/layout] No session token → /pin");
     redirect("/pin");
   }
 
@@ -60,6 +63,7 @@ export default async function DashboardLayout({
   });
 
   if (!session) {
+    console.log("[dashboard/layout] Session not found or expired → /pin");
     redirect("/pin");
   }
 
@@ -71,7 +75,16 @@ export default async function DashboardLayout({
     ? parseInt(expireSetting.value, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
-  if (!isFullAuthValid(session.user.lastFullAuthAt, expireDays)) {
+  const fullValid = isFullAuthValid(session.user.lastFullAuthAt, expireDays);
+  console.log("[dashboard/layout] Full auth check", {
+    userId: session.user.userId,
+    lastFullAuthAt: session.user.lastFullAuthAt,
+    expireDays,
+    fullValid,
+  });
+
+  if (!fullValid) {
+    console.log("[dashboard/layout] Full auth expired → /pin");
     redirect("/pin");
   }
 

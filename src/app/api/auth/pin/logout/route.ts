@@ -12,6 +12,8 @@ export async function POST() {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
 
+  console.log("[logout] Clearing session", { hasToken: !!sessionToken });
+
   if (sessionToken) {
     await db
       .delete(authSessions)

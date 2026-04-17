@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json();
   const { action, currentPin, newPin, newEmail, newUserId } = body as {
-    action: "verifyCurrentPin" | "changePin" | "changeEmail" | "changeUserId";
+    action: "verifyCurrentPin" | "changePin" | "setupPin" | "changeEmail" | "changeUserId";
     currentPin?: string;
     newPin?: string;
     newEmail?: string;
@@ -39,6 +39,29 @@ export async function PATCH(request: NextRequest) {
   });
   if (!adminUser) {
     return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
+  }
+
+  // ── setupPin: set initial PIN for a user who has none ──────────────────────
+  if (action === "setupPin") {
+    if (adminUser.pinHash) {
+      return NextResponse.json(
+        { error: "PINは既に設定されています。変更する場合はPIN変更を使用してください" },
+        { status: 400 },
+      );
+    }
+    if (!newPin || !/^\d{6}$/.test(newPin)) {
+      return NextResponse.json(
+        { error: "PINは6桁の数字で入力してください" },
+        { status: 400 },
+      );
+    }
+
+    await db
+      .update(users)
+      .set({ pinHash: hashPin(newPin) })
+      .where(eq(users.id, adminUser.id));
+
+    return NextResponse.json({ success: true });
   }
 
   if (action === "verifyCurrentPin") {

@@ -62,18 +62,37 @@ export async function POST(request: NextRequest) {
   }
 
   // Resolve target user — same logic as pin/page.tsx:
-  //   - If LAST_USER_COOKIE user exists and has a PIN → that user
-  //   - If cookie user has no PIN or not found → first user with a PIN
+  //   Cookie user found + has PIN → that user
+  //   Cookie user found + no PIN → error (should not reach verify)
+  //   Cookie user not found → first user with PIN
   const cookieStore = request.cookies;
   const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
   let adminUser = lastUserId
     ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
     : null;
 
-  if (!adminUser?.pinHash) {
-    // Cookie user has no PIN (or not found) — fall back to first user with a PIN
-    const userWithPin = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
-    adminUser = userWithPin ?? adminUser;
+  console.log("[pin/verify] User resolution", {
+    lastUserId,
+    cookieUserFound: !!adminUser,
+    cookieUserHasPIN: !!adminUser?.pinHash,
+  });
+
+  if (adminUser) {
+    if (!adminUser.pinHash) {
+      // Cookie user has no PIN — they shouldn't be using PIN verify
+      console.log("[pin/verify] Cookie user has no PIN → error");
+      return NextResponse.json(
+        { error: "PINが設定されていません。メールアドレスでログインしてください。", requiresFullAuth: true },
+        { status: 403 },
+      );
+    }
+  } else {
+    // No cookie or cookie user not found — fall back to first user with a PIN
+    adminUser = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
+    console.log("[pin/verify] Fallback user with PIN", {
+      found: !!adminUser,
+      userId: adminUser?.userId ?? null,
+    });
   }
   if (!adminUser?.pinHash) {
     return NextResponse.json(
@@ -102,6 +121,7 @@ export async function POST(request: NextRequest) {
     await db.insert(pinAttempts).values({ ipAddress: ip });
 
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
+    console.log("[pin/verify] PIN incorrect for", adminUser.userId, { remaining });
     return NextResponse.json(
       {
         error: `PINが正しくありません${remaining > 0 ? `（残り${remaining}回）` : ""}`,
@@ -113,6 +133,8 @@ export async function POST(request: NextRequest) {
 
   // Success — clear previous attempts for this IP
   await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+
+  console.log("[pin/verify] PIN verified OK for", adminUser.userId);
 
   // Create session in authSessions table
   const sessionToken = generateSessionToken();

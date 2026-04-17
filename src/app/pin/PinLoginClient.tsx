@@ -29,6 +29,8 @@ export default function PinLoginClient({ userId }: { userId: string }) {
         });
         const data = await res.json();
 
+        console.log("[PinLoginClient] Verify response", { status: res.status, ok: res.ok, data });
+
         if (!res.ok) {
           if (data.blocked) {
             setBlocked(true);
