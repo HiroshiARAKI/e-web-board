@@ -60,39 +60,34 @@ export function DashboardShell({
 
   const sidebarContent = (
     <>
-      <div className="flex h-auto min-h-14 flex-col justify-center gap-0.5 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <Link href="/boards" className="flex items-center gap-2 font-bold" onClick={closeSidebar}>
-            <KeinageLogo className="h-5 w-auto text-foreground" />
-            <span>Keinage</span>
-          </Link>
-          <div className="flex items-center gap-1">
-            <LogoutButton />
-            {/* Close button: mobile only */}
-            <button
-              onClick={closeSidebar}
-              className="ml-1 rounded-lg p-1.5 text-muted-foreground hover:bg-accent md:hidden"
-              aria-label="メニューを閉じる"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 pl-0.5">
-          <span className="text-xs text-muted-foreground">{userId}</span>
-          <span
-            className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-              role === "admin"
-                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-            }`}
-          >
-            {role === "admin" ? "Admin" : "General"}
-          </span>
-        </div>
+      <div className="flex min-h-14 items-center gap-2 px-4 py-3">
+        <Link href="/boards" className="flex items-center gap-2 font-bold" onClick={closeSidebar}>
+          <KeinageLogo className="h-5 w-auto text-foreground" />
+          <span>Keinage</span>
+        </Link>
+        {/* Close button: mobile only */}
+        <button
+          onClick={closeSidebar}
+          className="ml-auto rounded-lg p-1.5 text-muted-foreground hover:bg-accent md:hidden"
+          aria-label="メニューを閉じる"
+        >
+          <X className="size-5" />
+        </button>
       </div>
       <Separator />
-      <nav className="flex-1 space-y-1 px-2 py-3">
+      <div className="flex items-center gap-1.5 px-4 py-2">
+        <span className="text-xs text-muted-foreground">{userId}</span>
+        <span
+          className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+            role === "admin"
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+              : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+          }`}
+        >
+          {role === "admin" ? "Admin" : "General"}
+        </span>
+      </div>
+      <nav className="flex-1 space-y-1 px-2 py-1">
         <SidebarLink href="/boards" icon={LayoutDashboard} onClick={closeSidebar}>
           ボード管理
         </SidebarLink>
@@ -105,6 +100,10 @@ export function DashboardShell({
           設定
         </SidebarLink>
       </nav>
+      <Separator />
+      <div className="px-2 py-3">
+        <LogoutButton />
+      </div>
     </>
   );
 
@@ -125,20 +124,21 @@ export function DashboardShell({
         </Link>
       </header>
 
-      {/* Backdrop overlay (mobile) */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          onClick={closeSidebar}
-          aria-hidden="true"
-        />
-      )}
+      {/* Backdrop overlay (mobile) — animated */}
+      <div
+        className={`
+          fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ease-in-out md:hidden
+          ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}
+        `}
+        onClick={closeSidebar}
+        aria-hidden="true"
+      />
 
-      {/* Sidebar: always visible on md+, overlay on mobile */}
+      {/* Sidebar: always visible on md+, slide-in overlay on mobile */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground
-          transition-transform duration-200 ease-in-out
+          transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)]
           md:static md:translate-x-0 md:transition-none
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
