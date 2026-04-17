@@ -61,10 +61,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Resolve target user — same logic as pin/page.tsx so they stay in sync:
-  //   1. LAST_USER_COOKIE user (if they have a PIN)
-  //   2. First user WITH a pinHash (fallback when cookie user has no PIN)
-  //   3. First user at all (ultimate fallback)
+  // Resolve target user — same logic as pin/page.tsx:
+  //   - If LAST_USER_COOKIE user exists and has a PIN → that user
+  //   - If cookie user has no PIN or not found → first user with a PIN
   const cookieStore = request.cookies;
   const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
   let adminUser = lastUserId
@@ -72,12 +71,9 @@ export async function POST(request: NextRequest) {
     : null;
 
   if (!adminUser?.pinHash) {
+    // Cookie user has no PIN (or not found) — fall back to first user with a PIN
     const userWithPin = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
-    if (userWithPin) adminUser = userWithPin;
-  }
-
-  if (!adminUser) {
-    adminUser = await db.query.users.findFirst();
+    adminUser = userWithPin ?? adminUser;
   }
   if (!adminUser?.pinHash) {
     return NextResponse.json(
@@ -134,6 +130,13 @@ export async function POST(request: NextRequest) {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE,
+  });
+  // Keep LAST_USER_COOKIE up-to-date so next logout shows the correct PIN screen
+  res.cookies.set(LAST_USER_COOKIE, adminUser.userId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
   });
   return res;
 }

@@ -20,31 +20,25 @@ export default async function PinLoginPage() {
   const cookieStore = await cookies();
   const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
 
-  // Step 1: Try the last-logged-in user from cookie
+  // Try the last-logged-in user from cookie
   let targetUser = lastUserId
     ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
     : null;
 
-  // Step 2: If that user has no PIN, fall back to the first user who has one
-  if (!targetUser?.pinHash) {
-    const userWithPin = await db.query.users.findFirst({
-      where: isNotNull(users.pinHash),
-    });
-    if (userWithPin) targetUser = userWithPin;
-  }
-
-  // Step 3: Ultimate fallback — any user at all
-  if (!targetUser) {
-    targetUser = await db.query.users.findFirst();
-  }
-
-  if (!targetUser) {
-    redirect("/pin/setup");
-  }
-
-  // If no user in the system has a PIN, go to credential login
-  if (!targetUser.pinHash) {
-    redirect("/pin/login");
+  if (targetUser) {
+    // Cookie user found. If they have no PIN they must use credentials login.
+    if (!targetUser.pinHash) {
+      redirect("/pin/login");
+    }
+  } else {
+    // No cookie or cookie user not found — find first user with a PIN
+    targetUser = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
+    if (!targetUser) {
+      // No user has a PIN at all
+      const anyUser = await db.query.users.findFirst();
+      if (!anyUser) redirect("/pin/setup");
+      redirect("/pin/login");
+    }
   }
 
   // If already authenticated, redirect to dashboard
