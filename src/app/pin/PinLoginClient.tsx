@@ -8,7 +8,7 @@ import Link from "next/link";
 import { MonitorPlay, Lock } from "lucide-react";
 import { PinInput } from "@/components/auth/PinInput";
 
-export default function PinLoginClient() {
+export default function PinLoginClient({ userId }: { userId: string }) {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -28,6 +28,8 @@ export default function PinLoginClient() {
           body: JSON.stringify({ pin: value }),
         });
         const data = await res.json();
+
+        console.log("[PinLoginClient] Verify response", { status: res.status, ok: res.ok, data });
 
         if (!res.ok) {
           if (data.blocked) {
@@ -64,10 +66,10 @@ export default function PinLoginClient() {
           <div className="mb-6 flex flex-col items-center gap-2">
             <Lock className="size-8 text-gray-400" />
             <h2 className="text-lg font-bold text-gray-900">
-              管理者PIN入力
+              PIN入力
             </h2>
             <p className="text-center text-sm text-gray-500">
-              6桁のPINを入力してください
+              <span className="font-medium text-gray-700">{userId}</span> のPINを入力してください
             </p>
           </div>
 

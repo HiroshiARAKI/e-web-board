@@ -37,7 +37,7 @@ interface VersionInfo {
   hasUpdate: boolean;
 }
 
-export function SettingsClient() {
+export function SettingsClient({ role, currentUserId }: { role: "admin" | "general"; currentUserId: string }) {
   const [cityId, setCityId] = useState(DEFAULT_CITY_ID);
   const [selectedPref, setSelectedPref] = useState<WeatherPrefecture | null>(
     null,
@@ -65,6 +65,12 @@ export function SettingsClient() {
   const [pinStep, setPinStep] = useState<"current" | "new" | "confirm">("current");
   const [pinChanging, setPinChanging] = useState(false);
   const [pinChangeResult, setPinChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // PIN setup states (for users without a PIN)
+  const [setupPin, setSetupPin] = useState("");
+  const [setupConfirmPin, setSetupConfirmPin] = useState("");
+  const [setupPinStep, setSetupPinStep] = useState<"new" | "confirm">("new");
+  const [setupPinSaving, setSetupPinSaving] = useState(false);
+  const [setupPinResult, setSetupPinResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [storedEmail, setStoredEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
@@ -82,6 +88,11 @@ export function SettingsClient() {
   const [authExpirySaving, setAuthExpirySaving] = useState(false);
   const [authExpirySaved, setAuthExpirySaved] = useState<{ ok: boolean; msg: string } | null>(null);
   const [fullAuthExpiry, setFullAuthExpiry] = useState<string | null>(null);
+
+  // UserId change states
+  const [newUserId, setNewUserId] = useState("");
+  const [userIdChanging, setUserIdChanging] = useState(false);
+  const [userIdChangeResult, setUserIdChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -258,6 +269,50 @@ export function SettingsClient() {
     setPinStep("current");
   }
 
+  async function handleSetupPinComplete(completedPin: string) {
+    if (setupPinStep === "new") {
+      setSetupPin(completedPin);
+      setSetupPinStep("confirm");
+      return;
+    }
+    // confirm step
+    if (completedPin !== setupPin) {
+      setSetupPinResult({ ok: false, msg: "PINが一致しません" });
+      setSetupConfirmPin("");
+      return;
+    }
+    setSetupPinSaving(true);
+    setSetupPinResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setupPin", newPin: completedPin }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSetupPinResult({ ok: true, msg: "PINを設定しました" });
+        setPinConfigured(true);
+        setSetupPin("");
+        setSetupConfirmPin("");
+        setSetupPinStep("new");
+      } else {
+        setSetupPinResult({ ok: false, msg: data.error ?? "設定に失敗しました" });
+      }
+    } catch {
+      setSetupPinResult({ ok: false, msg: "設定に失敗しました" });
+    } finally {
+      setSetupPinSaving(false);
+    }
+  }
+
+  function resetSetupPinForm() {
+    setSetupPin("");
+    setSetupConfirmPin("");
+    setSetupPinStep("new");
+    setSetupPinResult(null);
+  }
+
   async function handleEmailChange() {
     setEmailSaving(true);
     setEmailSaved(null);
@@ -339,6 +394,30 @@ export function SettingsClient() {
       setAuthExpirySaved({ ok: false, msg: "通信エラーが発生しました" });
     } finally {
       setAuthExpirySaving(false);
+    }
+  }
+
+  async function handleUserIdChange() {
+    if (!newUserId.trim()) return;
+    setUserIdChanging(true);
+    setUserIdChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "changeUserId", newUserId: newUserId.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUserIdChangeResult({ ok: true, msg: "ユーザーIDを変更しました" });
+        setNewUserId("");
+      } else {
+        setUserIdChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+      }
+    } catch {
+      setUserIdChangeResult({ ok: false, msg: "通信エラーが発生しました" });
+    } finally {
+      setUserIdChanging(false);
     }
   }
 
@@ -448,7 +527,14 @@ export function SettingsClient() {
           ]).map((opt) => (
             <button
               key={opt.value}
-              onClick={() => setTheme(opt.value)}
+              onClick={async () => {
+                setTheme(opt.value);
+                await fetch("/api/users/me", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ colorTheme: opt.value }),
+                });
+              }}
               className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
                 theme === opt.value
                   ? "border-primary bg-primary text-primary-foreground"
@@ -461,8 +547,39 @@ export function SettingsClient() {
         </div>
       </div>
 
-      {/* Weather Area Selection */}
+      {/* Account Settings */}
       <div className="rounded-lg border p-6">
+        <h2 className="mb-4 text-lg font-semibold">アカウント設定</h2>
+        <div>
+          <h3 className="mb-2 text-sm font-medium">ユーザーID変更</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            現在のユーザーID: <span className="font-mono">{currentUserId}</span>
+          </p>
+          <div className="flex items-center gap-3">
+            <Input
+              type="text"
+              placeholder="新しいユーザーID"
+              value={newUserId}
+              onChange={(e) => { setNewUserId(e.target.value); setUserIdChangeResult(null); }}
+              className="max-w-sm"
+            />
+            <Button
+              onClick={handleUserIdChange}
+              disabled={userIdChanging || !newUserId.trim() || newUserId.trim() === currentUserId}
+            >
+              {userIdChanging ? "変更中..." : "変更"}
+            </Button>
+          </div>
+          {userIdChangeResult && (
+            <span className={`mt-2 block text-sm ${userIdChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+              {userIdChangeResult.msg}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Weather Area Selection */}
+      {role === "admin" && <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">天気予報の地域設定</h2>
         <p className="mb-4 text-sm text-muted-foreground">
           フォトクロックテンプレートの天気表示で使用する地域を設定します。
@@ -530,10 +647,10 @@ export function SettingsClient() {
             {cityId}）
           </p>
         )}
-      </div>
+      </div>}
 
       {/* Image Resize Settings */}
-      <div className="rounded-lg border p-6">
+      {role === "admin" && <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">画像リサイズ設定</h2>
         <p className="mb-4 text-sm text-muted-foreground">
           アップロード時に画像の長辺を指定ピクセル数以下にリサイズします。
@@ -586,10 +703,10 @@ export function SettingsClient() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Security / PIN Settings */}
-      {pinConfigured && (
+      {pinConfigured ? (
         <div className="rounded-lg border p-6">
           <h2 className="mb-4 text-lg font-semibold">セキュリティ</h2>
 
@@ -737,8 +854,8 @@ export function SettingsClient() {
             </div>
           </div>
 
-          {/* Auth Expiry / Login Cache Period */}
-          <div className="border-t pt-4">
+          {/* Auth Expiry / Login Cache Period - admin only */}
+          {role === "admin" && <div className="border-t pt-4">
             <h3 className="mb-2 text-sm font-medium">ログイン認証キャッシュ期間</h3>
             <p className="mb-4 text-sm text-muted-foreground">
               メールアドレス+パスワードによるログインの有効期間です。期間を過ぎると、次回PINログイン前にメールアドレスでの再認証が必要になります。
@@ -789,6 +906,149 @@ export function SettingsClient() {
                 {authExpirySaved.msg}
               </span>
             )}
+          </div>}
+
+          {/* Logout */}
+          <div className="mt-6 border-t pt-4">
+            <Button variant="outline" onClick={handleLogout}>
+              ログアウト
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border p-6">
+          <h2 className="mb-4 text-lg font-semibold">セキュリティ</h2>
+
+          {/* PIN Setup (for users without a PIN) */}
+          <div className="mb-6">
+            <h3 className="mb-2 text-sm font-medium">PIN設定</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              PINを設定すると、次回からPINだけでログインできます。
+            </p>
+
+            {setupPinStep === "new" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">6桁のPINを入力</Label>
+                <PinInput
+                  value={setupPin}
+                  onChange={(v) => { setSetupPin(v); setSetupPinResult(null); }}
+                  onComplete={handleSetupPinComplete}
+                  disabled={setupPinSaving}
+                />
+              </div>
+            )}
+
+            {setupPinStep === "confirm" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">もう一度入力して確認</Label>
+                <PinInput
+                  value={setupConfirmPin}
+                  onChange={setSetupConfirmPin}
+                  onComplete={handleSetupPinComplete}
+                  disabled={setupPinSaving}
+                  error={setupPinResult?.ok === false}
+                />
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-3">
+              {setupPinStep === "confirm" && (
+                <Button variant="outline" size="sm" onClick={resetSetupPinForm} disabled={setupPinSaving}>
+                  リセット
+                </Button>
+              )}
+              {setupPinResult && (
+                <span className={`text-sm ${setupPinResult.ok ? "text-green-600" : "text-red-600"}`}>
+                  {setupPinResult.msg}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Email Change */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">リカバリーメールアドレス</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              PINを忘れた場合のリセットに使用するメールアドレスです。
+            </p>
+            {storedEmail && (
+              <p className="mb-3 text-sm">
+                現在の設定: <span className="font-mono">{storedEmail}</span>
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <Input
+                type="email"
+                placeholder="新しいメールアドレス"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailSaved(null);
+                }}
+                className="max-w-sm"
+              />
+              <Button
+                onClick={handleEmailChange}
+                disabled={emailSaving || !newEmail || !newEmail.includes("@")}
+              >
+                {emailSaving ? "保存中..." : "変更"}
+              </Button>
+            </div>
+            {emailSaved && (
+              <span className={`mt-2 block text-sm ${emailSaved.ok ? "text-green-600" : "text-red-600"}`}>
+                {emailSaved.msg}
+              </span>
+            )}
+          </div>
+
+          {/* Password Change */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">パスワード変更</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              ログイン用のパスワードを変更します。
+            </p>
+            <div className="space-y-3 max-w-sm">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">現在のパスワード</label>
+                <Input
+                  type="password"
+                  placeholder="現在のパスワード"
+                  value={currentPassword}
+                  onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（8文字以上）</label>
+                <Input
+                  type="password"
+                  placeholder="新しいパスワード"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（確認）</label>
+                <Input
+                  type="password"
+                  placeholder="もう一度入力"
+                  value={confirmNewPassword}
+                  onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={passwordChanging || !currentPassword || !newPassword || !confirmNewPassword}
+                >
+                  {passwordChanging ? "変更中..." : "パスワードを変更"}
+                </Button>
+              </div>
+              {passwordChangeResult && (
+                <span className={`text-sm ${passwordChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+                  {passwordChangeResult.msg}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Logout */}
@@ -800,8 +1060,8 @@ export function SettingsClient() {
         </div>
       )}
 
-      {/* Media Management */}
-      <div className="rounded-lg border border-red-200 p-6">
+      {/* Media Management - admin only */}
+      {role === "admin" && <div className="rounded-lg border border-red-200 p-6">
         <h2 className="mb-4 text-lg font-semibold">メディア管理</h2>
 
         {/* Individual media list */}
@@ -893,7 +1153,7 @@ export function SettingsClient() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

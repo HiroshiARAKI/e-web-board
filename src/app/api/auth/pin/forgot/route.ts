@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   const token = generateResetToken();
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
 
-  await db.insert(pinResetTokens).values({ token, expiresAt });
+  await db.insert(pinResetTokens).values({ token, expiresAt, userId: adminUser.id });
 
   // Build reset URL
   const requestHost = request.headers.get("host") || "localhost:3000";

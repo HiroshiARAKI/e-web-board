@@ -35,6 +35,13 @@ export async function verifyPassword(
 /** Auth session cookie name */
 export const AUTH_SESSION_COOKIE = "auth-session";
 
+/**
+ * Cookie that stores the userId (human-readable) of the most recently
+ * authenticated user. Used to target the correct account on the PIN screen.
+ * Long-lived (1 year), httpOnly.
+ */
+export const LAST_USER_COOKIE = "last-user-id";
+
 /** PIN session duration: 24 hours (in seconds, for cookie maxAge) */
 export const SESSION_MAX_AGE = 60 * 60 * 24;
 
@@ -66,4 +73,32 @@ export function isFullAuthValid(
   const expiry = computeFullAuthExpiry(lastFullAuthAt, expireDays);
   if (!expiry) return false;
   return expiry > new Date();
+}
+
+// ── Session helper ────────────────────────────────────────────────────────────
+
+import { cookies } from "next/headers";
+import { db } from "@/db";
+import { authSessions } from "@/db/schema";
+import { eq, and, gt } from "drizzle-orm";
+
+/**
+ * Read the current session from the cookie store and return the
+ * associated session row (with user) if it is valid, or null.
+ * Only for use inside Next.js request context (Route Handlers / Server
+ * Components).
+ */
+export async function getSessionUser() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const session = await db.query.authSessions.findFirst({
+    where: and(
+      eq(authSessions.sessionToken, token),
+      gt(authSessions.expiresAt, new Date().toISOString()),
+    ),
+    with: { user: true },
+  });
+  return session ?? null;
 }

@@ -74,6 +74,8 @@ export const pinResetTokens = sqliteTable("pin_reset_tokens", {
     .primaryKey()
     .$defaultFn(() => randomUUID()),
   token: text("token").notNull().unique(),
+  /** User whose PIN this token resets */
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   expiresAt: text("expires_at").notNull(),
   usedAt: text("used_at"),
   createdAt: text("created_at")
@@ -104,6 +106,8 @@ export const users = sqliteTable("users", {
   /** 6-digit PIN hash (nullable until PIN is configured) */
   pinHash: text("pin_hash"),
   role: text("role").notNull().default("admin"),
+  /** Dashboard color theme preference: "system" | "light" | "dark" */
+  colorTheme: text("color_theme").notNull().default("system"),
   /** Timestamp of the last successful email+password login */
   lastFullAuthAt: text("last_full_auth_at"),
   createdAt: text("created_at")
@@ -133,6 +137,14 @@ export const authSessions = sqliteTable("auth_sessions", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(authSessions),
+  pinResetTokens: many(pinResetTokens),
+}));
+
+export const pinResetTokensRelations = relations(pinResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [pinResetTokens.userId],
+    references: [users.id],
+  }),
 }));
 
 export const authSessionsRelations = relations(authSessions, ({ one }) => ({

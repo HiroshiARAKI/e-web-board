@@ -30,6 +30,8 @@ export default function LoginClient() {
         });
         const data = await res.json();
 
+        console.log("[LoginClient] Login response", { status: res.status, ok: res.ok, data });
+
         if (!res.ok) {
           if (data.blocked) setBlocked(true);
           setError(data.error || "認証に失敗しました");

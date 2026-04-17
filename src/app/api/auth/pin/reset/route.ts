@@ -48,9 +48,11 @@ export async function POST(request: NextRequest) {
     .set({ usedAt: now })
     .where(eq(pinResetTokens.id, resetToken.id));
 
-  // Update PIN hash on admin user
-  const adminUser = await db.query.users.findFirst();
-  if (!adminUser) {
+  // Find the user linked to this token, else fall back to first admin user
+  let targetUser = resetToken.userId
+    ? await db.query.users.findFirst({ where: eq(users.id, resetToken.userId) })
+    : await db.query.users.findFirst();
+  if (!targetUser) {
     return NextResponse.json(
       { error: "管理者ユーザーが見つかりません" },
       { status: 400 },
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
   await db
     .update(users)
     .set({ pinHash: hashPin(pin) })
-    .where(eq(users.id, adminUser.id));
+    .where(eq(users.id, targetUser.id));
 
   return NextResponse.json({ success: true });
 }

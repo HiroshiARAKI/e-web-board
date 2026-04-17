@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, authSessions, pinAttempts, settings } from "@/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, isNotNull } from "drizzle-orm";
 import {
   verifyPin,
   generateSessionToken,
@@ -16,6 +16,7 @@ import {
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
+  LAST_USER_COOKIE,
 } from "@/lib/auth";
 
 /** POST /api/auth/pin/verify — verify PIN and issue session */
@@ -60,8 +61,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Find admin user
-  const adminUser = await db.query.users.findFirst();
+  // Resolve target user — same logic as pin/page.tsx:
+  //   Cookie user found + has PIN → that user
+  //   Cookie user found + no PIN → error (should not reach verify)
+  //   Cookie user not found → first user with PIN
+  const cookieStore = request.cookies;
+  const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
+  let adminUser = lastUserId
+    ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
+    : null;
+
+  console.log("[pin/verify] User resolution", {
+    lastUserId,
+    cookieUserFound: !!adminUser,
+    cookieUserHasPIN: !!adminUser?.pinHash,
+  });
+
+  if (adminUser) {
+    if (!adminUser.pinHash) {
+      // Cookie user has no PIN — they shouldn't be using PIN verify
+      console.log("[pin/verify] Cookie user has no PIN → error");
+      return NextResponse.json(
+        { error: "PINが設定されていません。メールアドレスでログインしてください。", requiresFullAuth: true },
+        { status: 403 },
+      );
+    }
+  } else {
+    // No cookie or cookie user not found — fall back to first user with a PIN
+    adminUser = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
+    console.log("[pin/verify] Fallback user with PIN", {
+      found: !!adminUser,
+      userId: adminUser?.userId ?? null,
+    });
+  }
   if (!adminUser?.pinHash) {
     return NextResponse.json(
       { error: "PINが設定されていません" },
@@ -89,6 +121,7 @@ export async function POST(request: NextRequest) {
     await db.insert(pinAttempts).values({ ipAddress: ip });
 
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
+    console.log("[pin/verify] PIN incorrect for", adminUser.userId, { remaining });
     return NextResponse.json(
       {
         error: `PINが正しくありません${remaining > 0 ? `（残り${remaining}回）` : ""}`,
@@ -100,6 +133,8 @@ export async function POST(request: NextRequest) {
 
   // Success — clear previous attempts for this IP
   await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+
+  console.log("[pin/verify] PIN verified OK for", adminUser.userId);
 
   // Create session in authSessions table
   const sessionToken = generateSessionToken();
@@ -117,6 +152,13 @@ export async function POST(request: NextRequest) {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE,
+  });
+  // Keep LAST_USER_COOKIE up-to-date so next logout shows the correct PIN screen
+  res.cookies.set(LAST_USER_COOKIE, adminUser.userId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
   });
   return res;
 }

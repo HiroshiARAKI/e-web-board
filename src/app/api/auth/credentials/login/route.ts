@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, pinAttempts, authSessions } from "@/db/schema";
 import { eq, or, and, gt } from "drizzle-orm";
-import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
+import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE, LAST_USER_COOKIE } from "@/lib/auth";
 import {
   MAX_PIN_ATTEMPTS,
   IP_BLOCK_DURATION_MS,
@@ -63,6 +63,12 @@ export async function POST(request: NextRequest) {
     ),
   });
 
+  console.log("[credentials/login] User lookup", {
+    identifier,
+    found: !!user,
+    userId: user?.userId ?? null,
+  });
+
   // Constant-time failure to prevent user enumeration
   if (!user) {
     await db.insert(pinAttempts).values({ ipAddress: ip });
@@ -73,6 +79,11 @@ export async function POST(request: NextRequest) {
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
+  console.log("[credentials/login] Password verify result", {
+    userId: user.userId,
+    valid,
+    pwHashLen: user.passwordHash?.length ?? 0,
+  });
   if (!valid) {
     await db.insert(pinAttempts).values({ ipAddress: ip });
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
@@ -87,6 +98,8 @@ export async function POST(request: NextRequest) {
 
   // Clear IP attempts on success
   await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+
+  console.log("[credentials/login] Password verified OK for", user.userId);
 
   const now = new Date().toISOString();
 
@@ -112,6 +125,13 @@ export async function POST(request: NextRequest) {
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE,
+  });
+  // Remember which user last authenticated so the PIN screen can target them
+  res.cookies.set(LAST_USER_COOKIE, user.userId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
   });
   return res;
 }
