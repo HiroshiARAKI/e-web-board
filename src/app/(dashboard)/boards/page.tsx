@@ -26,10 +26,10 @@ export default async function BoardsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">ボード管理</h1>
-          <p className="text-sm text-muted-foreground">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold sm:text-2xl">ボード管理</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             ボードの作成・編集・削除を行います
           </p>
         </div>

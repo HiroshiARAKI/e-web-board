@@ -18,6 +18,7 @@ import { WEATHER_AREAS, DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import type { WeatherPrefecture } from "@/lib/weather-areas";
 import { PinInput } from "@/components/auth/PinInput";
 import { useTheme, type Theme } from "@/components/dashboard/ThemeProvider";
+import { QRCodeSVG } from "qrcode.react";
 
 interface UploadedFile {
   filename: string;
@@ -56,6 +57,7 @@ export function SettingsClient({ role, currentUserId }: { role: "admin" | "gener
   const [imageSaved, setImageSaved] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const { theme, setTheme } = useTheme();
+  const [dashboardUrl, setDashboardUrl] = useState<string | null>(null);
 
   // PIN/Email change states
   const [pinConfigured, setPinConfigured] = useState(false);
@@ -139,6 +141,24 @@ export function SettingsClient({ role, currentUserId }: { role: "admin" | "gener
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) setVersionInfo(data); })
       .catch(() => {});
+    // Resolve dashboard URL for QR code
+    (async () => {
+      const origin = window.location.origin;
+      const hostname = window.location.hostname;
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        try {
+          const res = await fetch("/api/network");
+          if (res.ok) {
+            const { ip } = await res.json();
+            if (ip) {
+              setDashboardUrl(`${window.location.protocol}//${ip}:${window.location.port}/boards`);
+              return;
+            }
+          }
+        } catch { /* fallback below */ }
+      }
+      setDashboardUrl(`${origin}/boards`);
+    })();
     // Load PIN status and email
     fetch("/api/auth/pin/status")
       .then((r) => (r.ok ? r.json() : null))
@@ -509,6 +529,24 @@ export function SettingsClient({ role, currentUserId }: { role: "admin" | "gener
                 </a>
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard QR Code */}
+      {dashboardUrl && (
+        <div className="rounded-lg border p-6">
+          <h2 className="mb-4 text-lg font-semibold">管理画面 QRコード</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            スマートフォンでこのQRコードを読み取ると、管理画面にアクセスできます。
+          </p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="rounded-lg bg-white p-3">
+              <QRCodeSVG value={dashboardUrl} size={180} />
+            </div>
+            <p className="max-w-xs break-all text-center text-xs text-muted-foreground">
+              {dashboardUrl}
+            </p>
           </div>
         </div>
       )}
