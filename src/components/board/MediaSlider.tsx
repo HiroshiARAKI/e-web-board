@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { MediaItem } from "@/types";
+
+/** How many upcoming images to preload ahead of the current slide. */
+const PRELOAD_AHEAD = 2;
 
 interface MediaSliderProps {
   mediaItems: MediaItem[];
@@ -16,24 +19,63 @@ interface MediaSliderProps {
 
 export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }: MediaSliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const preloadedRef = useRef<Set<string>>(new Set());
 
   const advance = useCallback(() => {
+    setImageLoaded(false);
     setCurrentIndex((prev) => (prev + 1) % mediaItems.length);
   }, [mediaItems.length]);
 
+  // --- Preload upcoming images ---
+  useEffect(() => {
+    if (mediaItems.length <= 1) return;
+
+    for (let offset = 1; offset <= PRELOAD_AHEAD; offset++) {
+      const idx = (currentIndex + offset) % mediaItems.length;
+      const item = mediaItems[idx];
+      if (item?.type === "image" && !preloadedRef.current.has(item.filePath)) {
+        preloadedRef.current.add(item.filePath);
+        const img = new Image();
+        img.src = item.filePath;
+      }
+    }
+  }, [currentIndex, mediaItems]);
+
+  // --- Auto-advance timer (starts only after the current image has loaded) ---
   useEffect(() => {
     if (mediaItems.length <= 1) return;
 
     const item = mediaItems[currentIndex];
-    // For videos, wait for their natural duration; for images, use the configured interval
-    const ms =
-      item?.type === "video"
-        ? (item.duration || interval) * 1000
-        : (item?.duration || interval) * 1000;
+    if (!item) return;
 
+    // For videos the advance is driven by the onEnded callback
+    if (item.type === "video") return;
+
+    // Wait until the browser has decoded and painted the current image
+    if (!imageLoaded) return;
+
+    const ms = (item.duration || interval) * 1000;
+    const timer = setTimeout(advance, ms);
+    return () => clearTimeout(timer);
+  }, [currentIndex, mediaItems, interval, advance, imageLoaded]);
+
+  // --- Video timer fallback (in case onEnded doesn't fire) ---
+  useEffect(() => {
+    if (mediaItems.length <= 1) return;
+
+    const item = mediaItems[currentIndex];
+    if (item?.type !== "video") return;
+
+    const ms = (item.duration || interval) * 1000;
     const timer = setTimeout(advance, ms);
     return () => clearTimeout(timer);
   }, [currentIndex, mediaItems, interval, advance]);
+
+  // Reset preload cache when the media list changes
+  useEffect(() => {
+    preloadedRef.current.clear();
+  }, [mediaItems]);
 
   if (mediaItems.length === 0) {
     return (
@@ -44,6 +86,7 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
   }
 
   const current = mediaItems[currentIndex];
+  const fitClass = objectFit === "cover" ? "object-cover" : "object-contain";
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -59,7 +102,7 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
           {current.type === "video" ? (
             <video
               src={current.filePath}
-              className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`}
+              className={`h-full w-full ${fitClass}`}
               autoPlay
               muted
               playsInline
@@ -69,7 +112,8 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
             <img
               src={current.filePath}
               alt=""
-              className={`h-full w-full ${objectFit === "cover" ? "object-cover" : "object-contain"}`}
+              className={`h-full w-full ${fitClass}`}
+              onLoad={() => setImageLoaded(true)}
             />
           )}
         </motion.div>
