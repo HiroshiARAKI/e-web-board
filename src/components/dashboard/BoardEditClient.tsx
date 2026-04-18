@@ -215,7 +215,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Left: Board settings (2 cols) */}
-        <div className="space-y-6 md:col-span-2">
+        <div className="min-w-0 space-y-6 md:col-span-2">
           {/* Basic info */}
           <Card>
             <CardHeader>
@@ -426,7 +426,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
         </div>
 
         {/* Right: Actions sidebar */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">アクション</CardTitle>
