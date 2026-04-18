@@ -86,7 +86,7 @@ export function SimpleBoardConfigEditor({
       <div>
         <h4 className="mb-3 text-sm font-semibold">時計・天気</h4>
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <Switch
               id="cfg-showClock"
               checked={showClock}
@@ -94,7 +94,7 @@ export function SimpleBoardConfigEditor({
             />
             <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <Switch
               id="cfg-showWeather"
               checked={showWeather}
@@ -142,7 +142,7 @@ export function SimpleBoardConfigEditor({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cfg-bgColor">背景色</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
                 id="cfg-bgColor"
@@ -213,7 +213,7 @@ export function SimpleBoardConfigEditor({
 
           <div className="space-y-1.5">
             <Label htmlFor="cfg-textColor">文字色</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
                 id="cfg-textColor"
@@ -232,7 +232,7 @@ export function SimpleBoardConfigEditor({
 
           <div className="space-y-1.5">
             <Label htmlFor="cfg-tickerBg">背景色</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
                 id="cfg-tickerBg"

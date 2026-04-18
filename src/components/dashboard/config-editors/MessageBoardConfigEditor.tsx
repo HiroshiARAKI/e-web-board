@@ -59,25 +59,29 @@ export function MessageBoardConfigEditor({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <Switch
           id="cfg-showClock"
           checked={showClock}
           onCheckedChange={(v) => update("showClock", v)}
         />
-        <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
+        <Label htmlFor="cfg-showClock" className="min-w-0 flex-1 leading-snug">
+          現在時刻を表示
+        </Label>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <Switch
           id="cfg-showWeather"
           checked={showWeather}
           onCheckedChange={(v) => update("showWeather", v)}
         />
-        <Label htmlFor="cfg-showWeather">天気予報を表示</Label>
+        <Label htmlFor="cfg-showWeather" className="min-w-0 flex-1 leading-snug">
+          天気予報を表示
+        </Label>
       </div>
       {showWeather && (
-        <p className="text-xs text-muted-foreground">
+        <p className="break-words text-xs text-muted-foreground">
           表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
         </p>
       )}
@@ -93,7 +97,7 @@ export function MessageBoardConfigEditor({
           onChange={(e) =>
             update("maxDisplayCount", Math.max(1, parseInt(e.target.value, 10) || 10))
           }
-          className="w-24"
+          className="w-full sm:w-24"
         />
       </div>
 
@@ -107,13 +111,13 @@ export function MessageBoardConfigEditor({
           step={1}
           value={fontSize}
           onChange={(e) => update("fontSize", Number(e.target.value))}
-          className="w-full max-w-48"
+          className="w-full sm:max-w-48"
         />
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="cfg-bgColor">背景色</Label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <input
             type="color"
             id="cfg-bgColor"
@@ -124,7 +128,7 @@ export function MessageBoardConfigEditor({
           <Input
             value={backgroundColor}
             onChange={(e) => update("backgroundColor", e.target.value)}
-            className="w-28 font-mono text-sm"
+            className="w-full font-mono text-sm sm:w-28"
             maxLength={7}
           />
         </div>
@@ -132,7 +136,7 @@ export function MessageBoardConfigEditor({
 
       <div className="space-y-1.5">
         <Label htmlFor="cfg-textColor">文字色</Label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <input
             type="color"
             id="cfg-textColor"
@@ -143,7 +147,7 @@ export function MessageBoardConfigEditor({
           <Input
             value={textColor}
             onChange={(e) => update("textColor", e.target.value)}
-            className="w-28 font-mono text-sm"
+            className="w-full font-mono text-sm sm:w-28"
             maxLength={7}
           />
         </div>
@@ -151,7 +155,7 @@ export function MessageBoardConfigEditor({
 
       <div className="space-y-1.5">
         <Label htmlFor="cfg-accentColor">アクセントカラー</Label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <input
             type="color"
             id="cfg-accentColor"
@@ -162,7 +166,7 @@ export function MessageBoardConfigEditor({
           <Input
             value={accentColor}
             onChange={(e) => update("accentColor", e.target.value)}
-            className="w-28 font-mono text-sm"
+            className="w-full font-mono text-sm sm:w-28"
             maxLength={7}
           />
         </div>
@@ -174,7 +178,7 @@ export function MessageBoardConfigEditor({
           value={fontFamily}
           onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
         >
-          <SelectTrigger id="cfg-font" className="w-full max-w-64">
+          <SelectTrigger id="cfg-font" className="w-full sm:max-w-64">
             <SelectValue placeholder="フォントを選択">
               {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
             </SelectValue>

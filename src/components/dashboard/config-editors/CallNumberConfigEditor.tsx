@@ -83,7 +83,7 @@ export function CallNumberConfigEditor({
       {/* Clock */}
       <div>
         <h4 className="mb-3 text-sm font-semibold">時計</h4>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <Switch
             id="cfg-showClock"
             checked={showClock}
@@ -180,7 +180,7 @@ export function CallNumberConfigEditor({
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="cfg-bgColor">背景色</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
                 id="cfg-bgColor"
@@ -199,7 +199,7 @@ export function CallNumberConfigEditor({
 
           <div className="space-y-1.5">
             <Label htmlFor="cfg-waitingColor">呼び出し前のテキスト色</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
                 id="cfg-waitingColor"
@@ -218,7 +218,7 @@ export function CallNumberConfigEditor({
 
           <div className="space-y-1.5">
             <Label htmlFor="cfg-calledColor">呼び出し済みのテキスト色</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
                 id="cfg-calledColor"
@@ -237,7 +237,7 @@ export function CallNumberConfigEditor({
 
           <div className="space-y-1.5">
             <Label htmlFor="cfg-highlightColor">直近呼び出しのハイライト色</Label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
                 id="cfg-highlightColor"
