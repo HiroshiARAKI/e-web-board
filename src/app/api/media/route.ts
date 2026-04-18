@@ -28,6 +28,15 @@ const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
 const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
+function readSlideInterval(config: unknown): number | undefined {
+  if (!config || typeof config !== "object") {
+    return undefined;
+  }
+
+  const raw = (config as Record<string, unknown>).slideInterval;
+  return typeof raw === "number" && Number.isFinite(raw) && raw >= 1 ? raw : undefined;
+}
+
 export async function GET() {
   const items = await db
     .select({
@@ -142,10 +151,13 @@ export async function POST(request: NextRequest) {
     -1,
   );
 
+  const defaultDuration =
+    mediaType === "image" ? readSlideInterval(board.config) ?? 5 : 5;
+
   const durationValue =
     duration && typeof duration === "string"
-      ? Math.max(1, parseInt(duration, 10) || 5)
-      : 5;
+      ? Math.max(1, parseInt(duration, 10) || defaultDuration)
+      : defaultDuration;
 
   const [created] = await db
     .insert(mediaItems)
