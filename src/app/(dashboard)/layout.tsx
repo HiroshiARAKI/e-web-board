@@ -69,7 +69,11 @@ export default async function DashboardLayout({
 
   return (
     <ThemeProvider initialTheme={colorTheme as "system" | "light" | "dark"}>
-      <DashboardShell userId={userId} role={role}>
+      <DashboardShell
+        userId={userId}
+        role={role}
+        initialTheme={colorTheme as "system" | "light" | "dark"}
+      >
         {children}
       </DashboardShell>
     </ThemeProvider>

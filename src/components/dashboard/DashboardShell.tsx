@@ -16,6 +16,19 @@ import { Separator } from "@/components/ui/separator";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
+function getThemeBootstrapScript(initialTheme: "system" | "light" | "dark") {
+  return `(() => {
+    const root = document.currentScript?.parentElement;
+    if (!root) return;
+    const theme = ${JSON.stringify(initialTheme)};
+    const resolved = theme === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : theme;
+    root.classList.toggle("dark", resolved === "dark");
+    root.style.colorScheme = resolved;
+  })();`;
+}
+
 function SidebarLink({
   href,
   icon: Icon,
@@ -42,14 +55,17 @@ function SidebarLink({
 export function DashboardShell({
   userId,
   role,
+  initialTheme,
   children,
 }: {
   userId: string;
   role: string;
+  initialTheme: "system" | "light" | "dark";
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const initialResolvedTheme = initialTheme === "system" ? undefined : initialTheme;
 
   // Close sidebar on route change
   useEffect(() => {
@@ -108,7 +124,12 @@ export function DashboardShell({
   );
 
   return (
-    <div id="dashboard-theme-root" className="flex min-h-dvh bg-background text-foreground">
+    <div
+      id="dashboard-theme-root"
+      className={`flex min-h-dvh bg-background text-foreground ${initialResolvedTheme === "dark" ? "dark" : ""}`}
+      style={initialResolvedTheme ? { colorScheme: initialResolvedTheme } : undefined}
+    >
+      <script dangerouslySetInnerHTML={{ __html: getThemeBootstrapScript(initialTheme) }} />
       {/* Mobile header bar */}
       <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b bg-background px-4 md:hidden">
         <button
