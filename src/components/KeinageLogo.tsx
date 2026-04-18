@@ -17,8 +17,15 @@ export function KeinageLogo({ className }: { className?: string }) {
       <g transform="translate(100, 60)">
         {/* Monitor frame */}
         <rect x="0" y="0" width="200" height="140" rx="12" fill="currentColor" />
-        {/* Screen (always white) */}
-        <rect x="12" y="12" width="176" height="116" rx="4" fill="#FFFFFF" />
+        {/* Screen follows the current theme background for dark-mode contrast */}
+        <rect
+          x="12"
+          y="12"
+          width="176"
+          height="116"
+          rx="4"
+          fill="var(--logo-screen, var(--background, #FFFFFF))"
+        />
         {/* K shape: vertical bar */}
         <rect
           x="20"

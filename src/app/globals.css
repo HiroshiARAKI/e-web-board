@@ -131,11 +131,11 @@
   }
 }
 
-/* Smooth theme transition for dashboard dark mode */
-#dashboard-theme-root,
-#dashboard-theme-root * {
-  transition: background-color 300ms ease, color 300ms ease,
-    border-color 300ms ease;
+/* Smooth theme transition for dashboard dark mode without overriding local motion */
+:where(#dashboard-theme-root, #dashboard-theme-root *) {
+  transition-property: background-color, color, border-color;
+  transition-duration: 300ms;
+  transition-timing-function: ease;
 }
 
 /* Sidebar slide animation — avoids Tailwind v4 translate variable issue */
