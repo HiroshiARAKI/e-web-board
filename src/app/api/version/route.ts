@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import packageJson from "../../../../package.json";
 
-const GITHUB_REPO = "HiroshiARAKI/e-web-board";
+const GITHUB_REPO = "HiroshiARAKI/Keinage";
 
 export async function GET() {
   const current = packageJson.version;

@@ -76,8 +76,8 @@
 ### Docker Compose で起動
 
 ```bash
-git clone https://github.com/HiroshiARAKI/e-web-board.git
-cd e-web-board
+git clone https://github.com/HiroshiARAKI/Keinage.git
+cd Keinage
 docker compose up -d
 ```
 
@@ -111,8 +111,8 @@ docker compose down -v
 ### ローカル開発
 
 ```bash
-git clone https://github.com/HiroshiARAKI/e-web-board.git
-cd e-web-board
+git clone https://github.com/HiroshiARAKI/Keinage.git
+cd Keinage
 pnpm install
 pnpm db:migrate   # データベースのセットアップ
 pnpm dev           # 開発サーバー起動
