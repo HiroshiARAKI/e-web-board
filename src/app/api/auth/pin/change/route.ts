@@ -2,39 +2,67 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { settings } from "@/db/schema";
+import { users, authSessions } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import {
-  hashPin,
-  verifyPin,
-  PIN_SETTINGS,
-  PIN_SESSION_COOKIE,
-} from "@/lib/pin";
+import { hashPin, verifyPin } from "@/lib/pin";
+import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { cookies } from "next/headers";
 
-/** PATCH /api/auth/pin/change — change PIN (requires current PIN) or email */
+/** PATCH /api/auth/pin/change — change PIN or email (requires active session) */
 export async function PATCH(request: NextRequest) {
   // Verify session
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(PIN_SESSION_COOKIE)?.value;
+  const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
   if (!sessionToken) {
     return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   }
 
-  const storedSession = await db.query.settings.findFirst({
-    where: eq(settings.key, PIN_SETTINGS.SESSION_SECRET),
+  const session = await db.query.authSessions.findFirst({
+    where: eq(authSessions.sessionToken, sessionToken),
+    with: { user: true },
   });
-  if (!storedSession?.value || storedSession.value !== sessionToken) {
+  if (!session || session.expiresAt < new Date().toISOString()) {
     return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   }
 
   const body = await request.json();
-  const { action, currentPin, newPin, newEmail } = body as {
-    action: "verifyCurrentPin" | "changePin" | "changeEmail";
+  const { action, currentPin, newPin, newEmail, newUserId } = body as {
+    action: "verifyCurrentPin" | "changePin" | "setupPin" | "changeEmail" | "changeUserId";
     currentPin?: string;
     newPin?: string;
     newEmail?: string;
+    newUserId?: string;
   };
+
+  const adminUser = await db.query.users.findFirst({
+    where: eq(users.id, session.userId),
+  });
+  if (!adminUser) {
+    return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
+  }
+
+  // ── setupPin: set initial PIN for a user who has none ──────────────────────
+  if (action === "setupPin") {
+    if (adminUser.pinHash) {
+      return NextResponse.json(
+        { error: "PINは既に設定されています。変更する場合はPIN変更を使用してください" },
+        { status: 400 },
+      );
+    }
+    if (!newPin || !/^\d{6}$/.test(newPin)) {
+      return NextResponse.json(
+        { error: "PINは6桁の数字で入力してください" },
+        { status: 400 },
+      );
+    }
+
+    await db
+      .update(users)
+      .set({ pinHash: hashPin(newPin) })
+      .where(eq(users.id, adminUser.id));
+
+    return NextResponse.json({ success: true });
+  }
 
   if (action === "verifyCurrentPin") {
     if (!currentPin || !/^\d{6}$/.test(currentPin)) {
@@ -43,10 +71,7 @@ export async function PATCH(request: NextRequest) {
         { status: 400 },
       );
     }
-    const row = await db.query.settings.findFirst({
-      where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
-    });
-    if (!row?.value || !verifyPin(currentPin, row.value)) {
+    if (!adminUser.pinHash || !verifyPin(currentPin, adminUser.pinHash)) {
       return NextResponse.json(
         { error: "PINが正しくありません" },
         { status: 401 },
@@ -69,25 +94,17 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Verify current PIN
-    const row = await db.query.settings.findFirst({
-      where: eq(settings.key, PIN_SETTINGS.PIN_HASH),
-    });
-    if (!row?.value || !verifyPin(currentPin, row.value)) {
+    if (!adminUser.pinHash || !verifyPin(currentPin, adminUser.pinHash)) {
       return NextResponse.json(
         { error: "現在のPINが正しくありません" },
         { status: 401 },
       );
     }
 
-    // Update PIN hash
     await db
-      .insert(settings)
-      .values({ key: PIN_SETTINGS.PIN_HASH, value: hashPin(newPin) })
-      .onConflictDoUpdate({
-        target: settings.key,
-        set: { value: hashPin(newPin), updatedAt: new Date().toISOString() },
-      });
+      .update(users)
+      .set({ pinHash: hashPin(newPin) })
+      .where(eq(users.id, adminUser.id));
 
     return NextResponse.json({ success: true });
   }
@@ -101,12 +118,36 @@ export async function PATCH(request: NextRequest) {
     }
 
     await db
-      .insert(settings)
-      .values({ key: PIN_SETTINGS.PIN_EMAIL, value: newEmail })
-      .onConflictDoUpdate({
-        target: settings.key,
-        set: { value: newEmail, updatedAt: new Date().toISOString() },
-      });
+      .update(users)
+      .set({ email: newEmail })
+      .where(eq(users.id, adminUser.id));
+
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "changeUserId") {
+    if (!newUserId || !/^[a-zA-Z0-9_\-]{3,32}$/.test(newUserId)) {
+      return NextResponse.json(
+        { error: "ユーザーIDは3〜32文字の英数字・_・-のみ使用できます" },
+        { status: 400 },
+      );
+    }
+
+    // Check uniqueness
+    const existing = await db.query.users.findFirst({
+      where: eq(users.userId, newUserId),
+    });
+    if (existing && existing.id !== adminUser.id) {
+      return NextResponse.json(
+        { error: "このユーザーIDはすでに使用されています" },
+        { status: 409 },
+      );
+    }
+
+    await db
+      .update(users)
+      .set({ userId: newUserId })
+      .where(eq(users.id, adminUser.id));
 
     return NextResponse.json({ success: true });
   }

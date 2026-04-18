@@ -4,7 +4,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MonitorPlay, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
+import { KeinageLogo } from "@/components/KeinageLogo";
 
 export default function PinForgotPage() {
   const [email, setEmail] = useState("");
@@ -51,9 +52,7 @@ export default function PinForgotPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg">
-            <MonitorPlay className="size-7" />
-          </div>
+          <KeinageLogo className="h-12 w-auto text-gray-900" />
           <h1 className="text-xl font-bold text-gray-900">Keinage</h1>
         </div>
 

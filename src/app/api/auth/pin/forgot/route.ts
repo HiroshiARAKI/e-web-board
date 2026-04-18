@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { settings, pinResetTokens } from "@/db/schema";
+import { users, pinResetTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateResetToken, PIN_SETTINGS, RESET_TOKEN_TTL_MS } from "@/lib/pin";
+import { generateResetToken, RESET_TOKEN_TTL_MS } from "@/lib/pin";
 import { isSmtpConfigured, sendPinResetEmail } from "@/lib/mail";
 import { networkInterfaces } from "os";
 
@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const row = await db.query.settings.findFirst({
-    where: eq(settings.key, PIN_SETTINGS.PIN_EMAIL),
+  const adminUser = await db.query.users.findFirst({
+    where: eq(users.email, email),
   });
 
-  if (!row?.value || row.value !== email) {
+  if (!adminUser) {
     // Always return success to prevent email enumeration
     return NextResponse.json({ success: true, method: isSmtpConfigured() ? "email" : "link" });
   }
@@ -46,11 +46,9 @@ export async function POST(request: NextRequest) {
   const token = generateResetToken();
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
 
-  await db.insert(pinResetTokens).values({ token, expiresAt });
+  await db.insert(pinResetTokens).values({ token, expiresAt, userId: adminUser.id });
 
   // Build reset URL
-  // If accessed via localhost, replace with local network IP for cross-device access.
-  // If accessed via a real domain, keep it as-is.
   const requestHost = request.headers.get("host") || "localhost:3000";
   const protocol = request.headers.get("x-forwarded-proto") || "http";
   const hostname = requestHost.split(":")[0];
@@ -65,7 +63,6 @@ export async function POST(request: NextRequest) {
   }
   const resetUrl = `${protocol}://${host}/pin/reset/${token}`;
 
-  // If SMTP is configured, send email; otherwise return URL directly
   if (isSmtpConfigured()) {
     await sendPinResetEmail(email, resetUrl);
     return NextResponse.json({ success: true, method: "email" });

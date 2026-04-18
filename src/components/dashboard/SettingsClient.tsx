@@ -18,6 +18,7 @@ import { WEATHER_AREAS, DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import type { WeatherPrefecture } from "@/lib/weather-areas";
 import { PinInput } from "@/components/auth/PinInput";
 import { useTheme, type Theme } from "@/components/dashboard/ThemeProvider";
+import { QRCodeSVG } from "qrcode.react";
 
 interface UploadedFile {
   filename: string;
@@ -37,7 +38,7 @@ interface VersionInfo {
   hasUpdate: boolean;
 }
 
-export function SettingsClient() {
+export function SettingsClient({ role, currentUserId }: { role: "admin" | "general"; currentUserId: string }) {
   const [cityId, setCityId] = useState(DEFAULT_CITY_ID);
   const [selectedPref, setSelectedPref] = useState<WeatherPrefecture | null>(
     null,
@@ -56,6 +57,7 @@ export function SettingsClient() {
   const [imageSaved, setImageSaved] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const { theme, setTheme } = useTheme();
+  const [dashboardUrl, setDashboardUrl] = useState<string | null>(null);
 
   // PIN/Email change states
   const [pinConfigured, setPinConfigured] = useState(false);
@@ -65,10 +67,34 @@ export function SettingsClient() {
   const [pinStep, setPinStep] = useState<"current" | "new" | "confirm">("current");
   const [pinChanging, setPinChanging] = useState(false);
   const [pinChangeResult, setPinChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // PIN setup states (for users without a PIN)
+  const [setupPin, setSetupPin] = useState("");
+  const [setupConfirmPin, setSetupConfirmPin] = useState("");
+  const [setupPinStep, setSetupPinStep] = useState<"new" | "confirm">("new");
+  const [setupPinSaving, setSetupPinSaving] = useState(false);
+  const [setupPinResult, setSetupPinResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [storedEmail, setStoredEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSaved, setEmailSaved] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordChanging, setPasswordChanging] = useState(false);
+  const [passwordChangeResult, setPasswordChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Auth expiry (login cache period) states
+  const [authExpireDays, setAuthExpireDays] = useState(30);
+  const [authExpirySaving, setAuthExpirySaving] = useState(false);
+  const [authExpirySaved, setAuthExpirySaved] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [fullAuthExpiry, setFullAuthExpiry] = useState<string | null>(null);
+
+  // UserId change states
+  const [newUserId, setNewUserId] = useState("");
+  const [userIdChanging, setUserIdChanging] = useState(false);
+  const [userIdChangeResult, setUserIdChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -115,13 +141,33 @@ export function SettingsClient() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) setVersionInfo(data); })
       .catch(() => {});
+    // Resolve dashboard URL for QR code
+    (async () => {
+      const origin = window.location.origin;
+      const hostname = window.location.hostname;
+      if (hostname === "localhost" || hostname === "127.0.0.1") {
+        try {
+          const res = await fetch("/api/network");
+          if (res.ok) {
+            const { ip } = await res.json();
+            if (ip) {
+              setDashboardUrl(`${window.location.protocol}//${ip}:${window.location.port}/boards`);
+              return;
+            }
+          }
+        } catch { /* fallback below */ }
+      }
+      setDashboardUrl(`${origin}/boards`);
+    })();
     // Load PIN status and email
     fetch("/api/auth/pin/status")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) {
-          setPinConfigured(data.configured);
+          setPinConfigured(data.pinConfigured);
           if (data.email) setStoredEmail(data.email);
+          if (data.authExpireDays) setAuthExpireDays(data.authExpireDays);
+          if (data.fullAuthExpiry) setFullAuthExpiry(data.fullAuthExpiry);
         }
       })
       .catch(() => {});
@@ -243,6 +289,50 @@ export function SettingsClient() {
     setPinStep("current");
   }
 
+  async function handleSetupPinComplete(completedPin: string) {
+    if (setupPinStep === "new") {
+      setSetupPin(completedPin);
+      setSetupPinStep("confirm");
+      return;
+    }
+    // confirm step
+    if (completedPin !== setupPin) {
+      setSetupPinResult({ ok: false, msg: "PINが一致しません" });
+      setSetupConfirmPin("");
+      return;
+    }
+    setSetupPinSaving(true);
+    setSetupPinResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setupPin", newPin: completedPin }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSetupPinResult({ ok: true, msg: "PINを設定しました" });
+        setPinConfigured(true);
+        setSetupPin("");
+        setSetupConfirmPin("");
+        setSetupPinStep("new");
+      } else {
+        setSetupPinResult({ ok: false, msg: data.error ?? "設定に失敗しました" });
+      }
+    } catch {
+      setSetupPinResult({ ok: false, msg: "設定に失敗しました" });
+    } finally {
+      setSetupPinSaving(false);
+    }
+  }
+
+  function resetSetupPinForm() {
+    setSetupPin("");
+    setSetupConfirmPin("");
+    setSetupPinStep("new");
+    setSetupPinResult(null);
+  }
+
   async function handleEmailChange() {
     setEmailSaving(true);
     setEmailSaved(null);
@@ -270,6 +360,85 @@ export function SettingsClient() {
   async function handleLogout() {
     await fetch("/api/auth/pin/logout", { method: "POST" });
     window.location.href = "/pin";
+  }
+
+  async function handlePasswordChange() {
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeResult({ ok: false, msg: "新しいパスワードが一致しません" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordChangeResult({ ok: false, msg: "パスワードは8文字以上で入力してください" });
+      return;
+    }
+    setPasswordChanging(true);
+    setPasswordChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/password/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordChangeResult({ ok: true, msg: "パスワードを変更しました" });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+      } else {
+        setPasswordChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+      }
+    } catch {
+      setPasswordChangeResult({ ok: false, msg: "通信エラーが発生しました" });
+    } finally {
+      setPasswordChanging(false);
+    }
+  }
+
+  async function handleAuthExpirySave(days: number) {
+    setAuthExpirySaving(true);
+    setAuthExpirySaved(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authExpireDays: String(days) }),
+      });
+      if (res.ok) {
+        setAuthExpireDays(days);
+        setAuthExpirySaved({ ok: true, msg: "保存しました" });
+      } else {
+        setAuthExpirySaved({ ok: false, msg: "保存に失敗しました" });
+      }
+    } catch {
+      setAuthExpirySaved({ ok: false, msg: "通信エラーが発生しました" });
+    } finally {
+      setAuthExpirySaving(false);
+    }
+  }
+
+  async function handleUserIdChange() {
+    if (!newUserId.trim()) return;
+    setUserIdChanging(true);
+    setUserIdChangeResult(null);
+    try {
+      const res = await fetch("/api/auth/pin/change", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "changeUserId", newUserId: newUserId.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUserIdChangeResult({ ok: true, msg: "ユーザーIDを変更しました" });
+        setNewUserId("");
+      } else {
+        setUserIdChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+      }
+    } catch {
+      setUserIdChangeResult({ ok: false, msg: "通信エラーが発生しました" });
+    } finally {
+      setUserIdChanging(false);
+    }
   }
 
   async function handleDeleteAllMedia() {
@@ -364,6 +533,24 @@ export function SettingsClient() {
         </div>
       )}
 
+      {/* Dashboard QR Code */}
+      {dashboardUrl && (
+        <div className="rounded-lg border p-6">
+          <h2 className="mb-4 text-lg font-semibold">管理画面 QRコード</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            スマートフォンでこのQRコードを読み取ると、管理画面にアクセスできます。
+          </p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="rounded-lg bg-white p-3">
+              <QRCodeSVG value={dashboardUrl} size={180} />
+            </div>
+            <p className="max-w-xs break-all text-center text-xs text-muted-foreground">
+              {dashboardUrl}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Theme Selection */}
       <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">テーマ設定</h2>
@@ -378,7 +565,14 @@ export function SettingsClient() {
           ]).map((opt) => (
             <button
               key={opt.value}
-              onClick={() => setTheme(opt.value)}
+              onClick={async () => {
+                setTheme(opt.value);
+                await fetch("/api/users/me", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ colorTheme: opt.value }),
+                });
+              }}
               className={`rounded-lg border px-4 py-2 text-sm transition-colors ${
                 theme === opt.value
                   ? "border-primary bg-primary text-primary-foreground"
@@ -391,8 +585,39 @@ export function SettingsClient() {
         </div>
       </div>
 
-      {/* Weather Area Selection */}
+      {/* Account Settings */}
       <div className="rounded-lg border p-6">
+        <h2 className="mb-4 text-lg font-semibold">アカウント設定</h2>
+        <div>
+          <h3 className="mb-2 text-sm font-medium">ユーザーID変更</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            現在のユーザーID: <span className="font-mono">{currentUserId}</span>
+          </p>
+          <div className="flex items-center gap-3">
+            <Input
+              type="text"
+              placeholder="新しいユーザーID"
+              value={newUserId}
+              onChange={(e) => { setNewUserId(e.target.value); setUserIdChangeResult(null); }}
+              className="max-w-sm"
+            />
+            <Button
+              onClick={handleUserIdChange}
+              disabled={userIdChanging || !newUserId.trim() || newUserId.trim() === currentUserId}
+            >
+              {userIdChanging ? "変更中..." : "変更"}
+            </Button>
+          </div>
+          {userIdChangeResult && (
+            <span className={`mt-2 block text-sm ${userIdChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+              {userIdChangeResult.msg}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Weather Area Selection */}
+      {role === "admin" && <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">天気予報の地域設定</h2>
         <p className="mb-4 text-sm text-muted-foreground">
           フォトクロックテンプレートの天気表示で使用する地域を設定します。
@@ -460,10 +685,10 @@ export function SettingsClient() {
             {cityId}）
           </p>
         )}
-      </div>
+      </div>}
 
       {/* Image Resize Settings */}
-      <div className="rounded-lg border p-6">
+      {role === "admin" && <div className="rounded-lg border p-6">
         <h2 className="mb-4 text-lg font-semibold">画像リサイズ設定</h2>
         <p className="mb-4 text-sm text-muted-foreground">
           アップロード時に画像の長辺を指定ピクセル数以下にリサイズします。
@@ -516,10 +741,10 @@ export function SettingsClient() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Security / PIN Settings */}
-      {pinConfigured && (
+      {pinConfigured ? (
         <div className="rounded-lg border p-6">
           <h2 className="mb-4 text-lg font-semibold">セキュリティ</h2>
 
@@ -617,6 +842,253 @@ export function SettingsClient() {
             )}
           </div>
 
+          {/* Password Change */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">パスワード変更</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              管理者ログイン用のパスワードを変更します。
+            </p>
+            <div className="space-y-3 max-w-sm">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">現在のパスワード</label>
+                <Input
+                  type="password"
+                  placeholder="現在のパスワード"
+                  value={currentPassword}
+                  onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（8文字以上）</label>
+                <Input
+                  type="password"
+                  placeholder="新しいパスワード"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（確認）</label>
+                <Input
+                  type="password"
+                  placeholder="もう一度入力"
+                  value={confirmNewPassword}
+                  onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={passwordChanging || !currentPassword || !newPassword || !confirmNewPassword}
+                >
+                  {passwordChanging ? "変更中..." : "パスワードを変更"}
+                </Button>
+              </div>
+              {passwordChangeResult && (
+                <span className={`text-sm ${passwordChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+                  {passwordChangeResult.msg}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Auth Expiry / Login Cache Period - admin only */}
+          {role === "admin" && <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">ログイン認証キャッシュ期間</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              メールアドレス+パスワードによるログインの有効期間です。期間を過ぎると、次回PINログイン前にメールアドレスでの再認証が必要になります。
+            </p>
+            {fullAuthExpiry && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                現在の有効期限:{" "}
+                <span className="font-medium">
+                  {new Date(fullAuthExpiry).toLocaleDateString("ja-JP", {
+                    year: "numeric", month: "long", day: "numeric",
+                  })}
+                </span>
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[
+                { label: "30日", days: 30 },
+                { label: "60日", days: 60 },
+                { label: "90日", days: 90 },
+                { label: "180日", days: 180 },
+                { label: "1年", days: 365 },
+              ].map((opt) => {
+                const expiry = new Date(Date.now() + opt.days * 86_400_000);
+                return (
+                  <button
+                    key={opt.days}
+                    type="button"
+                    onClick={() => handleAuthExpirySave(opt.days)}
+                    disabled={authExpirySaving}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                      authExpireDays === opt.days
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                    title={expiry.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              現在の設定: {authExpireDays}日間
+              {authExpireDays === 30 && "（デフォルト）"}
+            </p>
+            {authExpirySaved && (
+              <span className={`mt-2 block text-sm ${authExpirySaved.ok ? "text-green-600" : "text-red-600"}`}>
+                {authExpirySaved.msg}
+              </span>
+            )}
+          </div>}
+
+          {/* Logout */}
+          <div className="mt-6 border-t pt-4">
+            <Button variant="outline" onClick={handleLogout}>
+              ログアウト
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border p-6">
+          <h2 className="mb-4 text-lg font-semibold">セキュリティ</h2>
+
+          {/* PIN Setup (for users without a PIN) */}
+          <div className="mb-6">
+            <h3 className="mb-2 text-sm font-medium">PIN設定</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              PINを設定すると、次回からPINだけでログインできます。
+            </p>
+
+            {setupPinStep === "new" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">6桁のPINを入力</Label>
+                <PinInput
+                  value={setupPin}
+                  onChange={(v) => { setSetupPin(v); setSetupPinResult(null); }}
+                  onComplete={handleSetupPinComplete}
+                  disabled={setupPinSaving}
+                />
+              </div>
+            )}
+
+            {setupPinStep === "confirm" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">もう一度入力して確認</Label>
+                <PinInput
+                  value={setupConfirmPin}
+                  onChange={setSetupConfirmPin}
+                  onComplete={handleSetupPinComplete}
+                  disabled={setupPinSaving}
+                  error={setupPinResult?.ok === false}
+                />
+              </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-3">
+              {setupPinStep === "confirm" && (
+                <Button variant="outline" size="sm" onClick={resetSetupPinForm} disabled={setupPinSaving}>
+                  リセット
+                </Button>
+              )}
+              {setupPinResult && (
+                <span className={`text-sm ${setupPinResult.ok ? "text-green-600" : "text-red-600"}`}>
+                  {setupPinResult.msg}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Email Change */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">リカバリーメールアドレス</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              PINを忘れた場合のリセットに使用するメールアドレスです。
+            </p>
+            {storedEmail && (
+              <p className="mb-3 text-sm">
+                現在の設定: <span className="font-mono">{storedEmail}</span>
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <Input
+                type="email"
+                placeholder="新しいメールアドレス"
+                value={newEmail}
+                onChange={(e) => {
+                  setNewEmail(e.target.value);
+                  setEmailSaved(null);
+                }}
+                className="max-w-sm"
+              />
+              <Button
+                onClick={handleEmailChange}
+                disabled={emailSaving || !newEmail || !newEmail.includes("@")}
+              >
+                {emailSaving ? "保存中..." : "変更"}
+              </Button>
+            </div>
+            {emailSaved && (
+              <span className={`mt-2 block text-sm ${emailSaved.ok ? "text-green-600" : "text-red-600"}`}>
+                {emailSaved.msg}
+              </span>
+            )}
+          </div>
+
+          {/* Password Change */}
+          <div className="border-t pt-4">
+            <h3 className="mb-2 text-sm font-medium">パスワード変更</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              ログイン用のパスワードを変更します。
+            </p>
+            <div className="space-y-3 max-w-sm">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">現在のパスワード</label>
+                <Input
+                  type="password"
+                  placeholder="現在のパスワード"
+                  value={currentPassword}
+                  onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（8文字以上）</label>
+                <Input
+                  type="password"
+                  placeholder="新しいパスワード"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（確認）</label>
+                <Input
+                  type="password"
+                  placeholder="もう一度入力"
+                  value={confirmNewPassword}
+                  onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeResult(null); }}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handlePasswordChange}
+                  disabled={passwordChanging || !currentPassword || !newPassword || !confirmNewPassword}
+                >
+                  {passwordChanging ? "変更中..." : "パスワードを変更"}
+                </Button>
+              </div>
+              {passwordChangeResult && (
+                <span className={`text-sm ${passwordChangeResult.ok ? "text-green-600" : "text-red-600"}`}>
+                  {passwordChangeResult.msg}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Logout */}
           <div className="mt-6 border-t pt-4">
             <Button variant="outline" onClick={handleLogout}>
@@ -626,8 +1098,8 @@ export function SettingsClient() {
         </div>
       )}
 
-      {/* Media Management */}
-      <div className="rounded-lg border border-red-200 p-6">
+      {/* Media Management - admin only */}
+      {role === "admin" && <div className="rounded-lg border border-red-200 p-6">
         <h2 className="mb-4 text-lg font-semibold">メディア管理</h2>
 
         {/* Individual media list */}
@@ -719,7 +1191,7 @@ export function SettingsClient() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

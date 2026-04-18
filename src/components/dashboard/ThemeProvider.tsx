@@ -12,8 +12,6 @@ import {
 
 export type Theme = "system" | "light" | "dark";
 
-const STORAGE_KEY = "e-web-board-theme";
-
 interface ThemeContextValue {
   theme: Theme;
   setTheme: (t: Theme) => void;
@@ -36,32 +34,37 @@ function getResolvedTheme(theme: Theme): "light" | "dark" {
     : "light";
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [mounted, setMounted] = useState(false);
+function applyResolvedTheme(resolved: "light" | "dark") {
+  const el = document.getElementById("dashboard-theme-root");
+  if (!el) return;
+  el.classList.toggle("dark", resolved === "dark");
+  el.style.colorScheme = resolved;
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    if (stored === "light" || stored === "dark" || stored === "system") {
-      setThemeState(stored);
-    }
-    setMounted(true);
-  }, []);
+export function ThemeProvider({
+  children,
+  initialTheme = "system",
+}: {
+  children: React.ReactNode;
+  initialTheme?: Theme;
+}) {
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
-    localStorage.setItem(STORAGE_KEY, t);
+    // Persist to DB (fire-and-forget)
+    fetch("/api/users/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ colorTheme: t }),
+    }).catch(() => {});
   }, []);
 
   // Apply .dark class to the wrapper element
   useEffect(() => {
-    if (!mounted) return;
-
     function apply() {
       const resolved = getResolvedTheme(theme);
-      const el = document.getElementById("dashboard-theme-root");
-      if (!el) return;
-      el.classList.toggle("dark", resolved === "dark");
+      applyResolvedTheme(resolved);
     }
 
     apply();
@@ -72,7 +75,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       mq.addEventListener("change", apply);
       return () => mq.removeEventListener("change", apply);
     }
-  }, [theme, mounted]);
+  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
