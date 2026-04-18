@@ -34,6 +34,13 @@ function getResolvedTheme(theme: Theme): "light" | "dark" {
     : "light";
 }
 
+function applyResolvedTheme(resolved: "light" | "dark") {
+  const el = document.getElementById("dashboard-theme-root");
+  if (!el) return;
+  el.classList.toggle("dark", resolved === "dark");
+  el.style.colorScheme = resolved;
+}
+
 export function ThemeProvider({
   children,
   initialTheme = "system",
@@ -42,11 +49,6 @@ export function ThemeProvider({
   initialTheme?: Theme;
 }) {
   const [theme, setThemeState] = useState<Theme>(initialTheme);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
@@ -60,13 +62,9 @@ export function ThemeProvider({
 
   // Apply .dark class to the wrapper element
   useEffect(() => {
-    if (!mounted) return;
-
     function apply() {
       const resolved = getResolvedTheme(theme);
-      const el = document.getElementById("dashboard-theme-root");
-      if (!el) return;
-      el.classList.toggle("dark", resolved === "dark");
+      applyResolvedTheme(resolved);
     }
 
     apply();
@@ -77,7 +75,7 @@ export function ThemeProvider({
       mq.addEventListener("change", apply);
       return () => mq.removeEventListener("change", apply);
     }
-  }, [theme, mounted]);
+  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
