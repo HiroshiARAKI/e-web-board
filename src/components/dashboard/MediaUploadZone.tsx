@@ -227,10 +227,10 @@ export default function MediaUploadZone({
           {uploading.map((item, idx) => (
             <div
               key={idx}
-              className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm"
+              className="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center"
             >
               <span className="flex-1 truncate">{item.name}</span>
-              <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted sm:w-24">
                 <div
                   className="h-full rounded-full bg-primary transition-all"
                   style={{ width: `${item.progress}%` }}
@@ -256,7 +256,7 @@ export default function MediaUploadZone({
               onDragOver={(e) => handleReorderDragOver(e, index)}
               onDrop={(e) => handleReorderDrop(e, index)}
               onDragEnd={handleReorderDragEnd}
-              className={`flex items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors ${
+              className={`flex flex-wrap items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors ${
                 draggedIndex === index ? "opacity-50" : ""
               } ${dragOverIndex === index ? "border-primary bg-primary/5" : ""}`}
             >
@@ -282,7 +282,7 @@ export default function MediaUploadZone({
               </div>
 
               {/* Info */}
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1 basis-40">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="shrink-0">
                     {item.type === "image" ? (
@@ -299,7 +299,7 @@ export default function MediaUploadZone({
               </div>
 
               {/* Duration */}
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="ml-auto flex shrink-0 items-center gap-1">
                 <Label className="text-xs text-muted-foreground">秒:</Label>
                 <Input
                   type="number"
@@ -317,6 +317,7 @@ export default function MediaUploadZone({
               <Button
                 variant="ghost"
                 size="icon-xs"
+                className="ml-auto sm:ml-0"
                 onClick={() => handleDelete(item.id)}
               >
                 <Trash2 className="size-3.5 text-destructive" />

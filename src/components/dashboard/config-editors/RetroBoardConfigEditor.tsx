@@ -139,7 +139,7 @@ export function RetroBoardConfigEditor({
         />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <Switch
           id="cfg-showClock"
           checked={showClock}
@@ -148,7 +148,7 @@ export function RetroBoardConfigEditor({
         <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <Switch
           id="cfg-showWeather"
           checked={showWeather}

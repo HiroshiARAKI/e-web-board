@@ -215,7 +215,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Left: Board settings (2 cols) */}
-        <div className="space-y-6 md:col-span-2">
+        <div className="min-w-0 space-y-6 md:col-span-2">
           {/* Basic info */}
           <Card>
             <CardHeader>
@@ -235,7 +235,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 />
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Switch
                   id="board-active"
                   checked={isActive}
@@ -332,19 +332,19 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                       editingMsgId === msg.id ? (
                         <div
                           key={msg.id}
-                          className="flex items-center gap-2 rounded-md border border-primary/30 bg-accent/30 px-3 py-2 text-sm"
+                          className="flex flex-col gap-2 rounded-md border border-primary/30 bg-accent/30 px-3 py-2 text-sm sm:flex-row sm:items-center"
                         >
                           <Input
                             value={editMsgPriority}
                             onChange={(e) => setEditMsgPriority(e.target.value)}
                             type="number"
                             min={0}
-                            className="w-16 shrink-0"
+                            className="w-20 shrink-0 sm:w-16"
                           />
                           <Input
                             value={editMsgContent}
                             onChange={(e) => setEditMsgContent(e.target.value)}
-                            className="flex-1"
+                            className="min-w-0 flex-1"
                             onKeyDown={(e) => {
                               if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                                 e.preventDefault();
@@ -356,25 +356,27 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                             }}
                             autoFocus
                           />
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() => handleSaveMessage(msg.id)}
-                          >
-                            <Check className="size-3.5 text-green-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={cancelEditMessage}
-                          >
-                            <X className="size-3.5 text-muted-foreground" />
-                          </Button>
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={() => handleSaveMessage(msg.id)}
+                            >
+                              <Check className="size-3.5 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              onClick={cancelEditMessage}
+                            >
+                              <X className="size-3.5 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <div
                           key={msg.id}
-                          className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                          className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm"
                         >
                           <Badge variant="secondary" className="shrink-0">
                             P{msg.priority}
@@ -424,7 +426,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
         </div>
 
         {/* Right: Actions sidebar */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">アクション</CardTitle>

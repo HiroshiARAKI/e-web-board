@@ -92,8 +92,8 @@ export default function CallScreenAdmin({
         {/* Passcode */}
         <div className="space-y-2">
           <label className="text-sm font-medium">パスコード（6桁）</label>
-          <div className="flex items-center gap-3">
-            <span className="rounded-lg border bg-muted px-4 py-2 font-mono text-2xl tracking-[0.3em]">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <span className="max-w-full overflow-hidden rounded-lg border bg-muted px-4 py-2 font-mono text-lg tracking-[0.18em] break-all sm:text-2xl sm:tracking-[0.3em]">
               {passcode || "------"}
             </span>
             <Button
@@ -114,14 +114,15 @@ export default function CallScreenAdmin({
         {/* URL */}
         <div className="space-y-2">
           <label className="text-sm font-medium">呼び出し画面URL</label>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 truncate rounded-lg border bg-muted px-3 py-2 text-xs">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <code className="block min-w-0 w-full overflow-hidden text-ellipsis rounded-lg border bg-muted px-3 py-2 text-xs sm:flex-1">
               {callUrl}
             </code>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               onClick={handleCopyUrl}
             >
               {copied ? (
@@ -140,7 +141,7 @@ export default function CallScreenAdmin({
             <label className="text-sm font-medium">
               QRコード（パスコード込み）
             </label>
-            <div className="inline-block rounded-xl border bg-white p-4">
+            <div className="inline-block max-w-full overflow-hidden rounded-xl border bg-white p-3 sm:p-4">
               <QRCodeSVG
                 value={callUrlWithPasscode}
                 size={200}
