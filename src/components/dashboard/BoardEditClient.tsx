@@ -194,32 +194,28 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Link
-            href="/boards"
-            className={buttonVariants({ variant: "ghost", size: "sm" })}
-          >
-            <ArrowLeft data-icon="inline-start" />
-            ボード一覧
-          </Link>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={`/${boardId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <ExternalLink data-icon="inline-start" />
-            プレビュー
-          </a>
-        </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href="/boards"
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          <ArrowLeft data-icon="inline-start" />
+          ボード一覧
+        </Link>
+        <a
+          href={`/${boardId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+        >
+          <ExternalLink data-icon="inline-start" />
+          プレビュー
+        </a>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         {/* Left: Board settings (2 cols) */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 md:col-span-2">
           {/* Basic info */}
           <Card>
             <CardHeader>
@@ -292,12 +288,12 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Add new message */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Input
                   value={newMsgContent}
                   onChange={(e) => setNewMsgContent(e.target.value)}
                   placeholder={board.templateId === "call-number" ? "番号を入力..." : "メッセージを入力..."}
-                  className="flex-1"
+                  className="min-w-0 flex-1 basis-40"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                       e.preventDefault();

@@ -4,8 +4,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MonitorPlay, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { PinInput } from "@/components/auth/PinInput";
+import { KeinageLogo } from "@/components/KeinageLogo";
 
 interface PinResetClientProps {
   token: string;
@@ -61,9 +62,7 @@ export default function PinResetClient({ token }: PinResetClientProps) {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg">
-            <MonitorPlay className="size-7" />
-          </div>
+          <KeinageLogo className="h-12 w-auto text-gray-900" />
           <h1 className="text-xl font-bold text-gray-900">Keinage</h1>
         </div>
 

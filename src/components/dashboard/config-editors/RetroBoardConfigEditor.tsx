@@ -67,7 +67,7 @@ export function RetroBoardConfigEditor({
       <div className="space-y-1.5">
         <Label htmlFor="cfg-displayColor">表示カラー</Label>
         <Select value={displayColor} onValueChange={(v) => update("displayColor", v)}>
-          <SelectTrigger id="cfg-displayColor" className="w-48">
+          <SelectTrigger id="cfg-displayColor" className="w-full max-w-48">
             <SelectValue placeholder="カラーを選択">{colorLabels[displayColor] ?? displayColor}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -168,7 +168,7 @@ export function RetroBoardConfigEditor({
           value={fontFamily}
           onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
         >
-          <SelectTrigger id="cfg-font" className="w-64">
+          <SelectTrigger id="cfg-font" className="w-full max-w-64">
             <SelectValue placeholder="フォントを選択">
               {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
             </SelectValue>
