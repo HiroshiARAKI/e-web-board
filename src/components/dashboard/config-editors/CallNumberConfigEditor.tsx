@@ -99,7 +99,7 @@ export function CallNumberConfigEditor({
         <div className="space-y-1.5">
           <Label htmlFor="cfg-layout">レーン配置</Label>
           <Select value={layout} onValueChange={(v) => update("layout", v)}>
-            <SelectTrigger id="cfg-layout" className="w-48">
+            <SelectTrigger id="cfg-layout" className="w-full max-w-48">
               <SelectValue>
                 {layout === "horizontal" ? "横レイアウト" : "縦レイアウト"}
               </SelectValue>
@@ -126,9 +126,9 @@ export function CallNumberConfigEditor({
               step={2}
               value={numberFontSize}
               onChange={(e) => update("numberFontSize", Number(e.target.value))}
-              className="w-48"
+              className="w-full max-w-48"
             />
-            <div className="flex w-48 justify-between text-xs text-muted-foreground">
+            <div className="flex w-full max-w-48 justify-between text-xs text-muted-foreground">
               <span>24px</span>
               <span>120px</span>
             </div>

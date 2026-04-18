@@ -94,7 +94,7 @@ export function PhotoClockConfigEditor({
       <div className="space-y-1.5">
         <Label htmlFor="cfg-objectFit">メディア表示モード</Label>
         <Select value={objectFit} onValueChange={(v) => update("objectFit", v)}>
-          <SelectTrigger id="cfg-objectFit" className="w-72">
+          <SelectTrigger id="cfg-objectFit" className="w-full max-w-72">
             <SelectValue>{objectFit === "cover" ? "全面表示（トリミングされる場合あり）" : "全体表示（余白ができる場合あり）"}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -107,7 +107,7 @@ export function PhotoClockConfigEditor({
       <div className="space-y-1.5">
         <Label htmlFor="cfg-clockPos">時計の位置</Label>
         <Select value={clockPosition} onValueChange={(v) => update("clockPosition", v)}>
-          <SelectTrigger id="cfg-clockPos" className="w-48">
+          <SelectTrigger id="cfg-clockPos" className="w-full max-w-48">
             <SelectValue placeholder="位置を選択">{positionLabels[clockPosition] ?? clockPosition}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -123,7 +123,7 @@ export function PhotoClockConfigEditor({
       <div className="space-y-1.5">
         <Label htmlFor="cfg-clockLayout">時計レイアウト</Label>
         <Select value={clockLayout} onValueChange={(v) => update("clockLayout", v)}>
-          <SelectTrigger id="cfg-clockLayout" className="w-64">
+          <SelectTrigger id="cfg-clockLayout" className="w-full max-w-64">
             <SelectValue placeholder="レイアウトを選択">{layoutLabels[clockLayout] ?? clockLayout}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -145,9 +145,9 @@ export function PhotoClockConfigEditor({
           step={4}
           value={clockFontSize}
           onChange={(e) => update("clockFontSize", parseInt(e.target.value, 10))}
-          className="w-64"
+          className="w-full max-w-64"
         />
-        <div className="flex justify-between text-xs text-muted-foreground w-64">
+        <div className="flex w-full max-w-64 justify-between text-xs text-muted-foreground">
           <span>24px</span>
           <span>160px</span>
         </div>
@@ -184,7 +184,7 @@ export function PhotoClockConfigEditor({
           step={0.05}
           value={clockBgOpacity}
           onChange={(e) => update("clockBgOpacity", parseFloat(e.target.value))}
-          className="w-48"
+          className="w-full max-w-48"
         />
       </div>
 
@@ -217,7 +217,7 @@ export function PhotoClockConfigEditor({
           value={fontFamily}
           onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
         >
-          <SelectTrigger id="cfg-font" className="w-64">
+          <SelectTrigger id="cfg-font" className="w-full max-w-64">
             <SelectValue placeholder="フォントを選択">
               {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
             </SelectValue>

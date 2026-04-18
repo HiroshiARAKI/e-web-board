@@ -126,22 +126,15 @@ export function DashboardShell({
 
       {/* Backdrop overlay (mobile) — animated */}
       <div
-        className={`
-          fixed inset-0 z-40 bg-black/40 transition-opacity duration-300 ease-out md:hidden
-          ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}
-        `}
+        className={`fixed inset-0 z-40 bg-black/40 md:hidden transition-opacity duration-300 ${sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
         onClick={closeSidebar}
         aria-hidden="true"
       />
 
       {/* Sidebar: always visible on md+, slide-in overlay on mobile */}
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground
-          transition-transform duration-300 ease-out
-          md:sticky md:top-0 md:z-auto md:h-dvh md:translate-x-0 md:transition-none
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
+        data-open={sidebarOpen}
+        className="sidebar-slide fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:z-auto md:h-dvh"
       >
         {sidebarContent}
       </aside>

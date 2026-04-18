@@ -107,7 +107,7 @@ export function MessageBoardConfigEditor({
           step={1}
           value={fontSize}
           onChange={(e) => update("fontSize", Number(e.target.value))}
-          className="w-48"
+          className="w-full max-w-48"
         />
       </div>
 
@@ -174,7 +174,7 @@ export function MessageBoardConfigEditor({
           value={fontFamily}
           onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
         >
-          <SelectTrigger id="cfg-font" className="w-64">
+          <SelectTrigger id="cfg-font" className="w-full max-w-64">
             <SelectValue placeholder="フォントを選択">
               {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
             </SelectValue>

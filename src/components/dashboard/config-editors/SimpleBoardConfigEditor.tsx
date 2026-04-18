@@ -131,7 +131,7 @@ export function SimpleBoardConfigEditor({
           <div className="space-y-1.5">
             <Label htmlFor="cfg-objectFit">メディア表示モード</Label>
             <Select value={objectFit} onValueChange={(v) => update("objectFit", v)}>
-              <SelectTrigger id="cfg-objectFit" className="w-72">
+              <SelectTrigger id="cfg-objectFit" className="w-full max-w-72">
                 <SelectValue>{objectFit === "cover" ? "全面表示（トリミングされる場合あり）" : "全体表示（余白ができる場合あり）"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -190,9 +190,9 @@ export function SimpleBoardConfigEditor({
               step={1}
               value={tickerFontSize}
               onChange={(e) => update("tickerFontSize", Number(e.target.value))}
-              className="w-48"
+              className="w-full max-w-48"
             />
-            <div className="flex justify-between text-xs text-muted-foreground w-48">
+            <div className="flex w-full max-w-48 justify-between text-xs text-muted-foreground">
               <span>12px</span>
               <span>64px</span>
             </div>
@@ -201,7 +201,7 @@ export function SimpleBoardConfigEditor({
           <div className="space-y-1.5">
             <Label htmlFor="cfg-tickerPosition">表示位置</Label>
             <Select value={tickerPosition} onValueChange={(v) => update("tickerPosition", v)}>
-              <SelectTrigger id="cfg-tickerPosition" className="w-48">
+              <SelectTrigger id="cfg-tickerPosition" className="w-full max-w-48">
                 <SelectValue>{tickerPosition === "top" ? "上部" : "下部"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -296,7 +296,7 @@ export function SimpleBoardConfigEditor({
               value={tickerFontFamily}
               onValueChange={(v) => update("tickerFontFamily", v === "__default__" ? "" : v)}
             >
-              <SelectTrigger id="cfg-font" className="w-64">
+              <SelectTrigger id="cfg-font" className="w-full max-w-64">
                 <SelectValue placeholder="フォントを選択">
                   {GOOGLE_FONTS.find((f) => f.value === tickerFontFamily)?.label ?? "デフォルト"}
                 </SelectValue>
