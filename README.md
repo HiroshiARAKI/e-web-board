@@ -52,7 +52,7 @@
 | カテゴリ | 技術 |
 |---------|------|
 | 言語 | TypeScript |
-| フレームワーク | Next.js 15 (App Router) |
+| フレームワーク | Next.js 16 (App Router) |
 | スタイリング | Tailwind CSS v4 |
 | UI コンポーネント | shadcn/ui |
 | アニメーション | Framer Motion |
@@ -61,7 +61,11 @@
 | バリデーション | Zod |
 | コンテナ | Docker |
 
-詳しいアーキテクチャ設計は [DESIGN.md](DESIGN.md) を参照してください。
+詳しい情報は以下を参照してください。
+
+- [docs/SPEC.md](docs/SPEC.md) — 利用者向け仕様
+- [docs/DESIGN.md](docs/DESIGN.md) — アーキテクチャ / 設計
+- [docs/API.md](docs/API.md) — HTTP API 一覧
 
 ---
 
@@ -81,7 +85,8 @@ cd Keinage
 docker compose up -d
 ```
 
-ブラウザで http://localhost:3000 にアクセスし、初回は管理者 PIN (6桁) を登録してください。
+ブラウザで http://localhost:3000 にアクセスし、初回は管理者アカウント
+（ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
 #### SMTP 設定 (任意)
 
@@ -118,7 +123,8 @@ pnpm db:migrate   # データベースのセットアップ
 pnpm dev           # 開発サーバー起動
 ```
 
-http://localhost:3000 にアクセスし、初回は管理者 PIN (6桁) を登録してください。
+http://localhost:3000 にアクセスし、初回は管理者アカウント
+（ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
 SMTP を設定する場合は `.env.example` をコピーして `.env` を作成してください。
 
@@ -151,7 +157,13 @@ curl -X POST http://localhost:3000/api/messages \
 curl -X DELETE http://localhost:3000/api/messages/{messageId}
 ```
 
-詳しい API 仕様は [DESIGN.md](DESIGN.md) を参照してください。
+詳しい API 仕様は [docs/API.md](docs/API.md) を参照してください。
+
+## ドキュメント
+
+- [docs/SPEC.md](docs/SPEC.md) — 利用者向け仕様
+- [docs/DESIGN.md](docs/DESIGN.md) — アーキテクチャ / 設計判断
+- [docs/API.md](docs/API.md) — Route Handler / 補助ルート一覧
 
 ---
 
