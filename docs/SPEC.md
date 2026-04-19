@@ -21,17 +21,17 @@ Keinage の管理画面には 2 種類のロールがあります。
 
 | 機能 | admin | general |
 | --- | --- | --- |
-| ボード作成・編集・削除 | Yes | Yes |
-| 表示テーマ変更 | Yes | Yes |
-| 自分のユーザーID変更 | Yes | Yes |
-| 自分のメールアドレス変更 | Yes | Yes |
-| 自分のパスワード変更 | Yes | Yes |
-| 自分の PIN 設定・変更 | Yes | Yes |
-| 天気地域設定 | Yes | No |
-| 画像リサイズ設定 | Yes | No |
-| ディスク上メディア管理 | Yes | No |
-| フル認証期限設定 | Yes | No |
-| ユーザー管理ページ | Yes | No |
+| ボード作成・編集・削除 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: green; font-weight: bold;">✓</span> |
+| 表示テーマ変更 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: green; font-weight: bold;">✓</span> |
+| 自分のユーザーID変更 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: green; font-weight: bold;">✓</span> |
+| 自分のメールアドレス変更 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: green; font-weight: bold;">✓</span> |
+| 自分のパスワード変更 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: green; font-weight: bold;">✓</span> |
+| 自分の PIN 設定・変更 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: green; font-weight: bold;">✓</span> |
+| 天気地域設定 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: red; font-weight: bold;">-</span> |
+| 画像リサイズ設定 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: red; font-weight: bold;">-</span> |
+| ディスク上メディア管理 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: red; font-weight: bold;">-</span> |
+| フル認証期限設定 | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: red; font-weight: bold;">-</span> |
+| ユーザー管理ページ | <span style="color: green; font-weight: bold;">✓</span> | <span style="color: red; font-weight: bold;">-</span> |
 
 最後の `admin` ユーザーは削除・一般権限への降格ができません。
 
