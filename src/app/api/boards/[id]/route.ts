@@ -6,15 +6,12 @@ import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { updateBoardSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
+import { normalizeConfig, parseJsonObject } from "@/lib/utils";
 
 const LEGACY_IMAGE_DURATION_SECONDS = 5;
 
 function readSlideInterval(config: unknown): number | undefined {
-  if (!config || typeof config !== "object") {
-    return undefined;
-  }
-
-  const raw = (config as Record<string, unknown>).slideInterval;
+  const raw = parseJsonObject(config).slideInterval;
   return typeof raw === "number" && Number.isFinite(raw) && raw >= 1 ? raw : undefined;
 }
 
@@ -42,7 +39,11 @@ export async function GET(
     .from(messages)
     .where(eq(messages.boardId, id));
 
-  return NextResponse.json({ ...board, mediaItems: media, messages: boardMessages });
+  return NextResponse.json({
+    ...normalizeConfig(board),
+    mediaItems: media,
+    messages: boardMessages,
+  });
 }
 
 export async function PATCH(
@@ -57,6 +58,8 @@ export async function PATCH(
   if (!existing) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
+
+  const normalizedExisting = normalizeConfig(existing);
 
   let body: unknown;
   try {
@@ -79,14 +82,18 @@ export async function PATCH(
   if (result.data.config !== undefined) updates.config = result.data.config;
   if (result.data.isActive !== undefined) updates.isActive = result.data.isActive;
 
-  const previousSlideInterval = readSlideInterval(existing.config);
+  const previousSlideInterval = readSlideInterval(normalizedExisting.config);
   const nextSlideInterval =
     result.data.config !== undefined
       ? readSlideInterval(result.data.config)
       : undefined;
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json(existing);
+    return NextResponse.json(normalizedExisting);
+  }
+
+  if (updates.config !== undefined) {
+    updates.config = JSON.stringify(updates.config);
   }
 
   const [updated] = await db

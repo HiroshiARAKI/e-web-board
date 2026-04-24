@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { eq, and, or, isNull, gt } from "drizzle-orm";
+import { parseJsonObject } from "@/lib/utils";
 import CallScreenClient from "./CallScreenClient";
 import PasscodeForm from "./PasscodeForm";
 
@@ -32,9 +33,7 @@ export default async function CallPage({
     notFound();
   }
 
-  const config = (board.config && typeof board.config === "object"
-    ? board.config
-    : {}) as Record<string, unknown>;
+  const config = parseJsonObject(board.config);
   const storedPasscode = (config.passcode as string) ?? "";
 
   // Validate passcode

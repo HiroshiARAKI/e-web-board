@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSSE } from "@/hooks/useSSE";
+import { parseJsonObject } from "@/lib/utils";
 import type { Board, MediaItem, Message, BoardTemplateProps } from "@/types";
 
 const CURSOR_HIDE_DELAY = 3000;
@@ -77,7 +78,7 @@ export default function LiveBoard({
         id: data.id,
         name: data.name,
         templateId: data.templateId,
-        config: data.config,
+        config: parseJsonObject(data.config),
         isActive: data.isActive,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,

@@ -12,6 +12,7 @@ import {
   deleteThumbnail,
   DEFAULT_IMAGE_MAX_LONG_EDGE,
 } from "@/lib/image";
+import { parseJsonObject } from "@/lib/utils";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
@@ -29,11 +30,7 @@ const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 function readSlideInterval(config: unknown): number | undefined {
-  if (!config || typeof config !== "object") {
-    return undefined;
-  }
-
-  const raw = (config as Record<string, unknown>).slideInterval;
+  const raw = parseJsonObject(config).slideInterval;
   return typeof raw === "number" && Number.isFinite(raw) && raw >= 1 ? raw : undefined;
 }
 
