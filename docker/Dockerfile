@@ -8,13 +8,17 @@ WORKDIR /app
 # ---- deps: install production + dev dependencies ----
 FROM base AS deps
 
-# Install build tools for native modules (better-sqlite3)
+# Install build tools for packages that may fall back to native compilation.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 make g++ && \
     rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
+
+# ---- prod-deps: keep runtime dependencies available for the standalone server and migration runner ----
+FROM deps AS prod-deps
+RUN pnpm prune --prod
 
 # ---- build: compile Next.js app ----
 FROM base AS builder
@@ -34,15 +38,16 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy standalone server
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 # Copy drizzle migrations + migration runner
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/docker/migrate.cjs ./migrate.cjs
 COPY --from=builder /app/docker/entrypoint.sh ./entrypoint.sh
 
-# Create writable directories for runtime data
-RUN mkdir -p data uploads && \
-    chown -R nextjs:nodejs data uploads
+# Create writable directory for runtime uploads
+RUN mkdir -p uploads && \
+    chown -R nextjs:nodejs uploads
 
 USER nextjs
 

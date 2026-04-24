@@ -4,26 +4,21 @@
  * Seed script — inserts sample data for development.
  * Usage: pnpm db:seed
  */
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { randomUUID } from "crypto";
+import { Pool } from "pg";
 import * as schema from "../src/db/schema";
-import path from "path";
-import fs from "fs";
 
-const DB_PATH = path.resolve(process.cwd(), "data", "e-web-board.db");
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+const DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:5432/keinage";
 
-const sqlite = new Database(DB_PATH);
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+async function main() {
+  const pool = new Pool({ connectionString: DATABASE_URL });
+  const db = drizzle(pool, { schema });
 
-const db = drizzle(sqlite, { schema });
+  const boardId = randomUUID();
 
-const boardId = randomUUID();
-
-db.insert(schema.boards)
-  .values({
+  await db.insert(schema.boards).values({
     id: boardId,
     name: "サンプルボード",
     templateId: "simple",
@@ -34,55 +29,49 @@ db.insert(schema.boards)
       textColor: "#ffffff",
     }),
     isActive: true,
-  })
-  .run();
+  });
 
-// サンプル画像（プレースホルダー画像を使用）
-const sampleImages = [
-  "https://picsum.photos/seed/board1/1920/1080",
-  "https://picsum.photos/seed/board2/1920/1080",
-  "https://picsum.photos/seed/board3/1920/1080",
-];
+  // サンプル画像（プレースホルダー画像を使用）
+  const sampleImages = [
+    "https://picsum.photos/seed/board1/1920/1080",
+    "https://picsum.photos/seed/board2/1920/1080",
+    "https://picsum.photos/seed/board3/1920/1080",
+  ];
 
-sampleImages.forEach((url, i) => {
-  db.insert(schema.mediaItems)
-    .values({
+  for (const [index, url] of sampleImages.entries()) {
+    await db.insert(schema.mediaItems).values({
       id: randomUUID(),
       boardId,
       type: "image",
       filePath: url,
-      displayOrder: i,
+      displayOrder: index,
       duration: 5,
-    })
-    .run();
-});
+    });
+  }
 
-// サンプルメッセージ
-const sampleMessages = [
-  "本日の受付は 17:00 までです",
-  "館内では静かにお願いします",
-  "Wi-Fi パスワード: guest1234",
-];
+  // サンプルメッセージ
+  const sampleMessages = [
+    "本日の受付は 17:00 までです",
+    "館内では静かにお願いします",
+    "Wi-Fi パスワード: guest1234",
+  ];
 
-sampleMessages.forEach((content, i) => {
-  db.insert(schema.messages)
-    .values({
+  for (const [index, content] of sampleMessages.entries()) {
+    await db.insert(schema.messages).values({
       id: randomUUID(),
       boardId,
       content,
-      priority: i,
-    })
-    .run();
-});
+      priority: index,
+    });
+  }
 
-console.log(`✅ Seed complete — board ID: ${boardId}`);
-console.log(`   Open http://localhost:3000/${boardId}`);
+  console.log(`✅ Seed complete — board ID: ${boardId}`);
+  console.log(`   Open http://localhost:3000/${boardId}`);
 
-// --- Photo-Clock Board ---
-const photoClockId = randomUUID();
+  // --- Photo-Clock Board ---
+  const photoClockId = randomUUID();
 
-db.insert(schema.boards)
-  .values({
+  await db.insert(schema.boards).values({
     id: photoClockId,
     name: "フォトクロック サンプル",
     templateId: "photo-clock",
@@ -95,30 +84,26 @@ db.insert(schema.boards)
       is24Hour: true,
     }),
     isActive: true,
-  })
-  .run();
+  });
 
-sampleImages.forEach((url, i) => {
-  db.insert(schema.mediaItems)
-    .values({
+  for (const [index, url] of sampleImages.entries()) {
+    await db.insert(schema.mediaItems).values({
       id: randomUUID(),
       boardId: photoClockId,
       type: "image",
       filePath: url,
-      displayOrder: i,
+      displayOrder: index,
       duration: 8,
-    })
-    .run();
-});
+    });
+  }
 
-console.log(`✅ Photo-Clock board ID: ${photoClockId}`);
-console.log(`   Open http://localhost:3000/${photoClockId}`);
+  console.log(`✅ Photo-Clock board ID: ${photoClockId}`);
+  console.log(`   Open http://localhost:3000/${photoClockId}`);
 
-// --- Retro Board ---
-const retroBoardId = randomUUID();
+  // --- Retro Board ---
+  const retroBoardId = randomUUID();
 
-db.insert(schema.boards)
-  .values({
+  await db.insert(schema.boards).values({
     id: retroBoardId,
     name: "レトロ掲示板 サンプル",
     templateId: "retro",
@@ -129,38 +114,34 @@ db.insert(schema.boards)
       switchInterval: 5,
     }),
     isActive: true,
-  })
-  .run();
+  });
 
-const retroMessages = [
-  "1番線  東京行き  10:15 発  定刻",
-  "2番線  大阪行き  10:32 発  定刻",
-  "3番線  名古屋行き  10:45 発  約5分遅れ",
-  "4番線  博多行き  11:00 発  定刻",
-  "5番線  仙台行き  11:15 発  定刻",
-  "6番線  新潟行き  11:30 発  定刻",
-  "7番線  広島行き  11:45 発  運休",
-];
+  const retroMessages = [
+    "1番線  東京行き  10:15 発  定刻",
+    "2番線  大阪行き  10:32 発  定刻",
+    "3番線  名古屋行き  10:45 発  約5分遅れ",
+    "4番線  博多行き  11:00 発  定刻",
+    "5番線  仙台行き  11:15 発  定刻",
+    "6番線  新潟行き  11:30 発  定刻",
+    "7番線  広島行き  11:45 発  運休",
+  ];
 
-retroMessages.forEach((content, i) => {
-  db.insert(schema.messages)
-    .values({
+  for (const [index, content] of retroMessages.entries()) {
+    await db.insert(schema.messages).values({
       id: randomUUID(),
       boardId: retroBoardId,
       content,
-      priority: retroMessages.length - i,
-    })
-    .run();
-});
+      priority: retroMessages.length - index,
+    });
+  }
 
-console.log(`✅ Retro board ID: ${retroBoardId}`);
-console.log(`   Open http://localhost:3000/${retroBoardId}`);
+  console.log(`✅ Retro board ID: ${retroBoardId}`);
+  console.log(`   Open http://localhost:3000/${retroBoardId}`);
 
-// --- Message Board ---
-const messageBoardId = randomUUID();
+  // --- Message Board ---
+  const messageBoardId = randomUUID();
 
-db.insert(schema.boards)
-  .values({
+  await db.insert(schema.boards).values({
     id: messageBoardId,
     name: "メッセージ掲示板 サンプル",
     templateId: "message",
@@ -172,29 +153,32 @@ db.insert(schema.boards)
       accentColor: "#3b82f6",
     }),
     isActive: true,
-  })
-  .run();
+  });
 
-const msgBoardMessages = [
-  { content: "本日 14:00 より全体会議を行います", priority: 5 },
-  { content: "エレベーター点検のため、15:00〜16:00 は使用不可です", priority: 3 },
-  { content: "社員食堂 本日のメニュー: カレーライス定食", priority: 1 },
-  { content: "落とし物: 黒い財布が受付に届いています", priority: 2 },
-  { content: "来週月曜日は祝日のため休業です", priority: 0 },
-];
+  const msgBoardMessages = [
+    { content: "本日 14:00 より全体会議を行います", priority: 5 },
+    { content: "エレベーター点検のため、15:00〜16:00 は使用不可です", priority: 3 },
+    { content: "社員食堂 本日のメニュー: カレーライス定食", priority: 1 },
+    { content: "落とし物: 黒い財布が受付に届いています", priority: 2 },
+    { content: "来週月曜日は祝日のため休業です", priority: 0 },
+  ];
 
-msgBoardMessages.forEach(({ content, priority }) => {
-  db.insert(schema.messages)
-    .values({
+  for (const { content, priority } of msgBoardMessages) {
+    await db.insert(schema.messages).values({
       id: randomUUID(),
       boardId: messageBoardId,
       content,
       priority,
-    })
-    .run();
+    });
+  }
+
+  console.log(`✅ Message board ID: ${messageBoardId}`);
+  console.log(`   Open http://localhost:3000/${messageBoardId}`);
+
+  await pool.end();
+}
+
+main().catch((error) => {
+  console.error("❌ Seed failed", error);
+  process.exit(1);
 });
-
-console.log(`✅ Message board ID: ${messageBoardId}`);
-console.log(`   Open http://localhost:3000/${messageBoardId}`);
-
-sqlite.close();

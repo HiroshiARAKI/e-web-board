@@ -12,7 +12,7 @@
 - **テンプレートベース** — 用途に合わせて複数のデザインテンプレートから選択可能
 - **リアルタイム更新** — 管理画面や外部 API からの変更が即座にボードへ反映
 - **外部連携 API** — REST API を通じて外部システムからメッセージを送信可能
-- **かんたんデプロイ** — Docker Compose で 1 コマンド起動。外部 DB サーバー不要 (SQLite)
+- **かんたんデプロイ** — Docker Compose でアプリと PostgreSQL をまとめて起動
 - **フルカスタマイズ** — 色、フォント、表示速度などをボードごとに調整
 
 ---
@@ -56,7 +56,7 @@
 | スタイリング | Tailwind CSS v4 |
 | UI コンポーネント | shadcn/ui |
 | アニメーション | Framer Motion |
-| ORM / DB | Drizzle ORM + SQLite |
+| ORM / DB | Drizzle ORM + PostgreSQL |
 | リアルタイム通信 | Server-Sent Events (SSE) |
 | バリデーション | Zod |
 | コンテナ | Docker |
@@ -85,6 +85,8 @@ cd Keinage
 docker compose up -d
 ```
 
+`docker compose up -d` でアプリ本体と PostgreSQL コンテナが同時に起動します。
+
 ブラウザで http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
@@ -111,22 +113,26 @@ docker compose down
 docker compose down -v
 ```
 
-> **Note:** データ (SQLite DB、アップロードファイル) は Docker ボリュームに永続化されます。`docker compose down` ではデータは保持され、`-v` オプションを付けるとボリュームごと削除されます。
+> **Note:** データ (PostgreSQL DB、アップロードファイル) は Docker ボリュームに永続化されます。`docker compose down` ではデータは保持され、`-v` オプションを付けるとボリュームごと削除されます。
 
 ### ローカル開発
 
 ```bash
 git clone https://github.com/HiroshiARAKI/Keinage.git
 cd Keinage
+docker compose up -d db
+cp .env.example .env
 pnpm install
 pnpm db:migrate   # データベースのセットアップ
 pnpm dev           # 開発サーバー起動
 ```
 
+開発時の既定 `DATABASE_URL` は `postgresql://postgres:postgres@127.0.0.1:5432/keinage` です。別の PostgreSQL を使う場合は `.env` で上書きしてください。
+
 http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
-SMTP を設定する場合は `.env.example` をコピーして `.env` を作成してください。
+SMTP を設定する場合も `.env` に追記してください。
 
 ```bash
 cp .env.example .env
@@ -195,6 +201,7 @@ e-web-board/
 | `pnpm build` | プロダクションビルド |
 | `pnpm start` | プロダクションサーバー起動 |
 | `pnpm db:migrate` | DB マイグレーション実行 |
+| `pnpm db:generate` | Drizzle マイグレーション生成 |
 | `pnpm db:studio` | Drizzle Studio (DB GUI) 起動 |
 | `pnpm lint` | ESLint 実行 |
 
