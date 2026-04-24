@@ -87,6 +87,21 @@ docker compose up -d
 
 `docker compose up -d` でアプリ本体と PostgreSQL コンテナが同時に起動します。
 
+Garage にメディアを保存する場合は、`docker-compose.yml` の `app.environment` に
+S3 互換ストレージ用の環境変数を追加してください。
+
+```yaml
+environment:
+  - S3_ENDPOINT=http://garage.example.local:3900
+  - S3_REGION=us-east-1
+  - S3_BUCKET=keinage-media
+  - S3_ACCESS_KEY_ID=your-access-key
+  - S3_SECRET_ACCESS_KEY=your-secret-key
+  - S3_FORCE_PATH_STYLE=true
+```
+
+未設定時は従来どおり `uploads/` ボリュームに保存されます。
+
 ブラウザで http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
@@ -113,7 +128,7 @@ docker compose down
 docker compose down -v
 ```
 
-> **Note:** データ (PostgreSQL DB、アップロードファイル) は Docker ボリュームに永続化されます。`docker compose down` ではデータは保持され、`-v` オプションを付けるとボリュームごと削除されます。
+> **Note:** データ (PostgreSQL DB と、S3 未設定時のローカルアップロードファイル) は Docker ボリュームに永続化されます。`docker compose down` ではデータは保持され、`-v` オプションを付けるとボリュームごと削除されます。
 
 ### ローカル開発
 
@@ -129,6 +144,8 @@ pnpm dev           # 開発サーバー起動
 
 開発時の既定 `DATABASE_URL` は `postgresql://postgres:postgres@127.0.0.1:5432/keinage` です。別の PostgreSQL を使う場合は `.env` で上書きしてください。
 
+Garage を使う場合は `.env` に S3 互換設定を追加してください。未設定時はローカル `uploads/` に保存されます。
+
 http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
@@ -136,7 +153,7 @@ SMTP を設定する場合も `.env` に追記してください。
 
 ```bash
 cp .env.example .env
-# .env を編集して SMTP 情報を入力
+# .env を編集して Garage / SMTP 情報を入力
 ```
 
 ---
@@ -186,7 +203,7 @@ e-web-board/
 │   ├── db/               # Drizzle スキーマ・DB接続
 │   ├── lib/              # ユーティリティ
 │   └── types/            # 型定義
-├── public/uploads/       # アップロードファイル
+├── uploads/              # ローカル保存時のアップロードファイル
 ├── docker/               # Dockerfile
 └── docker-compose.yml
 ```

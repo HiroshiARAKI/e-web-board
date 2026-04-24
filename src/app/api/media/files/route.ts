@@ -5,32 +5,30 @@ import { db } from "@/db";
 import { mediaItems, boards } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { emitSSE } from "@/lib/sse";
-import { deleteThumbnail } from "@/lib/image";
+import {
+  deleteStoredObject,
+  isMediaStorageKey,
+  isThumbnailStorageKey,
+  listStoredObjects,
+  mediaTypeFromStorageKey,
+  publicPathForStorageKey,
+  thumbnailStorageKeyFromFilename,
+} from "@/lib/media-storage";
 import path from "path";
-import fs from "fs";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
-
-const IMAGE_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
-const VIDEO_EXTS = new Set([".mp4", ".webm"]);
-const MEDIA_EXTS = new Set([...IMAGE_EXTS, ...VIDEO_EXTS]);
 
 /**
- * GET /api/media/files — list actual files on disk under uploads/.
+ * GET /api/media/files — list actual stored media objects.
  *
  * For each file, cross-reference the DB to find which boards reference it.
  */
 export async function GET() {
-  if (!fs.existsSync(UPLOAD_DIR)) {
-    return NextResponse.json([]);
-  }
-
-  const entries = fs.readdirSync(UPLOAD_DIR);
-  const files = entries.filter((name) => {
-    if (name.startsWith(".") || name === "thumbs") return false;
-    const ext = path.extname(name).toLowerCase();
-    return MEDIA_EXTS.has(ext);
-  });
+  const storedObjects = await listStoredObjects();
+  const files = storedObjects.filter((object) => isMediaStorageKey(object.key));
+  const thumbnails = new Set(
+    storedObjects
+      .filter((object) => isThumbnailStorageKey(object.key))
+      .map((object) => object.key),
+  );
 
   // Fetch all media items with board info to cross-reference
   const dbItems = await db
@@ -55,29 +53,21 @@ export async function GET() {
     fileToBoards.set(basename, existing);
   }
 
-  const thumbDir = path.join(UPLOAD_DIR, "thumbs");
-  const result = files.map((filename) => {
-    const ext = path.extname(filename).toLowerCase();
-    const stat = fs.statSync(path.join(UPLOAD_DIR, filename));
-    const isImage = IMAGE_EXTS.has(ext);
-
-    // Determine thumbnail path (GIF thumbnails are stored as .jpg)
-    let thumbPath: string | null = null;
-    if (isImage) {
-      const thumbExt = ext === ".gif" ? ".jpg" : ext;
-      const thumbFilename = path.basename(filename, ext) + thumbExt;
-      if (fs.existsSync(path.join(thumbDir, thumbFilename))) {
-        thumbPath = `/uploads/thumbs/${thumbFilename}`;
-      }
-    }
+  const result = files.map((file) => {
+    const filename = path.basename(file.key);
+    const type = mediaTypeFromStorageKey(file.key) ?? "image";
+    const thumbKey = thumbnailStorageKeyFromFilename(filename);
+    const thumbPath = thumbnails.has(thumbKey)
+      ? publicPathForStorageKey(thumbKey)
+      : null;
 
     return {
       filename,
-      filePath: `/uploads/${filename}`,
+      filePath: publicPathForStorageKey(file.key),
       thumbPath,
-      type: isImage ? "image" : "video",
-      size: stat.size,
-      modifiedAt: stat.mtime.toISOString(),
+      type,
+      size: file.size,
+      modifiedAt: file.modifiedAt,
       boards: fileToBoards.get(filename) ?? [],
     };
   });
@@ -86,7 +76,7 @@ export async function GET() {
 }
 
 /**
- * DELETE /api/media/files — delete a file from disk and remove DB references.
+ * DELETE /api/media/files — delete a stored file and remove DB references.
  *
  * Body: { filename: string }
  */
@@ -106,18 +96,11 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  // Prevent directory traversal
   const sanitized = path.basename(filename);
-  const resolved = path.resolve(UPLOAD_DIR, sanitized);
-  if (!resolved.startsWith(UPLOAD_DIR)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
-  // Delete file from disk
   try {
-    if (fs.existsSync(resolved)) {
-      fs.unlinkSync(resolved);
-    }
+    await deleteStoredObject(sanitized);
+    await deleteStoredObject(thumbnailStorageKeyFromFilename(sanitized));
   } catch {
     return NextResponse.json(
       { error: "Failed to delete file" },
@@ -125,11 +108,8 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  // Delete thumbnail
-  deleteThumbnail(sanitized);
-
   // Delete all DB records that reference this file and notify boards
-  const dbPath = `/uploads/${sanitized}`;
+  const dbPath = publicPathForStorageKey(sanitized);
   const refs = await db
     .select()
     .from(mediaItems)
