@@ -85,20 +85,30 @@ cd Keinage
 docker compose up -d
 ```
 
-`docker compose up -d` でアプリ本体、PostgreSQL、Garage が同時に起動します。
+`docker compose up -d` でアプリ本体と PostgreSQL コンテナが同時に起動します。
 
-Docker Compose の既定構成では、メディア保存先はローカル `uploads/` ではなく
-Garage です。S3 互換 API は `http://localhost:3900` で公開されます。
+Docker Compose の既定構成では、メディア保存先はローカル `uploads/` ディレクトリです。
+必要に応じて、S3 互換のあるストレージサービスを利用できます。
 
 ```yaml
 environment:
-  - S3_ENDPOINT=http://garage:3900
-  - S3_REGION=garage
+  - S3_ENDPOINT=http://rustfs:9000
+  - S3_REGION=us-east-1
   - S3_BUCKET=keinage-media
-  - S3_ACCESS_KEY_ID=GKLOCALKEINAGEACCESSKEY000001
-  - S3_SECRET_ACCESS_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  - S3_ACCESS_KEY_ID=rustfsadmin
+  - S3_SECRET_ACCESS_KEY=rustfsadmin
   - S3_FORCE_PATH_STYLE=true
 ```
+
+`docker-compose.yml` には rustfs のコメント例を残していますが、alpha 版のため既定では起動しません。
+
+### RustFS に切り替える最短手順
+
+1. `docker-compose.yml` の `rustfs` サービスコメントを外す
+2. `.env` の `S3_*` コメントを外す
+3. `docker compose up -d db rustfs app` を実行する
+
+この状態で app は自動的にローカル `uploads/` ではなく RustFS に保存します。`S3_ACCESS_KEY_ID` と `S3_SECRET_ACCESS_KEY` は、rustfs 側の `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` と同じ値を使ってください。
 
 ブラウザで http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
@@ -126,14 +136,14 @@ docker compose down
 docker compose down -v
 ```
 
-> **Note:** データは PostgreSQL volume と Garage volume に永続化されます。`docker compose down` ではデータは保持され、`-v` オプションを付けるとボリュームごと削除されます。
+> **Note:** データ (PostgreSQL DB、アップロードファイル) は Docker ボリュームに永続化されます。`docker compose down` ではデータは保持され、`-v` オプションを付けるとボリュームごと削除されます。
 
 ### ローカル開発
 
 ```bash
 git clone https://github.com/HiroshiARAKI/Keinage.git
 cd Keinage
-docker compose up -d db garage
+docker compose up -d db
 cp .env.example .env
 pnpm install
 pnpm db:migrate   # データベースのセットアップ
@@ -142,7 +152,7 @@ pnpm dev           # 開発サーバー起動
 
 開発時の既定 `DATABASE_URL` は `postgresql://postgres:postgres@127.0.0.1:5432/keinage` です。別の PostgreSQL を使う場合は `.env` で上書きしてください。
 
-ローカル開発でも Garage を使う場合は `.env` に同じ `S3_*` 設定を入れてください。`.env.example` には localhost 用の既定値をコメントで入れています。
+ローカル開発でも S3 互換のあるストレージサービスを使う場合は `.env` に `S3_*` 設定を追加してください。`docker-compose.yml` は `.env` の `S3_*` を自動で app コンテナへ渡すため、app 側の compose 編集は不要です。`.env.example` には rustfs を例にした具体値を入れています。
 
 http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
@@ -151,7 +161,7 @@ SMTP を設定する場合も `.env` に追記してください。
 
 ```bash
 cp .env.example .env
-# .env を編集して Garage / SMTP 情報を入力
+# .env を編集して S3 / SMTP 情報を入力
 ```
 
 ---
