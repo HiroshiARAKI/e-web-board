@@ -17,6 +17,28 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  garage:
+    image: dxflrs/garage:v2.3.0
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+    ports:
+      - "3900:3900"
+      - "3903:3903"
+    environment:
+      GARAGE_DEFAULT_BUCKET: keinage-media
+      GARAGE_DEFAULT_ACCESS_KEY: GKLOCALKEINAGEACCESSKEY000001
+      GARAGE_DEFAULT_SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    volumes:
+      - ./docker/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -24,22 +46,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      garage:
+        condition: service_healthy
     ports:
       - "3000:3000"
-    volumes:
-      - upload-data:/app/uploads
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/keinage
-      # Garage / S3-compatible media storage (optional)
-      # If omitted, uploads are stored on the local upload-data volume.
-      # - S3_ENDPOINT=http://garage.example.local:3900
-      # - S3_REGION=us-east-1
-      # - S3_BUCKET=keinage-media
-      # - S3_ACCESS_KEY_ID=your-access-key
-      # - S3_SECRET_ACCESS_KEY=your-secret-key
-      # - S3_FORCE_PATH_STYLE=true
+      - S3_ENDPOINT=http://garage:3900
+      - S3_REGION=garage
+      - S3_BUCKET=keinage-media
+      - S3_ACCESS_KEY_ID=GKLOCALKEINAGEACCESSKEY000001
+      - S3_SECRET_ACCESS_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - S3_FORCE_PATH_STYLE=true
       # SMTP settings for PIN reset email (optional)
       # - SMTP_HOST=smtp.example.com
       # - SMTP_PORT=587
@@ -56,4 +76,5 @@ services:
 
 volumes:
   postgres-data:
-  upload-data:
+  garage-meta:
+  garage-data:
