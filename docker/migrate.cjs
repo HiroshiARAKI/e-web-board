@@ -1,85 +1,141 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Lightweight migration runner for Docker container startup.
- * Reads drizzle migration SQL files and applies them using better-sqlite3.
- * This avoids needing drizzle-kit in the production image.
+ * Reads drizzle migration SQL files and applies them using PostgreSQL.
  */
-const Database = require("better-sqlite3");
+const { Client } = require("pg");
 const fs = require("fs");
 const path = require("path");
 
-const DB_DIR = path.resolve(process.cwd(), "data");
-const DB_PATH = path.join(DB_DIR, "e-web-board.db");
 const MIGRATIONS_DIR = path.resolve(process.cwd(), "drizzle");
 const JOURNAL_PATH = path.join(MIGRATIONS_DIR, "meta", "_journal.json");
+const DATABASE_URL = process.env.DATABASE_URL;
+const INITIAL_APP_TABLES = [
+  "auth_sessions",
+  "boards",
+  "media_items",
+  "messages",
+  "pin_attempts",
+  "pin_reset_tokens",
+  "settings",
+  "users",
+];
 
-// Ensure data directory exists
-fs.mkdirSync(DB_DIR, { recursive: true });
-
-const db = new Database(DB_PATH);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
-
-// Create migration tracking table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS __drizzle_migrations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    hash TEXT NOT NULL,
-    created_at NUMERIC
-  )
-`);
-
-// Read journal
-if (!fs.existsSync(JOURNAL_PATH)) {
-  console.log("[migrate] No migration journal found, skipping.");
-  db.close();
-  process.exit(0);
+if (!DATABASE_URL) {
+  console.error("[migrate] DATABASE_URL is required.");
+  process.exit(1);
 }
 
-const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf-8"));
-const applied = new Set(
-  db
-    .prepare("SELECT hash FROM __drizzle_migrations")
-    .all()
-    .map((row) => row.hash),
-);
+async function backfillInitialMigrationIfNeeded(client, journal, applied) {
+  if (applied.size > 0 || journal.entries.length === 0) return;
 
-let count = 0;
-for (const entry of journal.entries) {
-  if (applied.has(entry.tag)) continue;
+  const [initialEntry] = journal.entries;
+  if (!initialEntry) return;
 
-  const sqlPath = path.join(MIGRATIONS_DIR, `${entry.tag}.sql`);
-  if (!fs.existsSync(sqlPath)) {
-    console.error(`[migrate] Migration file not found: ${sqlPath}`);
-    process.exit(1);
-  }
+  const existingTablesResult = await client.query(
+    `
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ANY($1::text[])
+    `,
+    [INITIAL_APP_TABLES],
+  );
 
-  const sql = fs.readFileSync(sqlPath, "utf-8");
-  // Split by drizzle statement breakpoint
-  const statements = sql
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const existingTables = new Set(
+    existingTablesResult.rows.map((row) => row.table_name),
+  );
 
-  const migrate = db.transaction(() => {
-    for (const stmt of statements) {
-      db.exec(stmt);
+  const hasFullInitialSchema = INITIAL_APP_TABLES.every((tableName) =>
+    existingTables.has(tableName),
+  );
+
+  if (!hasFullInitialSchema) return;
+
+  await client.query(
+    "INSERT INTO __drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+    [initialEntry.tag, Date.now()],
+  );
+  applied.add(initialEntry.tag);
+  console.log(
+    `[migrate] Backfilled applied migration: ${initialEntry.tag} (schema already exists).`,
+  );
+}
+
+async function main() {
+  const client = new Client({ connectionString: DATABASE_URL });
+  await client.connect();
+
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS __drizzle_migrations (
+        id SERIAL PRIMARY KEY,
+        hash TEXT NOT NULL,
+        created_at BIGINT
+      )
+    `);
+
+    if (!fs.existsSync(JOURNAL_PATH)) {
+      console.log("[migrate] No migration journal found, skipping.");
+      return;
     }
-    db.prepare(
-      "INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)",
-    ).run(entry.tag, Date.now());
-  });
 
-  migrate();
-  count++;
-  console.log(`[migrate] Applied: ${entry.tag}`);
+    const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf-8"));
+    const appliedResult = await client.query("SELECT hash FROM __drizzle_migrations");
+    const applied = new Set(appliedResult.rows.map((row) => row.hash));
+
+  await backfillInitialMigrationIfNeeded(client, journal, applied);
+
+    let count = 0;
+    for (const entry of journal.entries) {
+      if (applied.has(entry.tag)) continue;
+
+      const sqlPath = path.join(MIGRATIONS_DIR, `${entry.tag}.sql`);
+      if (!fs.existsSync(sqlPath)) {
+        console.error(`[migrate] Migration file not found: ${sqlPath}`);
+        process.exit(1);
+      }
+
+      const sql = fs.readFileSync(sqlPath, "utf-8");
+      const statements = sql
+        .split("--> statement-breakpoint")
+        .map((statement) => statement.trim())
+        .filter(Boolean);
+
+      try {
+        await client.query("BEGIN");
+
+        for (const statement of statements) {
+          await client.query(statement);
+        }
+
+        await client.query(
+          "INSERT INTO __drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+          [entry.tag, Date.now()],
+        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+
+      count++;
+      console.log(`[migrate] Applied: ${entry.tag}`);
+    }
+
+    if (count === 0) {
+      console.log("[migrate] Database is up to date.");
+    } else {
+      console.log(`[migrate] Applied ${count} migration(s).`);
+    }
+  } finally {
+    await client.end();
+  }
 }
 
-if (count === 0) {
-  console.log("[migrate] Database is up to date.");
-} else {
-  console.log(`[migrate] Applied ${count} migration(s).`);
-}
-
-db.close();
+main().catch((error) => {
+  console.error("[migrate] Failed:", error);
+  process.exit(1);
+});

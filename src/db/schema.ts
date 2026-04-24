@@ -1,27 +1,29 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, boolean } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-export const boards = sqliteTable("boards", {
+const isoNow = sql`to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+
+export const boards = pgTable("boards", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
   name: text("name").notNull(),
   templateId: text("template_id").notNull(), // "simple" | "photo-clock" | "retro" | "message" | "call-number"
-  config: text("config", { mode: "json" }).notNull().default("{}"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  config: text("config").notNull().default("{}"),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const mediaItems = sqliteTable("media_items", {
+export const mediaItems = pgTable("media_items", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -34,14 +36,14 @@ export const mediaItems = sqliteTable("media_items", {
   duration: integer("duration").notNull().default(5), // seconds
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const messages = sqliteTable("messages", {
+export const messages = pgTable("messages", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -53,23 +55,23 @@ export const messages = sqliteTable("messages", {
   expiresAt: text("expires_at"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const settings = sqliteTable("settings", {
+export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const pinResetTokens = sqliteTable("pin_reset_tokens", {
+export const pinResetTokens = pgTable("pin_reset_tokens", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -80,22 +82,22 @@ export const pinResetTokens = sqliteTable("pin_reset_tokens", {
   usedAt: text("used_at"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
 });
 
-export const pinAttempts = sqliteTable("pin_attempts", {
+export const pinAttempts = pgTable("pin_attempts", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
   ipAddress: text("ip_address").notNull(),
   attemptedAt: text("attempted_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
 });
 
 // ── New auth tables ─────────────────────────────────────
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -112,14 +114,14 @@ export const users = sqliteTable("users", {
   lastFullAuthAt: text("last_full_auth_at"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const authSessions = sqliteTable("auth_sessions", {
+export const authSessions = pgTable("auth_sessions", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -130,7 +132,7 @@ export const authSessions = sqliteTable("auth_sessions", {
   expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
 });
 
 // ── Relations ────────────────────────────────────────────

@@ -4,7 +4,9 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import type { boards, mediaItems, messages } from "@/db/schema";
 
 // Select types (read from DB)
-export type Board = InferSelectModel<typeof boards>;
+export type Board = Omit<InferSelectModel<typeof boards>, "config"> & {
+  config: string | Record<string, unknown>;
+};
 export type MediaItem = InferSelectModel<typeof mediaItems>;
 export type Message = InferSelectModel<typeof messages>;
 
