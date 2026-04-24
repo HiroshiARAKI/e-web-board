@@ -12,10 +12,56 @@ const path = require("path");
 const MIGRATIONS_DIR = path.resolve(process.cwd(), "drizzle");
 const JOURNAL_PATH = path.join(MIGRATIONS_DIR, "meta", "_journal.json");
 const DATABASE_URL = process.env.DATABASE_URL;
+const INITIAL_APP_TABLES = [
+  "auth_sessions",
+  "boards",
+  "media_items",
+  "messages",
+  "pin_attempts",
+  "pin_reset_tokens",
+  "settings",
+  "users",
+];
 
 if (!DATABASE_URL) {
   console.error("[migrate] DATABASE_URL is required.");
   process.exit(1);
+}
+
+async function backfillInitialMigrationIfNeeded(client, journal, applied) {
+  if (applied.size > 0 || journal.entries.length === 0) return;
+
+  const [initialEntry] = journal.entries;
+  if (!initialEntry) return;
+
+  const existingTablesResult = await client.query(
+    `
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ANY($1::text[])
+    `,
+    [INITIAL_APP_TABLES],
+  );
+
+  const existingTables = new Set(
+    existingTablesResult.rows.map((row) => row.table_name),
+  );
+
+  const hasFullInitialSchema = INITIAL_APP_TABLES.every((tableName) =>
+    existingTables.has(tableName),
+  );
+
+  if (!hasFullInitialSchema) return;
+
+  await client.query(
+    "INSERT INTO __drizzle_migrations (hash, created_at) VALUES ($1, $2)",
+    [initialEntry.tag, Date.now()],
+  );
+  applied.add(initialEntry.tag);
+  console.log(
+    `[migrate] Backfilled applied migration: ${initialEntry.tag} (schema already exists).`,
+  );
 }
 
 async function main() {
@@ -39,6 +85,8 @@ async function main() {
     const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf-8"));
     const appliedResult = await client.query("SELECT hash FROM __drizzle_migrations");
     const applied = new Set(appliedResult.rows.map((row) => row.hash));
+
+  await backfillInitialMigrationIfNeeded(client, journal, applied);
 
     let count = 0;
     for (const entry of journal.entries) {
