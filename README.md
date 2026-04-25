@@ -87,6 +87,36 @@ docker compose up -d
 
 `docker compose up -d` でアプリ本体と PostgreSQL コンテナが同時に起動します。
 
+Docker Compose の既定構成では、メディア保存先はローカル `uploads/` ディレクトリです。
+必要に応じて、S3 互換のあるストレージサービスを利用できます。
+
+```yaml
+environment:
+  - S3_ENDPOINT=http://rustfs:9000
+  - S3_REGION=us-east-1
+  - S3_BUCKET=keinage-media
+  - S3_ACCESS_KEY_ID=rustfsadmin
+  - S3_SECRET_ACCESS_KEY=rustfsadmin
+  - S3_FORCE_PATH_STYLE=true
+```
+
+`docker-compose.yml` には rustfs のコメント例を残していますが、alpha 版のため既定では起動しません。
+
+### RustFS に切り替える最短手順
+
+1. `docker-compose.yml` の `rustfs` サービスコメントを外す
+2. `.env` で次を有効化する
+  `S3_INTERNAL_ENDPOINT=http://rustfs:9000`
+  `S3_REGION=us-east-1`
+  `S3_BUCKET=keinage-media`
+  `S3_ACCESS_KEY_ID=rustfsadmin`
+  `S3_SECRET_ACCESS_KEY=rustfsadmin`
+  `S3_FORCE_PATH_STYLE=true`
+3. `docker compose up -d db rustfs app` を実行する
+4. RustFS の Web UI (`http://127.0.0.1:9001/`) で `keinage-media` バケットを作成する
+
+この状態で app は自動的にローカル `uploads/` ではなく RustFS に保存します。Docker Compose 内の app は `S3_INTERNAL_ENDPOINT` を優先して使うため、`127.0.0.1` ではなく `rustfs:9000` へ接続されます。`S3_ACCESS_KEY_ID` と `S3_SECRET_ACCESS_KEY` は、rustfs 側の `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` と同じ値を使ってください。
+
 ブラウザで http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
@@ -129,6 +159,8 @@ pnpm dev           # 開発サーバー起動
 
 開発時の既定 `DATABASE_URL` は `postgresql://postgres:postgres@127.0.0.1:5432/keinage` です。別の PostgreSQL を使う場合は `.env` で上書きしてください。
 
+ローカル開発でも S3 互換のあるストレージサービスを使う場合は `.env` に `S3_*` 設定を追加してください。`pnpm dev` では `S3_ENDPOINT=http://127.0.0.1:9000`、Docker Compose では `S3_INTERNAL_ENDPOINT=http://rustfs:9000` を使い分けます。`.env.example` には rustfs を例にした具体値を入れています。
+
 http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
@@ -136,7 +168,7 @@ SMTP を設定する場合も `.env` に追記してください。
 
 ```bash
 cp .env.example .env
-# .env を編集して SMTP 情報を入力
+# .env を編集して S3 / SMTP 情報を入力
 ```
 
 ---
@@ -186,7 +218,7 @@ e-web-board/
 │   ├── db/               # Drizzle スキーマ・DB接続
 │   ├── lib/              # ユーティリティ
 │   └── types/            # 型定義
-├── public/uploads/       # アップロードファイル
+├── uploads/              # ローカル保存時のアップロードファイル
 ├── docker/               # Dockerfile
 └── docker-compose.yml
 ```

@@ -5,9 +5,11 @@ import { db } from "@/db";
 import { mediaItems } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { emitSSE } from "@/lib/sse";
-import { deleteThumbnail } from "@/lib/image";
-import path from "path";
-import fs from "fs";
+import {
+  deleteStoredObject,
+  storageKeyFromPublicPath,
+  thumbnailStorageKeyFromPublicPath,
+} from "@/lib/media-storage";
 
 export async function DELETE(
   _request: NextRequest,
@@ -25,24 +27,17 @@ export async function DELETE(
     );
   }
 
-  // Delete file from disk
-  // item.filePath is "/uploads/filename" — extract the basename to build
-  // the path under the public/uploads/ directory.
-  const filePath = path.join(
-    process.cwd(),
-    "uploads",
-    path.basename(item.filePath),
-  );
   try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    await deleteStoredObject(storageKeyFromPublicPath(item.filePath));
   } catch {
     // File may already be deleted; continue with DB cleanup
   }
 
-  // Delete thumbnail
-  deleteThumbnail(path.basename(item.filePath));
+  try {
+    await deleteStoredObject(thumbnailStorageKeyFromPublicPath(item.filePath));
+  } catch {
+    // Thumbnail may already be deleted; continue with DB cleanup
+  }
 
   // Delete from DB
   await db.delete(mediaItems).where(eq(mediaItems.id, id));

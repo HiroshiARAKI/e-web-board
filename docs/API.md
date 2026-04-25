@@ -7,7 +7,7 @@
 本書は Keinage が提供する HTTP エンドポイントを整理するためのドキュメントです。
 
 - `src/app/api/*` の Route Handler
-- `src/app/uploads/[...path]/route.ts` によるアップロードファイル配信
+- `src/app/uploads/[...path]/route.ts` によるストレージ上メディア配信
 
 利用者向け仕様は `docs/SPEC.md`、設計方針は `docs/DESIGN.md` を参照してください。
 
@@ -261,8 +261,8 @@ PIN 設定後、正式な 24 時間セッションへ切り替えます。
 | `DELETE` | `/api/media` | 全メディア削除 | 内部向け |
 | `DELETE` | `/api/media/[id]` | 1 件削除 | 内部向け |
 | `PATCH` | `/api/media/[id]` | 1 件の設定更新 | 内部向け |
-| `GET` | `/api/media/files` | ディスク上ファイル一覧取得 | 内部向け |
-| `DELETE` | `/api/media/files` | ディスク上ファイルと参照レコード削除 | 内部向け |
+| `GET` | `/api/media/files` | ストレージ上ファイル一覧取得 | 内部向け |
+| `DELETE` | `/api/media/files` | ストレージ上ファイルと参照レコード削除 | 内部向け |
 
 #### `POST /api/media`
 
@@ -291,7 +291,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替えます。
 
 #### `GET /api/media/files`
 
-`uploads/` 直下の実ファイルを返し、DB 上でどのボードが参照しているかを `boards` 配列で付与します。
+ストレージ上の実ファイルを返し、DB 上でどのボードが参照しているかを `boards` 配列で付与します。
 
 #### `DELETE /api/media/files`
 
@@ -393,6 +393,6 @@ data: {}
 
 | Method | Path | 説明 |
 | --- | --- | --- |
-| `GET` | `/uploads/[...path]` | `uploads/` 上の動的メディア配信 |
+| `GET` | `/uploads/[...path]` | ストレージ上メディアの動的配信 |
 
-このルートは standalone 配布時に、ビルド後追加ファイルも配信できるようにするための補助ルートです。
+このルートは standalone 配布時に、ローカル保存と S3 互換ストレージ保存のどちらでも同じ公開 URL で配信できるようにするための補助ルートです。

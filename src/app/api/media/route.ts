@@ -9,15 +9,20 @@ import { emitSSE } from "@/lib/sse";
 import {
   resizeImage,
   generateThumbnail,
-  deleteThumbnail,
   DEFAULT_IMAGE_MAX_LONG_EDGE,
 } from "@/lib/image";
+import {
+  deleteStoredObject,
+  listStoredObjects,
+  publicPathForStorageKey,
+  storageKeyFromPublicPath,
+  thumbnailStorageKeyFromFilename,
+  thumbnailStorageKeyFromPublicPath,
+  writeStoredObject,
+} from "@/lib/media-storage";
 import { parseJsonObject } from "@/lib/utils";
 import path from "path";
-import fs from "fs";
 import { randomUUID } from "crypto";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -113,12 +118,7 @@ export async function POST(request: NextRequest) {
   const ext = path.extname(file.name) || `.${file.type.split("/")[1]}`;
   const sanitizedExt = ext.replace(/[^a-zA-Z0-9.]/g, "");
   const filename = `${randomUUID()}${sanitizedExt}`;
-  const filePath = path.join(UPLOAD_DIR, filename);
 
-  // Ensure upload directory exists
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-  // Write file to disk (resize images if needed)
   let buffer: Buffer = Buffer.from(await file.arrayBuffer());
 
   if (mediaType === "image") {
@@ -131,12 +131,19 @@ export async function POST(request: NextRequest) {
       : DEFAULT_IMAGE_MAX_LONG_EDGE;
 
     buffer = Buffer.from(await resizeImage(buffer, sanitizedExt, maxLongEdge));
-
-    // Generate thumbnail
-    await generateThumbnail(buffer, filename);
   }
 
-  fs.writeFileSync(filePath, buffer);
+  const thumbnail =
+    mediaType === "image" ? await generateThumbnail(buffer, filename) : null;
+
+  await writeStoredObject(filename, buffer, file.type);
+  if (thumbnail) {
+    await writeStoredObject(
+      thumbnailStorageKeyFromFilename(filename),
+      thumbnail.buffer,
+      thumbnail.contentType,
+    );
+  }
 
   // Calculate display order (append at end)
   const existing = await db
@@ -161,7 +168,7 @@ export async function POST(request: NextRequest) {
     .values({
       boardId,
       type: mediaType,
-      filePath: `/uploads/${filename}`,
+      filePath: publicPathForStorageKey(filename),
       displayOrder: maxOrder + 1,
       duration: durationValue,
     })
@@ -212,51 +219,32 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE() {
-  // Delete all media items and their files on disk
   const items = await db.select().from(mediaItems);
 
   const boardIds = new Set<string>();
-  const deletedFiles = new Set<string>();
   for (const item of items) {
     boardIds.add(item.boardId);
-    const basename = path.basename(item.filePath);
-    const filePath = path.join(UPLOAD_DIR, basename);
-    deletedFiles.add(basename);
     try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      await deleteStoredObject(storageKeyFromPublicPath(item.filePath));
     } catch {
       // continue even if file deletion fails
     }
-    deleteThumbnail(basename);
+    try {
+      await deleteStoredObject(thumbnailStorageKeyFromPublicPath(item.filePath));
+    } catch {
+      // continue even if thumbnail deletion fails
+    }
   }
 
   await db.delete(mediaItems);
 
-  // Also delete any orphan files on disk that have no DB record
-  if (fs.existsSync(UPLOAD_DIR)) {
-    const remaining = fs.readdirSync(UPLOAD_DIR);
-    for (const name of remaining) {
-      if (name.startsWith(".") || name === "thumbs") continue;
-      if (deletedFiles.has(name)) continue;
-      try {
-        fs.unlinkSync(path.join(UPLOAD_DIR, name));
-      } catch {
-        // ignore
-      }
-      deleteThumbnail(name);
+  const remaining = await listStoredObjects();
+  for (const object of remaining) {
+    try {
+      await deleteStoredObject(object.key);
+    } catch {
+      // ignore orphan cleanup failures
     }
-  }
-
-  // Clean up thumbs directory entirely
-  const thumbDir = path.join(UPLOAD_DIR, "thumbs");
-  try {
-    if (fs.existsSync(thumbDir)) {
-      fs.rmSync(thumbDir, { recursive: true });
-    }
-  } catch {
-    // ignore
   }
 
   for (const boardId of boardIds) {
