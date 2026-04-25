@@ -105,10 +105,17 @@ environment:
 ### RustFS に切り替える最短手順
 
 1. `docker-compose.yml` の `rustfs` サービスコメントを外す
-2. `.env` の `S3_*` コメントを外す
+2. `.env` で次を有効化する
+  `S3_INTERNAL_ENDPOINT=http://rustfs:9000`
+  `S3_REGION=us-east-1`
+  `S3_BUCKET=keinage-media`
+  `S3_ACCESS_KEY_ID=rustfsadmin`
+  `S3_SECRET_ACCESS_KEY=rustfsadmin`
+  `S3_FORCE_PATH_STYLE=true`
 3. `docker compose up -d db rustfs app` を実行する
+4. RustFS の Web UI (`http://127.0.0.1:9001/`) で `keinage-media` バケットを作成する
 
-この状態で app は自動的にローカル `uploads/` ではなく RustFS に保存します。`S3_ACCESS_KEY_ID` と `S3_SECRET_ACCESS_KEY` は、rustfs 側の `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` と同じ値を使ってください。
+この状態で app は自動的にローカル `uploads/` ではなく RustFS に保存します。Docker Compose 内の app は `S3_INTERNAL_ENDPOINT` を優先して使うため、`127.0.0.1` ではなく `rustfs:9000` へ接続されます。`S3_ACCESS_KEY_ID` と `S3_SECRET_ACCESS_KEY` は、rustfs 側の `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` と同じ値を使ってください。
 
 ブラウザで http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
@@ -152,7 +159,7 @@ pnpm dev           # 開発サーバー起動
 
 開発時の既定 `DATABASE_URL` は `postgresql://postgres:postgres@127.0.0.1:5432/keinage` です。別の PostgreSQL を使う場合は `.env` で上書きしてください。
 
-ローカル開発でも S3 互換のあるストレージサービスを使う場合は `.env` に `S3_*` 設定を追加してください。`docker-compose.yml` は `.env` の `S3_*` を自動で app コンテナへ渡すため、app 側の compose 編集は不要です。`.env.example` には rustfs を例にした具体値を入れています。
+ローカル開発でも S3 互換のあるストレージサービスを使う場合は `.env` に `S3_*` 設定を追加してください。`pnpm dev` では `S3_ENDPOINT=http://127.0.0.1:9000`、Docker Compose では `S3_INTERNAL_ENDPOINT=http://rustfs:9000` を使い分けます。`.env.example` には rustfs を例にした具体値を入れています。
 
 http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。

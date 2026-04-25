@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   # rustfs:
-  #   image: rustfs/rustfs:1.0.0-alpha.76
+  #   image: rustfs/rustfs:latest
   #   ports:
   #     - "9000:9000"
   #     - "9001:9001"
@@ -50,7 +50,7 @@ services:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/keinage
-      - S3_ENDPOINT=${S3_ENDPOINT:-}
+      - S3_ENDPOINT=${S3_INTERNAL_ENDPOINT:-${S3_ENDPOINT:-}}
       - S3_REGION=${S3_REGION:-}
       - S3_BUCKET=${S3_BUCKET:-}
       - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-}
