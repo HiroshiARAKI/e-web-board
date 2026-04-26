@@ -33,7 +33,7 @@ export default async function SigningUpPage() {
   const headerStore = await headers();
   const protocol = headerStore.get("x-forwarded-proto") || "http";
   const host = headerStore.get("host") || "localhost:3000";
-  const previewUrl = !isSmtpConfigured() && process.env.NODE_ENV !== "production"
+  const previewUrl = !isSmtpConfigured()
     ? `${protocol}://${host}/signup/${signupRequest.token}`
     : null;
 

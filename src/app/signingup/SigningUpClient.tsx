@@ -18,6 +18,7 @@ export default function SigningUpClient({
   const [notice, setNotice] = useState("");
   const [resending, setResending] = useState(false);
   const [currentPreviewUrl, setCurrentPreviewUrl] = useState(previewUrl);
+  const usesDirectLink = currentPreviewUrl !== null;
 
   async function handleResend() {
     setError("");
@@ -36,7 +37,11 @@ export default function SigningUpClient({
       }
 
       setCurrentPreviewUrl(data.previewUrl ?? null);
-      setNotice("登録メールを再送しました。以前のリンクは無効になっています。");
+      setNotice(
+        data.previewUrl
+          ? "登録リンクを再発行しました。以前のリンクは無効になっています。"
+          : "登録メールを再送しました。以前のリンクは無効になっています。",
+      );
     } catch {
       setError("通信エラーが発生しました");
     } finally {
@@ -55,22 +60,28 @@ export default function SigningUpClient({
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <MailCheck className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">メールを送信しました</h2>
+            <h2 className="text-lg font-bold text-gray-900">
+              {usesDirectLink ? "登録リンクを用意しました" : "メールを送信しました"}
+            </h2>
             <p className="text-center text-sm text-gray-500">
               <span className="font-medium text-gray-700">{email}</span>
               <br />
-              に登録用URLを送信しました。メール内のリンクから続きの登録を行ってください。
+              {usesDirectLink
+                ? "への登録用メールは送信していません。以下の登録リンクから続きの登録を行ってください。"
+                : "に登録用URLを送信しました。メール内のリンクから続きの登録を行ってください。"}
             </p>
           </div>
 
           <div className="space-y-4">
             <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              メールが届かない場合は迷惑メールフォルダをご確認ください。再送すると以前のリンクは無効になります。
+              {usesDirectLink
+                ? "SMTP が未設定のためメール送信は行っていません。リンクを再発行すると以前のリンクは無効になります。"
+                : "メールが届かない場合は迷惑メールフォルダをご確認ください。再送すると以前のリンクは無効になります。"}
             </p>
 
             {currentPreviewUrl && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-medium">開発環境プレビュー</p>
+                <p className="font-medium">登録リンク</p>
                 <p className="mt-1 break-all text-xs text-amber-800">{currentPreviewUrl}</p>
                 <a
                   href={currentPreviewUrl}
@@ -90,7 +101,9 @@ export default function SigningUpClient({
               disabled={resending}
               className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
             >
-              {resending ? "再送中..." : "登録メールを再送"}
+              {resending
+                ? (usesDirectLink ? "再発行中..." : "再送中...")
+                : (usesDirectLink ? "登録リンクを再発行" : "登録メールを再送")}
             </button>
           </div>
 

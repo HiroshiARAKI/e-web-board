@@ -82,13 +82,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!isSmtpConfigured() && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "現在メール送信を利用できません。管理者にお問い合わせください" },
-      { status: 503 },
-    );
-  }
-
   const existingUser = await db.query.users.findFirst({
     where: or(
       eq(users.userId, normalizedUserId),
@@ -125,10 +118,7 @@ export async function POST(request: NextRequest) {
 
   const res = NextResponse.json({
     success: true,
-    previewUrl:
-      !mailSent && process.env.NODE_ENV !== "production"
-        ? signupUrl
-        : null,
+    previewUrl: !mailSent ? signupUrl : null,
   });
   res.cookies.set(SIGNUP_REQUEST_COOKIE, signupRequest.id, {
     httpOnly: true,

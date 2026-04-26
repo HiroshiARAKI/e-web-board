@@ -1,6 +1,6 @@
 # Keinage API Reference
 
-最終更新: 2026-04-19
+最終更新: 2026-04-26
 
 ## 1. このドキュメントの範囲
 
@@ -19,6 +19,7 @@
 | --- | --- |
 | `auth-session` | 認証済みセッション識別 |
 | `last-user-id` | 次回 PIN 認証対象のユーザー識別 |
+| `signup-request-id` | `/signingup` で仮登録状態を識別 |
 
 ### 2.2 認証の考え方
 
@@ -38,16 +39,18 @@ API は大きく 3 種類に分かれます。
 
 ## 3. 認証 API
 
-### 3.1 初回セットアップ
+### 3.1 Owner サインアップ / 初期 PIN 設定
 
 | Method | Path | 説明 | 認証 |
 | --- | --- | --- | --- |
-| `POST` | `/api/auth/credentials/setup` | 初回管理者アカウントを作成 | 不要 |
-| `POST` | `/api/auth/pin/setup` | 初回管理者 PIN を設定 | 一時セットアップセッション |
+| `POST` | `/api/auth/credentials/setup` | Owner 仮登録を作成し、登録用 URL を発行 | 不要 |
+| `POST` | `/api/auth/credentials/setup/resend` | 仮登録中の Owner 登録 URL を再送 / 再発行 | `signup-request-id` Cookie |
+| `POST` | `/api/auth/credentials/complete` | 登録トークンで Owner を作成し、一時セッションを発行 | 不要 |
+| `POST` | `/api/auth/pin/setup` | 一時セットアップセッションに対して初期 PIN を設定 | 一時セットアップセッション |
 
 #### `POST /api/auth/credentials/setup`
 
-初回のみ実行可能です。ユーザーが 1 件でも存在すると失敗します。
+Owner 登録の仮受付を行います。
 
 リクエスト例:
 
@@ -55,11 +58,52 @@ API は大きく 3 種類に分かれます。
 {
   "userId": "admin",
   "email": "admin@example.com",
+  "phoneNumber": "090-1234-5678"
+}
+```
+
+正常時は `signup-request-id` Cookie を設定します。SMTP が設定されていれば登録用 URL をメール送信し、SMTP 未設定時はレスポンスの `previewUrl` と `/signingup` 画面上で登録リンクを扱います。
+
+レスポンス例:
+
+```json
+{
+  "success": true,
+  "previewUrl": "http://localhost:3000/signup/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+}
+```
+
+#### `POST /api/auth/credentials/setup/resend`
+
+現在の仮登録に対して登録用 URL を再送または再発行します。成功すると以前のトークンは無効になります。
+
+レスポンス例:
+
+```json
+{
+  "success": true,
+  "previewUrl": "http://localhost:3000/signup/yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
+}
+```
+
+#### `POST /api/auth/credentials/complete`
+
+登録リンクで開いた `/signup/[token]` から呼び出します。
+
+リクエスト例:
+
+```json
+{
+  "token": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "password": "changeme123"
 }
 ```
 
-正常時は `setupToken` を返し、15 分有効の一時 `auth-session` Cookie を設定します。
+仕様:
+
+- トークンは 10 分有効、未完了のものだけを受け付けます。
+- 成功時に Owner ユーザーを作成し、15 分有効の一時 `auth-session` Cookie を設定します。
+- 後続の `/api/auth/pin/setup` で PIN 設定を完了します。
 
 #### `POST /api/auth/pin/setup`
 
@@ -71,7 +115,7 @@ API は大きく 3 種類に分かれます。
 }
 ```
 
-PIN 設定後、正式な 24 時間セッションへ切り替えます。
+PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-id` Cookie も更新します。
 
 ### 3.2 ログイン / ログアウト
 
