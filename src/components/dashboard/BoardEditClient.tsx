@@ -213,7 +213,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           className={buttonVariants({ variant: "outline", size: "sm" })}
         >
           <ExternalLink data-icon="inline-start" />
-          プレビュー
+          表示URLを開く
         </a>
       </div>
 
@@ -488,7 +488,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 className={buttonVariants({ variant: "outline", className: "w-full" })}
               >
                 <ExternalLink data-icon="inline-start" />
-                プレビュー
+                表示URLを開く
               </a>
 
               <Separator />

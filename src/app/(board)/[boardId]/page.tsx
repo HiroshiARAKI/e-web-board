@@ -26,8 +26,18 @@ export default async function BoardPage({
     notFound();
   }
 
+  console.log("[board/page] Access", {
+    boardId,
+    visibility: board.visibility,
+    isActive: board.isActive,
+  });
+
   if (board.visibility === "private") {
     const session = await getSessionUser();
+    console.log("[board/page] Private board auth", {
+      boardId,
+      hasSession: !!session,
+    });
     if (!session) {
       redirect(`/pin?redirectTo=${encodeURIComponent(`/${boardId}`)}`);
     }
