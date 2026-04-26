@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { boards } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { Plus, ExternalLink } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,13 +15,21 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { templates } from "@/lib/templates";
+import { getSessionUser } from "@/lib/auth";
+import { resolveOwnerUserId } from "@/lib/ownership";
 
 export const dynamic = "force-dynamic";
 
 export default async function BoardsPage() {
+  const session = await getSessionUser();
+  if (!session) {
+    return null;
+  }
+
   const allBoards = await db
     .select()
     .from(boards)
+    .where(eq(boards.ownerUserId, resolveOwnerUserId(session.user)))
     .orderBy(desc(boards.createdAt));
 
   return (

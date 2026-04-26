@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, authSessions, pinAttempts, settings } from "@/db/schema";
+import { users, authSessions, pinAttempts } from "@/db/schema";
 import { eq, and, gt, isNotNull } from "drizzle-orm";
 import {
   verifyPin,
@@ -18,6 +18,8 @@ import {
   isFullAuthValid,
   LAST_USER_COOKIE,
 } from "@/lib/auth";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
 
 /** POST /api/auth/pin/verify — verify PIN and issue session */
 export async function POST(request: NextRequest) {
@@ -102,11 +104,12 @@ export async function POST(request: NextRequest) {
   }
 
   // Check full-auth validity
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
-  });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
+  const expireSetting = await getOwnerSetting(
+    resolveOwnerUserId(adminUser),
+    AUTH_EXPIRE_DAYS_KEY,
+  );
+  const expireDays = expireSetting
+    ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
   if (!isFullAuthValid(adminUser.lastFullAuthAt, expireDays)) {

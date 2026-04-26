@@ -22,6 +22,7 @@ interface WeatherData {
 }
 
 interface WeatherDisplayProps {
+  boardId?: string;
   color?: string;
   bgOpacity?: number;
   /** Custom font family */
@@ -29,6 +30,7 @@ interface WeatherDisplayProps {
 }
 
 export function WeatherDisplay({
+  boardId,
   color = "#ffffff",
   bgOpacity = 0.5,
   fontFamily,
@@ -37,14 +39,17 @@ export function WeatherDisplay({
 
   const fetchWeather = useCallback(async () => {
     try {
-      const res = await fetch("/api/weather");
+      const search = boardId
+        ? `?boardId=${encodeURIComponent(boardId)}`
+        : "";
+      const res = await fetch(`/api/weather${search}`);
       if (!res.ok) return;
       const data = await res.json();
       setWeather(data);
     } catch {
       // silently ignore
     }
-  }, []);
+  }, [boardId]);
 
   useEffect(() => {
     fetchWeather();

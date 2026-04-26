@@ -2,23 +2,50 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, authSessions, settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { users, authSessions } from "@/db/schema";
+import { and, eq, gt } from "drizzle-orm";
 import { hashPin, generateSessionToken } from "@/lib/pin";
 import {
   AUTH_SESSION_COOKIE,
+  LAST_USER_COOKIE,
   SESSION_MAX_AGE,
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
 } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
 
 /** POST /api/auth/pin/setup — set initial PIN for the admin user */
 export async function POST(request: NextRequest) {
-  // Verify that at least one user (admin) exists
-  const adminUser = await db.query.users.findFirst();
-  if (!adminUser) {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+
+  if (!sessionToken) {
+    return NextResponse.json(
+      { error: "サインアップセッションが見つかりません" },
+      { status: 401 },
+    );
+  }
+
+  const session = await db.query.authSessions.findFirst({
+    where: and(
+      eq(authSessions.sessionToken, sessionToken),
+      gt(authSessions.expiresAt, new Date().toISOString()),
+    ),
+    with: { user: true },
+  });
+
+  if (!session) {
+    return NextResponse.json(
+      { error: "サインアップセッションが無効です。再度登録してください" },
+      { status: 401 },
+    );
+  }
+
+  const targetUser = session.user;
+  if (!targetUser) {
     return NextResponse.json(
       { error: "管理者アカウントが未登録です。先にメールアドレスとパスワードを登録してください" },
       { status: 400 },
@@ -26,7 +53,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Check that PIN is not already set
-  if (adminUser.pinHash) {
+  if (targetUser.pinHash) {
     return NextResponse.json(
       { error: "PINは既に設定されています" },
       { status: 400 },
@@ -44,15 +71,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Retrieve configured auth expire days
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
-  });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
+  const ownerUserId = resolveOwnerUserId(targetUser);
+  const expireSetting = await getOwnerSetting(ownerUserId, AUTH_EXPIRE_DAYS_KEY);
+  const expireDays = expireSetting
+    ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
   // Verify full-auth is still valid (set during credentials/setup)
-  if (!isFullAuthValid(adminUser.lastFullAuthAt, expireDays)) {
+  if (!isFullAuthValid(targetUser.lastFullAuthAt, expireDays)) {
     return NextResponse.json(
       { error: "認証セッションが無効です。再度ログインしてください" },
       { status: 401 },
@@ -63,35 +89,33 @@ export async function POST(request: NextRequest) {
   await db
     .update(users)
     .set({ pinHash: hashPin(pin) })
-    .where(eq(users.id, adminUser.id));
+    .where(eq(users.id, targetUser.id));
 
   // Delete any previous setup cookie session
-  const cookieStore = await cookies();
-  const existingToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
-  if (existingToken) {
-    await db
-      .delete(authSessions)
-      .where(eq(authSessions.sessionToken, existingToken));
-  }
+  await db.delete(authSessions).where(eq(authSessions.sessionToken, sessionToken));
 
   // Create a proper auth session
-  const sessionToken = generateSessionToken();
-  const expiresAt = new Date(
-    Date.now() + SESSION_MAX_AGE * 1000,
-  ).toISOString();
+  const fullSessionToken = generateSessionToken();
+  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString();
 
   await db.insert(authSessions).values({
-    userId: adminUser.id,
-    sessionToken,
+    userId: targetUser.id,
+    sessionToken: fullSessionToken,
     expiresAt,
   });
 
   const res = NextResponse.json({ success: true });
-  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
+  res.cookies.set(AUTH_SESSION_COOKIE, fullSessionToken, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE,
+  });
+  res.cookies.set(LAST_USER_COOKIE, targetUser.userId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
   });
   return res;
 }

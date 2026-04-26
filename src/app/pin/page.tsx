@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, authSessions, settings } from "@/db/schema";
+import { users, authSessions } from "@/db/schema";
 import { eq, and, gt, isNotNull } from "drizzle-orm";
 import {
   AUTH_SESSION_COOKIE,
@@ -12,6 +12,8 @@ import {
   isFullAuthValid,
   LAST_USER_COOKIE,
 } from "@/lib/auth";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
 import PinLoginClient from "./PinLoginClient";
 
 export const dynamic = "force-dynamic";
@@ -57,30 +59,21 @@ export default async function PinLoginPage() {
       redirect("/pin/login");
     }
   } else {
-    // No cookie or cookie user not found — find first user with a PIN
-    targetUser = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
-    console.log("[/pin] Fallback user with PIN", {
-      found: !!targetUser,
-      userId: targetUser?.userId ?? null,
-    });
-    if (!targetUser) {
-      // No user has a PIN at all
-      const anyUser = await db.query.users.findFirst();
-      if (!anyUser) {
-        console.log("[/pin] No users at all → /pin/setup");
-        redirect("/pin/setup");
-      }
-      console.log("[/pin] No user has PIN → /pin/login");
-      redirect("/pin/login");
+    // Without a remembered user, require credential login so we don't pick an arbitrary owner.
+    const anyUser = await db.query.users.findFirst();
+    if (!anyUser) {
+      console.log("[/pin] No users at all → /signup");
+      redirect("/signup");
     }
+    console.log("[/pin] No remembered user → /pin/login");
+    redirect("/pin/login");
   }
 
   // ── 3. Check full auth validity ────────────────────────────────────
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
-  });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
+  const ownerUserId = resolveOwnerUserId(targetUser);
+  const expireSetting = await getOwnerSetting(ownerUserId, AUTH_EXPIRE_DAYS_KEY);
+  const expireDays = expireSetting
+    ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
   const fullAuthValid = isFullAuthValid(targetUser.lastFullAuthAt, expireDays);

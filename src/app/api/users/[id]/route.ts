@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq, ne, and } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isSameOwnerScope } from "@/lib/ownership";
 
 /** PATCH /api/users/[id] — update user role (admin only) */
 export async function PATCH(
@@ -33,6 +34,16 @@ export async function PATCH(
   const target = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!target) {
     return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
+  }
+  if (!isSameOwnerScope(session.user, target)) {
+    return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
+  }
+
+  if (target.attribute === "owner" && role !== "admin") {
+    return NextResponse.json(
+      { error: "OwnerユーザーはGeneralへ変更できません" },
+      { status: 400 },
+    );
   }
 
   // Prevent removing the last admin
@@ -71,6 +82,15 @@ export async function DELETE(
   const target = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!target) {
     return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
+  }
+  if (!isSameOwnerScope(session.user, target)) {
+    return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
+  }
+  if (target.attribute === "owner") {
+    return NextResponse.json(
+      { error: "Ownerユーザーは削除できません" },
+      { status: 400 },
+    );
   }
 
   // Prevent deleting the last admin
