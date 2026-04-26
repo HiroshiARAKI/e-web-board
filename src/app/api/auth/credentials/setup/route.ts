@@ -2,40 +2,62 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, authSessions } from "@/db/schema";
-import { hashPassword, AUTH_SESSION_COOKIE, LAST_USER_COOKIE } from "@/lib/auth";
-import { generateSessionToken } from "@/lib/pin";
+import { signupRequests, users } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
+import { sendOwnerSignupEmail, isSmtpConfigured } from "@/lib/mail";
+import {
+  SIGNUP_REQUEST_COOKIE,
+  SIGNUP_REQUEST_COOKIE_MAX_AGE,
+  computeSignupExpiry,
+  generateSignupToken,
+  isValidSignupEmail,
+  isValidSignupUserId,
+  normalizePhoneNumber,
+  normalizeSignupEmail,
+} from "@/lib/signup";
+import { networkInterfaces } from "os";
 
-const SETUP_SESSION_MAX_AGE = 60 * 15;
+function buildSignupUrl(request: NextRequest, token: string): string {
+  const requestHost = request.headers.get("host") || "localhost:3000";
+  const protocol = request.headers.get("x-forwarded-proto") || "http";
+  const hostname = requestHost.split(":")[0];
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+  let host = requestHost;
 
-function normalizePhoneNumber(input: string): string | null {
-  const digits = input.replace(/\D/g, "");
-
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (isLocalhost) {
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        if (net.family === "IPv4" && !net.internal) {
+          const port = requestHost.includes(":") ? `:${requestHost.split(":")[1]}` : "";
+          host = `${net.address}${port}`;
+          break;
+        }
+      }
+      if (host !== requestHost) {
+        break;
+      }
+    }
   }
 
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  }
-
-  return null;
+  return `${protocol}://${host}/signup/${token}`;
 }
 
-/** POST /api/auth/credentials/setup — owner user registration */
+/** POST /api/auth/credentials/setup — request owner signup by email link */
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { userId, email, password, phoneNumber } = body as {
+  const { userId, email, phoneNumber } = body as {
     userId?: string;
     email?: string;
-    password?: string;
     phoneNumber?: string;
   };
 
+  const normalizedUserId = userId?.trim() ?? "";
+  const normalizedEmail = email ? normalizeSignupEmail(email) : "";
+
   if (
-    !userId ||
-    !/^[a-zA-Z0-9_\-]{3,32}$/.test(userId)
+    !normalizedUserId ||
+    !isValidSignupUserId(normalizedUserId)
   ) {
     return NextResponse.json(
       {
@@ -45,7 +67,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!normalizedEmail || !isValidSignupEmail(normalizedEmail)) {
     return NextResponse.json(
       { error: "有効なメールアドレスを入力してください" },
       { status: 400 },
@@ -59,17 +81,11 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  if (!password || password.length < 8) {
-    return NextResponse.json(
-      { error: "パスワードは8文字以上で入力してください" },
-      { status: 400 },
-    );
-  }
 
   const existingUser = await db.query.users.findFirst({
     where: or(
-      eq(users.userId, userId),
-      eq(users.email, email),
+      eq(users.userId, normalizedUserId),
+      eq(users.email, normalizedEmail),
       eq(users.phoneNumber, normalizedPhoneNumber),
     ),
   });
@@ -80,39 +96,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const passwordHash = await hashPassword(password);
-  const now = new Date().toISOString();
-  const sessionToken = generateSessionToken();
-  const expiresAt = new Date(Date.now() + SETUP_SESSION_MAX_AGE * 1000).toISOString();
-
-  const [createdUser] = await db.insert(users).values({
-    userId,
-    email,
+  const token = generateSignupToken();
+  const expiresAt = computeSignupExpiry();
+  const [signupRequest] = await db.insert(signupRequests).values({
+    userId: normalizedUserId,
+    email: normalizedEmail,
     phoneNumber: normalizedPhoneNumber,
-    passwordHash,
-    attribute: "owner",
-    role: "admin",
-    lastFullAuthAt: now,
+    token,
+    expiresAt,
   }).returning();
 
-  await db.insert(authSessions).values({
-    userId: createdUser.id,
-    sessionToken,
-    expiresAt,
-  });
+  const signupUrl = buildSignupUrl(request, token);
+  const mailSent = await sendOwnerSignupEmail(normalizedEmail, signupUrl);
 
-  const res = NextResponse.json({ success: true });
-  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SETUP_SESSION_MAX_AGE,
+  if (!mailSent && isSmtpConfigured()) {
+    return NextResponse.json(
+      { error: "登録メールの送信に失敗しました。時間を置いて再度お試しください" },
+      { status: 500 },
+    );
+  }
+
+  const res = NextResponse.json({
+    success: true,
+    previewUrl: !mailSent ? signupUrl : null,
   });
-  res.cookies.set(LAST_USER_COOKIE, createdUser.userId, {
+  res.cookies.set(SIGNUP_REQUEST_COOKIE, signupRequest.id, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: SIGNUP_REQUEST_COOKIE_MAX_AGE,
   });
   return res;
 }

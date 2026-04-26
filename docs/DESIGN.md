@@ -1,6 +1,6 @@
 # Keinage Design
 
-最終更新: 2026-04-19
+最終更新: 2026-04-26
 
 ## 1. ドキュメントの位置づけ
 
@@ -78,6 +78,7 @@ Keinage は Next.js App Router をベースに、表示画面、管理画面、A
 | `users` | ログイン主体。`userId`, `email`, `passwordHash`, `pinHash`, `role` を保持 |
 | `auth_sessions` | 認証済みセッション |
 | `pin_reset_tokens` | PIN リセット用トークン |
+| `signup_requests` | Owner 仮登録と登録用トークン |
 | `pin_attempts` | 失敗試行回数の IP ベース記録 |
 
 ### 4.3 設計上の特徴
@@ -95,16 +96,32 @@ Keinage の認証は次の 2 段構成です。
 1. メールアドレスまたはユーザーID + パスワードによるフル認証
 2. 有効期限内に限り利用できる PIN による軽量再認証
 
-### 5.2 セッション管理
+### 5.2 Owner サインアップ設計
+
+Owner 登録は次の 3 段階で進めます。
+
+1. `/signup` で `signup_requests` に仮登録を作成する
+2. `/signingup` で登録用 URL の送達待ち状態を扱う
+3. `/signup/[token]` でパスワード登録後、一時 `auth-session` を発行して `/pin/setup` へ進める
+
+設計上のポイント:
+
+- 登録用トークンは UUID ベースで、`signup_requests.expiresAt` に 10 分の期限を持たせる
+- 再送時は同じ仮登録レコードに新しいトークンを再発行し、古いリンクを失効させる
+- `/signingup` は `signup-request-id` Cookie がある場合だけ表示し、直リンク利用を防ぐ
+- SMTP が未設定でもフロー自体は止めず、`/signingup` 上に直接登録リンクを表示するフォールバックを持つ
+
+### 5.3 セッション管理
 
 - Cookie 名: `auth-session`
 - 補助 Cookie: `last-user-id`
+- 仮登録 Cookie: `signup-request-id`
 - セッション本体は `auth_sessions` に保存します。
 - フル認証の最終成功時刻は `users.lastFullAuthAt` に保存します。
 
 `last-user-id` を別 Cookie で持つことで、PIN 入力画面が「どのユーザーの PIN を検証するか」を決定できます。
 
-### 5.3 レート制限
+### 5.4 レート制限
 
 - 失敗試行は `pin_attempts` に記録します。
 - パスワード認証と PIN 認証で同じ試行回数制限を共有します。

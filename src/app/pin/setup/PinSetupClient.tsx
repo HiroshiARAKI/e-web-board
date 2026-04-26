@@ -8,18 +8,11 @@ import { ShieldCheck } from "lucide-react";
 import { PinInput } from "@/components/auth/PinInput";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
-type Step = "credentials" | "pin" | "confirmPin";
+type Step = "pin" | "confirmPin";
 
 export default function PinSetupClient() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("credentials");
-
-  // Credentials step
-  const [userId, setUserId] = useState("");
-  const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [step, setStep] = useState<Step>("pin");
 
   // PIN step
   const [pin, setPin] = useState("");
@@ -27,42 +20,6 @@ export default function PinSetupClient() {
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  async function handleCredentialsSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (password !== confirmPassword) {
-      setError("パスワードが一致しません");
-      return;
-    }
-    if (password.length < 8) {
-      setError("パスワードは8文字以上で入力してください");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/auth/credentials/setup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userId.trim(),
-          email: email.trim(),
-          phoneNumber: phoneNumber.trim(),
-          password,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "登録に失敗しました");
-        return;
-      }
-      setStep("pin");
-    } catch {
-      setError("通信エラーが発生しました");
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   function handlePinComplete(value: string) {
     setPin(value);
@@ -101,7 +58,6 @@ export default function PinSetupClient() {
   }
 
   const stepLabels: Record<Step, string> = {
-    credentials: "アカウント情報を入力してください",
     pin: "6桁のPINを設定してください",
     confirmPin: "確認のためもう一度入力してください",
   };
@@ -118,107 +74,10 @@ export default function PinSetupClient() {
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <ShieldCheck className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">Ownerアカウントの登録</h2>
+            <h2 className="text-lg font-bold text-gray-900">PINの設定</h2>
             <p className="text-center text-sm text-gray-500">{stepLabels[step]}</p>
           </div>
 
-          {/* Step 1: Email + Password */}
-          {step === "credentials" && (
-            <form onSubmit={handleCredentialsSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="userId" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  ユーザーID
-                </label>
-                <input
-                  id="userId"
-                  type="text"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="admin"
-                  required
-                  autoFocus
-                  pattern="[a-zA-Z0-9_\-]{3,32}"
-                  title="3〜32文字の英数字・アンダースコア・ハイフン"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-                <p className="mt-1 text-xs text-gray-400">
-                  英数字・ _ ・ - のみ（3〜32文字）。ログイン時に使用できます。
-                </p>
-              </div>
-              <div>
-                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  メールアドレス
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@example.com"
-                  required
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-              </div>
-              <div>
-                <label htmlFor="phoneNumber" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  電話番号
-                </label>
-                <input
-                  id="phoneNumber"
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="090-1234-5678"
-                  required
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-                <p className="mt-1 text-xs text-gray-400">
-                  Owner登録では電話番号が必須です。同じ電話番号では複数登録できません。
-                </p>
-              </div>
-              <div>
-                <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  パスワード
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="8文字以上"
-                  required
-                  minLength={8}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-              </div>
-              <div>
-                <label htmlFor="confirmPassword" className="mb-1.5 block text-sm font-medium text-gray-700">
-                  パスワード（確認）
-                </label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="もう一度入力"
-                  required
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                />
-              </div>
-              {error && (
-                <p className="text-center text-sm text-red-600">{error}</p>
-              )}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
-              >
-                {submitting ? "登録中..." : "次へ（PINの設定）"}
-              </button>
-            </form>
-          )}
-
-          {/* Step 2: PIN */}
           {step === "pin" && (
             <div>
               <PinInput
@@ -231,7 +90,6 @@ export default function PinSetupClient() {
             </div>
           )}
 
-          {/* Step 3: Confirm PIN */}
           {step === "confirmPin" && (
             <div>
               <PinInput
@@ -260,7 +118,7 @@ export default function PinSetupClient() {
 
         {/* Steps indicator */}
         <div className="mt-6 flex justify-center gap-2">
-          {(["credentials", "pin", "confirmPin"] as Step[]).map((s) => (
+          {(["pin", "confirmPin"] as Step[]).map((s) => (
             <div
               key={s}
               className={`size-2 rounded-full transition-colors ${

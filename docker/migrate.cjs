@@ -11,7 +11,8 @@ const path = require("path");
 
 const MIGRATIONS_DIR = path.resolve(process.cwd(), "drizzle");
 const JOURNAL_PATH = path.join(MIGRATIONS_DIR, "meta", "_journal.json");
-const DATABASE_URL = process.env.DATABASE_URL;
+const DEFAULT_DATABASE_URL =
+  "postgresql://postgres:postgres@127.0.0.1:5432/keinage";
 const INITIAL_APP_TABLES = [
   "auth_sessions",
   "boards",
@@ -22,6 +23,37 @@ const INITIAL_APP_TABLES = [
   "settings",
   "users",
 ];
+
+function readDatabaseUrlFromDotEnv() {
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) return null;
+
+  const lines = fs.readFileSync(envPath, "utf-8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (!trimmed.startsWith("DATABASE_URL=")) continue;
+
+    const value = trimmed.slice("DATABASE_URL=".length).trim();
+    if (!value) return null;
+
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      return value.slice(1, -1);
+    }
+
+    return value;
+  }
+
+  return null;
+}
+
+const DATABASE_URL =
+  process.env.DATABASE_URL ||
+  readDatabaseUrlFromDotEnv() ||
+  DEFAULT_DATABASE_URL;
 
 if (!DATABASE_URL) {
   console.error("[migrate] DATABASE_URL is required.");
