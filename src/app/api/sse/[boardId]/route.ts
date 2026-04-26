@@ -1,6 +1,10 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest } from "next/server";
+import { db } from "@/db";
+import { boards } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getSessionUser } from "@/lib/auth";
 import { addClient, removeClient } from "@/lib/sse";
 
 export const dynamic = "force-dynamic";
@@ -8,10 +12,25 @@ export const dynamic = "force-dynamic";
 const HEARTBEAT_INTERVAL = 30_000; // 30 seconds
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ boardId: string }> },
 ) {
   const { boardId } = await params;
+
+  const board = await db.query.boards.findFirst({
+    where: eq(boards.id, boardId),
+  });
+
+  if (!board || !board.isActive) {
+    return new Response("Board not found", { status: 404 });
+  }
+
+  if (board.visibility === "private") {
+    const session = await getSessionUser();
+    if (!session) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+  }
 
   const stream = new ReadableStream({
     start(controller) {
@@ -35,7 +54,7 @@ export async function GET(
       }, HEARTBEAT_INTERVAL);
 
       // Cleanup on close
-      _request.signal.addEventListener("abort", () => {
+      request.signal.addEventListener("abort", () => {
         clearInterval(heartbeat);
         removeClient(boardId, client);
         try {

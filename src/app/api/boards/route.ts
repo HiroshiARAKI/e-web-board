@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { name, templateId, config } = result.data;
+  const { name, templateId, visibility, config } = result.data;
 
   // Apply default config from template if no config provided
   const template = templates[templateId as keyof typeof templates];
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     .values({
       ownerUserId: resolveOwnerUserId(session.user),
       name,
+      visibility,
       templateId,
       config: JSON.stringify(mergedConfig),
     })

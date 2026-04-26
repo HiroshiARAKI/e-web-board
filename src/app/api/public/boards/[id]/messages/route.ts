@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(
   _request: NextRequest,
@@ -14,8 +15,15 @@ export async function GET(
   const board = await db.query.boards.findFirst({
     where: eq(boards.id, id),
   });
-  if (!board) {
+  if (!board || !board.isActive) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
+  }
+
+  if (board.visibility === "private") {
+    const session = await getSessionUser();
+    if (!session) {
+      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    }
   }
 
   const now = new Date().toISOString();

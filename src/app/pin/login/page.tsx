@@ -6,12 +6,21 @@ import { db } from "@/db";
 import { authSessions } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import { sanitizeRedirectTarget } from "@/lib/utils";
 import LoginClient from "./LoginClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirectTo?: string | string[] }>;
+}) {
   console.log("[/pin/login] START");
+  const params = await searchParams;
+  const redirectTo = sanitizeRedirectTarget(
+    typeof params.redirectTo === "string" ? params.redirectTo : null,
+  );
 
   // If admin user not configured, redirect to setup
   const adminUser = await db.query.users.findFirst();
@@ -31,12 +40,12 @@ export default async function LoginPage() {
       ),
     });
     if (sessionRow) {
-      console.log("[/pin/login] Already authenticated → /boards");
-      redirect("/boards");
+      console.log("[/pin/login] Already authenticated → target");
+      redirect(redirectTo || "/boards");
     }
     console.log("[/pin/login] Session cookie present but invalid/expired");
   }
 
   console.log("[/pin/login] Rendering LoginClient");
-  return <LoginClient />;
+  return <LoginClient redirectTo={redirectTo} />;
 }

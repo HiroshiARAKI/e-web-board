@@ -14,6 +14,7 @@ export const boards = pgTable("boards", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  visibility: text("visibility").notNull().default("private"),
   templateId: text("template_id").notNull(), // "simple" | "photo-clock" | "retro" | "message" | "call-number"
   config: text("config").notNull().default("{}"),
   isActive: boolean("is_active").notNull().default(true),

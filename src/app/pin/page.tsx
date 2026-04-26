@@ -14,12 +14,21 @@ import {
 } from "@/lib/auth";
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
+import { sanitizeRedirectTarget } from "@/lib/utils";
 import PinLoginClient from "./PinLoginClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function PinLoginPage() {
+export default async function PinLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirectTo?: string | string[] }>;
+}) {
   const cookieStore = await cookies();
+  const params = await searchParams;
+  const redirectTo = sanitizeRedirectTarget(
+    typeof params.redirectTo === "string" ? params.redirectTo : null,
+  );
   const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
   const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
 
@@ -34,8 +43,8 @@ export default async function PinLoginPage() {
       ),
     });
     if (sessionRow) {
-      console.log("[/pin] Valid session found → /boards");
-      redirect("/boards");
+      console.log("[/pin] Valid session found → target");
+      redirect(redirectTo || "/boards");
     }
     console.log("[/pin] Session cookie present but invalid/expired");
   }
@@ -56,7 +65,11 @@ export default async function PinLoginPage() {
     // Cookie user found. If they have no PIN they must use credentials login.
     if (!targetUser.pinHash) {
       console.log("[/pin] Cookie user has no PIN → /pin/login");
-      redirect("/pin/login");
+      redirect(
+        redirectTo
+          ? `/pin/login?redirectTo=${encodeURIComponent(redirectTo)}`
+          : "/pin/login",
+      );
     }
   } else {
     // Without a remembered user, require credential login so we don't pick an arbitrary owner.
@@ -66,7 +79,11 @@ export default async function PinLoginPage() {
       redirect("/signup");
     }
     console.log("[/pin] No remembered user → /pin/login");
-    redirect("/pin/login");
+    redirect(
+      redirectTo
+        ? `/pin/login?redirectTo=${encodeURIComponent(redirectTo)}`
+        : "/pin/login",
+    );
   }
 
   // ── 3. Check full auth validity ────────────────────────────────────
@@ -86,9 +103,13 @@ export default async function PinLoginPage() {
 
   if (!fullAuthValid) {
     console.log("[/pin] Full auth expired → /pin/login");
-    redirect("/pin/login");
+    redirect(
+      redirectTo
+        ? `/pin/login?redirectTo=${encodeURIComponent(redirectTo)}`
+        : "/pin/login",
+    );
   }
 
   console.log("[/pin] Showing PIN screen for", targetUser.userId);
-  return <PinLoginClient userId={targetUser.userId} />;
+  return <PinLoginClient userId={targetUser.userId} redirectTo={redirectTo} />;
 }
