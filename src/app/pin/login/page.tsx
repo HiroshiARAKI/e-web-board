@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, authSessions } from "@/db/schema";
+import { authSessions } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import LoginClient from "./LoginClient";
@@ -16,8 +16,8 @@ export default async function LoginPage() {
   // If admin user not configured, redirect to setup
   const adminUser = await db.query.users.findFirst();
   if (!adminUser) {
-    console.log("[/pin/login] No users → /pin/setup");
-    redirect("/pin/setup");
+    console.log("[/pin/login] No users → /signup");
+    redirect("/signup");
   }
 
   // If already authenticated, redirect to dashboard

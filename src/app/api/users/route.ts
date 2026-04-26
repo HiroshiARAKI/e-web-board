@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth";
 import { randomUUID } from "crypto";
+import { resolveOwnerUserId } from "@/lib/ownership";
 
 /** GET /api/users — list all users (admin only) */
 export async function GET() {
@@ -23,13 +24,29 @@ export async function GET() {
       id: users.id,
       userId: users.userId,
       email: users.email,
+      attribute: users.attribute,
       role: users.role,
       createdAt: users.createdAt,
     })
     .from(users)
+    .where(eq(users.ownerUserId, resolveOwnerUserId(session.user)))
     .orderBy(users.createdAt);
 
-  return NextResponse.json(allUsers);
+  const ownerUserId = resolveOwnerUserId(session.user);
+  const ownerUser = await db.query.users.findFirst({ where: eq(users.id, ownerUserId) });
+  const scopedUsers = ownerUser ? [
+    {
+      id: ownerUser.id,
+      userId: ownerUser.userId,
+      email: ownerUser.email,
+      attribute: ownerUser.attribute,
+      role: ownerUser.role,
+      createdAt: ownerUser.createdAt,
+    },
+    ...allUsers.filter((user) => user.id !== ownerUser.id),
+  ] : allUsers;
+
+  return NextResponse.json(scopedUsers);
 }
 
 /** POST /api/users — create a new user (admin only) */
@@ -68,7 +85,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const normalizedRole = role === "general" ? "general" : "admin";
+  const normalizedRole = role === "admin" ? "admin" : "general";
 
   // Check uniqueness
   const existing = await db.query.users.findFirst({
@@ -98,8 +115,16 @@ export async function POST(request: NextRequest) {
     userId,
     email,
     passwordHash,
+    attribute: "shared",
+    ownerUserId: resolveOwnerUserId(session.user),
     role: normalizedRole,
   });
 
-  return NextResponse.json({ id, userId, email, role: normalizedRole }, { status: 201 });
+  return NextResponse.json({
+    id,
+    userId,
+    email,
+    attribute: "shared",
+    role: normalizedRole,
+  }, { status: 201 });
 }

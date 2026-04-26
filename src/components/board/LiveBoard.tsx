@@ -70,13 +70,14 @@ export default function LiveBoard({
   // --- SSE live updates ---
   const refetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/boards/${initialBoard.id}`);
+      const res = await fetch(`/api/public/boards/${initialBoard.id}`);
       if (!res.ok) return;
       const data = await res.json();
 
       setBoard({
         id: data.id,
         name: data.name,
+        ownerUserId: data.ownerUserId,
         templateId: data.templateId,
         config: parseJsonObject(data.config),
         isActive: data.isActive,
@@ -91,7 +92,7 @@ export default function LiveBoard({
   }, [initialBoard.id]);
 
   const handleSSEEvent = useCallback(
-    (_event: string, _data: Record<string, unknown>) => {
+    () => {
       // On any event, refetch the full board data
       refetchData();
     },

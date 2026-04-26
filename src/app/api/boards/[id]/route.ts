@@ -4,8 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
+import { getSessionUser } from "@/lib/auth";
 import { updateBoardSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
+import { findOwnedBoard, resolveOwnerUserId } from "@/lib/ownership";
 import { normalizeConfig, parseJsonObject } from "@/lib/utils";
 
 const LEGACY_IMAGE_DURATION_SECONDS = 5;
@@ -19,11 +21,14 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   const { id } = await params;
 
-  const board = await db.query.boards.findFirst({
-    where: eq(boards.id, id),
-  });
+  const board = await findOwnedBoard(id, resolveOwnerUserId(session.user));
   if (!board) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
@@ -50,11 +55,14 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   const { id } = await params;
 
-  const existing = await db.query.boards.findFirst({
-    where: eq(boards.id, id),
-  });
+  const existing = await findOwnedBoard(id, resolveOwnerUserId(session.user));
   if (!existing) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
@@ -147,11 +155,14 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   const { id } = await params;
 
-  const existing = await db.query.boards.findFirst({
-    where: eq(boards.id, id),
-  });
+  const existing = await findOwnedBoard(id, resolveOwnerUserId(session.user));
   if (!existing) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }

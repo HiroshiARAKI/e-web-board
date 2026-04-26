@@ -26,6 +26,7 @@ interface UserRow {
   id: string;
   userId: string;
   email: string;
+  attribute: "owner" | "shared";
   role: string;
   createdAt: string;
 }
@@ -136,6 +137,7 @@ export function UserManagement() {
               <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
                 <th className="px-4 py-2 text-left">ユーザーID</th>
                 <th className="px-4 py-2 text-left">メールアドレス</th>
+                <th className="px-4 py-2 text-left">属性</th>
                 <th className="px-4 py-2 text-left">ロール</th>
                 <th className="px-4 py-2 text-right">操作</th>
               </tr>
@@ -146,8 +148,14 @@ export function UserManagement() {
                   <td className="px-4 py-3 font-medium">{user.userId}</td>
                   <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                   <td className="px-4 py-3">
+                    <Badge variant={user.attribute === "owner" ? "default" : "secondary"}>
+                      {user.attribute === "owner" ? "Owner" : "Shared"}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
                     <Select
                       value={user.role}
+                      disabled={user.attribute === "owner"}
                       onValueChange={(v) => handleRoleChange(user.id, v ?? "")}
                     >
                       <SelectTrigger className="h-7 w-28 text-xs">
@@ -160,14 +168,18 @@ export function UserManagement() {
                     </Select>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(user.id, user.userId)}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
-                      title="削除"
-                    >
-                      <Trash2 className="size-3.5" />
-                      削除
-                    </button>
+                    {user.attribute === "owner" ? (
+                      <span className="text-xs text-muted-foreground">削除不可</span>
+                    ) : (
+                      <button
+                        onClick={() => handleDelete(user.id, user.userId)}
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
+                        title="削除"
+                      >
+                        <Trash2 className="size-3.5" />
+                        削除
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -183,6 +195,9 @@ export function UserManagement() {
             <DialogTitle>新しいユーザーを追加</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              ここで追加されるユーザーは、現在のOwnerに紐づく Shared ユーザーとして作成されます。
+            </p>
             <div className="space-y-1.5">
               <Label htmlFor="cu-userId">ユーザーID</Label>
               <Input

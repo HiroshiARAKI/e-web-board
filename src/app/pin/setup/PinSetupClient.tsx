@@ -17,6 +17,7 @@ export default function PinSetupClient() {
   // Credentials step
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -43,7 +44,12 @@ export default function PinSetupClient() {
       const res = await fetch("/api/auth/credentials/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userId.trim(), email: email.trim(), password }),
+        body: JSON.stringify({
+          userId: userId.trim(),
+          email: email.trim(),
+          phoneNumber: phoneNumber.trim(),
+          password,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -112,7 +118,7 @@ export default function PinSetupClient() {
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <ShieldCheck className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">管理者アカウントの登録</h2>
+            <h2 className="text-lg font-bold text-gray-900">Ownerアカウントの登録</h2>
             <p className="text-center text-sm text-gray-500">{stepLabels[step]}</p>
           </div>
 
@@ -152,6 +158,23 @@ export default function PinSetupClient() {
                   required
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
+              </div>
+              <div>
+                <label htmlFor="phoneNumber" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  電話番号
+                </label>
+                <input
+                  id="phoneNumber"
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="090-1234-5678"
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Owner登録では電話番号が必須です。同じ電話番号では複数登録できません。
+                </p>
               </div>
               <div>
                 <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">

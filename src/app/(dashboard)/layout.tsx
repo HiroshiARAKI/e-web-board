@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { authSessions, settings } from "@/db/schema";
+import { authSessions } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import {
   AUTH_SESSION_COOKIE,
@@ -11,6 +11,8 @@ import {
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
 } from "@/lib/auth";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
 import { ThemeProvider } from "@/components/dashboard/ThemeProvider";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 
@@ -45,11 +47,10 @@ export default async function DashboardLayout({
   }
 
   // Check full-auth validity
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
-  });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
+  const ownerUserId = resolveOwnerUserId(session.user);
+  const expireSetting = await getOwnerSetting(ownerUserId, AUTH_EXPIRE_DAYS_KEY);
+  const expireDays = expireSetting
+    ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
   const fullValid = isFullAuthValid(session.user.lastFullAuthAt, expireDays);

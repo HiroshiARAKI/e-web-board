@@ -175,7 +175,12 @@ export default function RetroBoard({
         >
           <div className="flex-1">
             {config.showWeather && (
-              <WeatherDisplay color={color} bgOpacity={0} fontFamily={config.fontFamily || undefined} />
+              <WeatherDisplay
+                boardId={board.id}
+                color={color}
+                bgOpacity={0}
+                fontFamily={config.fontFamily || undefined}
+              />
             )}
           </div>
           {config.showClock && (

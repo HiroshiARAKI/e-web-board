@@ -1,6 +1,6 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { pgTable, text, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -10,6 +10,9 @@ export const boards = pgTable("boards", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   templateId: text("template_id").notNull(), // "simple" | "photo-clock" | "retro" | "message" | "call-number"
   config: text("config").notNull().default("{}"),
@@ -62,14 +65,23 @@ export const messages = pgTable("messages", {
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const settings = pgTable("settings", {
-  key: text("key").primaryKey(),
-  value: text("value").notNull(),
-  updatedAt: text("updated_at")
-    .notNull()
-    .default(isoNow)
-    .$onUpdate(() => new Date().toISOString()),
-});
+export const settings = pgTable(
+  "settings",
+  {
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(isoNow)
+      .$onUpdate(() => new Date().toISOString()),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.ownerUserId, table.key] }),
+  }),
+);
 
 export const pinResetTokens = pgTable("pin_reset_tokens", {
   id: text("id")
@@ -104,10 +116,19 @@ export const users = pgTable("users", {
   /** Human-readable login ID (e.g. "admin") */
   userId: text("user_id").notNull().unique(),
   email: text("email").notNull().unique(),
+  /** Phone number for owner sign-up uniqueness checks */
+  phoneNumber: text("phone_number").unique(),
   passwordHash: text("password_hash").notNull(),
   /** 6-digit PIN hash (nullable until PIN is configured) */
   pinHash: text("pin_hash"),
-  role: text("role").notNull().default("admin"),
+  /** Owner of an isolated workspace, or a shared member under an owner */
+  attribute: text("attribute").notNull().default("shared"),
+  /** Shared users point at their owner user; owner users keep this null */
+  ownerUserId: text("owner_user_id").references(
+    (): AnyPgColumn => users.id,
+    { onDelete: "set null" },
+  ),
+  role: text("role").notNull().default("general"),
   /** Dashboard color theme preference: "system" | "light" | "dark" */
   colorTheme: text("color_theme").notNull().default("system"),
   /** Timestamp of the last successful email+password login */

@@ -64,7 +64,7 @@ export default function LoginClient() {
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <KeyRound className="size-8 text-gray-400" />
-            <h2 className="text-lg font-bold text-gray-900">管理者ログイン</h2>
+            <h2 className="text-lg font-bold text-gray-900">アカウントログイン</h2>
             <p className="text-center text-sm text-gray-500">
               メールアドレスまたはユーザーIDとパスワードを入力してください
             </p>

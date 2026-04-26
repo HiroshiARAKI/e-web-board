@@ -83,7 +83,7 @@ export default function MessageBoard({
   // Poll for updated messages from the server
   const fetchMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/boards/${board.id}/messages`);
+      const res = await fetch(`/api/public/boards/${board.id}/messages`);
       if (!res.ok) return;
       const data: Message[] = await res.json();
       const sorted = data
@@ -120,8 +120,6 @@ export default function MessageBoard({
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [fetchMessages]);
-
-  const now = new Date();
 
   return (
     <div
@@ -225,7 +223,12 @@ export default function MessageBoard({
           className="border-t px-6 py-2"
           style={{ borderColor: config.accentColor + "40" }}
         >
-          <WeatherDisplay color={config.textColor} bgOpacity={0} fontFamily={config.fontFamily || undefined} />
+          <WeatherDisplay
+            boardId={board.id}
+            color={config.textColor}
+            bgOpacity={0}
+            fontFamily={config.fontFamily || undefined}
+          />
         </div>
       )}
 

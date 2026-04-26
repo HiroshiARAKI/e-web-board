@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, settings, authSessions } from "@/db/schema";
+import { users, authSessions } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import {
   DEFAULT_AUTH_EXPIRE_DAYS,
@@ -12,12 +12,14 @@ import {
   AUTH_SESSION_COOKIE,
   LAST_USER_COOKIE,
 } from "@/lib/auth";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
 
 /** GET /api/auth/pin/status — check if admin user and PIN are configured */
 export async function GET() {
   const cookieStore = await cookies();
 
-  // Prefer the logged-in session user; fall back to last-user cookie; then first user
+  // Prefer the logged-in session user; fall back to the remembered user only.
   let targetUser: typeof users.$inferSelect | null | undefined = null;
 
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
@@ -41,15 +43,14 @@ export async function GET() {
     }
   }
 
-  if (!targetUser) {
-    targetUser = await db.query.users.findFirst();
-  }
+  const anyUser = targetUser ? targetUser : await db.query.users.findFirst();
 
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
-  });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
+  const ownerUserId = targetUser ? resolveOwnerUserId(targetUser) : null;
+  const expireSetting = ownerUserId
+    ? await getOwnerSetting(ownerUserId, AUTH_EXPIRE_DAYS_KEY)
+    : null;
+  const expireDays = expireSetting
+    ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
   const fullAuthExpiry = targetUser
@@ -57,7 +58,7 @@ export async function GET() {
     : null;
 
   return NextResponse.json({
-    userConfigured: !!targetUser,
+    userConfigured: !!anyUser,
     pinConfigured: !!targetUser?.pinHash,
     email: targetUser?.email ?? null,
     userId: targetUser?.userId ?? null,

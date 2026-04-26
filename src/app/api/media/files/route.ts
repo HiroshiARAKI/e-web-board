@@ -3,7 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { mediaItems, boards } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { getSessionUser } from "@/lib/auth";
 import { emitSSE } from "@/lib/sse";
 import {
   deleteStoredObject,
@@ -14,6 +15,7 @@ import {
   publicPathForStorageKey,
   thumbnailStorageKeyFromFilename,
 } from "@/lib/media-storage";
+import { resolveOwnerUserId } from "@/lib/ownership";
 import path from "path";
 
 /**
@@ -22,6 +24,11 @@ import path from "path";
  * For each file, cross-reference the DB to find which boards reference it.
  */
 export async function GET() {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   const storedObjects = await listStoredObjects();
   const files = storedObjects.filter((object) => isMediaStorageKey(object.key));
   const thumbnails = new Set(
@@ -39,7 +46,8 @@ export async function GET() {
       boardName: boards.name,
     })
     .from(mediaItems)
-    .leftJoin(boards, eq(mediaItems.boardId, boards.id));
+    .innerJoin(boards, eq(mediaItems.boardId, boards.id))
+    .where(eq(boards.ownerUserId, resolveOwnerUserId(session.user)));
 
   // Build a map: filename -> board references
   const fileToBoards = new Map<
@@ -53,7 +61,9 @@ export async function GET() {
     fileToBoards.set(basename, existing);
   }
 
-  const result = files.map((file) => {
+  const result = files
+    .filter((file) => fileToBoards.has(path.basename(file.key)))
+    .map((file) => {
     const filename = path.basename(file.key);
     const type = mediaTypeFromStorageKey(file.key) ?? "image";
     const thumbKey = thumbnailStorageKeyFromFilename(filename);
@@ -70,7 +80,7 @@ export async function GET() {
       modifiedAt: file.modifiedAt,
       boards: fileToBoards.get(filename) ?? [],
     };
-  });
+    });
 
   return NextResponse.json(result);
 }
@@ -81,6 +91,11 @@ export async function GET() {
  * Body: { filename: string }
  */
 export async function DELETE(request: NextRequest) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   let body: { filename?: string };
   try {
     body = await request.json();
@@ -98,6 +113,25 @@ export async function DELETE(request: NextRequest) {
 
   const sanitized = path.basename(filename);
 
+  const dbPath = publicPathForStorageKey(sanitized);
+  const refs = await db
+    .select({
+      id: mediaItems.id,
+      boardId: mediaItems.boardId,
+    })
+    .from(mediaItems)
+    .innerJoin(boards, eq(mediaItems.boardId, boards.id))
+    .where(
+      and(
+        eq(mediaItems.filePath, dbPath),
+        eq(boards.ownerUserId, resolveOwnerUserId(session.user)),
+      ),
+    );
+
+  if (refs.length === 0) {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
+
   try {
     await deleteStoredObject(sanitized);
     await deleteStoredObject(thumbnailStorageKeyFromFilename(sanitized));
@@ -108,20 +142,15 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  // Delete all DB records that reference this file and notify boards
-  const dbPath = publicPathForStorageKey(sanitized);
-  const refs = await db
-    .select()
-    .from(mediaItems)
-    .where(eq(mediaItems.filePath, dbPath));
-
   const boardIds = new Set<string>();
   for (const ref of refs) {
     boardIds.add(ref.boardId);
   }
 
   if (refs.length > 0) {
-    await db.delete(mediaItems).where(eq(mediaItems.filePath, dbPath));
+    await db
+      .delete(mediaItems)
+      .where(inArray(mediaItems.id, refs.map((ref) => ref.id)));
   }
 
   for (const boardId of boardIds) {
