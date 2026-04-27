@@ -37,6 +37,13 @@ API は大きく 3 種類に分かれます。
 - `boards`、`media`、`messages`、`settings` など一部の内部 API は、現状レイアウト側の認証ゲート利用を前提にしており、Route Handler 単体では厳密な認可チェックを入れていないものがあります。
 - `POST /api/messages` は外部連携向けです。
 
+### 2.3 ログイン試行制限の IP 解決
+
+- `POST /api/auth/credentials/login` と `POST /api/auth/pin/verify` は `pin_attempts` を使って試行制限します。
+- `TRUST_PROXY_HEADERS=true` のときだけ `x-forwarded-for` / `x-real-ip` を client IP として利用します。
+- `TRUST_PROXY_HEADERS=false` のときは proxy header を信用せず、`client + auth subject` 単位の bucket で試行回数を管理します。
+- 公開運用で ALB / CloudFront / Nginx などが header を上書きする場合のみ `TRUST_PROXY_HEADERS=true` を設定してください。
+
 ## 3. 認証 API
 
 ### 3.1 Owner サインアップ / 初期 PIN 設定
@@ -141,7 +148,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 
 - `identifier` はメールアドレスまたは `userId`
 - 成功時に `auth-session` と `last-user-id` Cookie を設定
-- 失敗回数は IP ベースで制限
+- 失敗回数は `client + identifier` bucket ベースで制限
 
 #### `POST /api/auth/pin/verify`
 
@@ -158,6 +165,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 - `last-user-id` があればそのユーザーの PIN を優先検証
 - 対象ユーザーに PIN がない場合は `requiresFullAuth: true` を返す
 - フル認証期限切れでも `requiresFullAuth: true` を返す
+- 失敗回数は `client + target user` bucket ベースで制限
 
 #### `GET /api/auth/pin/status`
 

@@ -25,38 +25,14 @@ import {
 } from "@/lib/device-auth";
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
+import {
+  buildRateLimitKey,
+  resolveRateLimitClientIp,
+} from "@/lib/rate-limit";
 
 /** POST /api/auth/pin/verify — verify PIN and issue session */
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
-
-  // Check IP block
-  const blockThreshold = new Date(
-    Date.now() - IP_BLOCK_DURATION_MS,
-  ).toISOString();
-  const recentAttempts = await db
-    .select()
-    .from(pinAttempts)
-    .where(
-      and(
-        eq(pinAttempts.ipAddress, ip),
-        gt(pinAttempts.attemptedAt, blockThreshold),
-      ),
-    );
-
-  if (recentAttempts.length >= MAX_PIN_ATTEMPTS) {
-    return NextResponse.json(
-      {
-        error:
-          "試行回数の上限に達しました。24時間後に再度お試しください。",
-        blocked: true,
-      },
-      { status: 429 },
-    );
-  }
+  const clientIp = resolveRateLimitClientIp(request);
 
   const body = await request.json();
   const { pin } = body as { pin?: string };
@@ -77,6 +53,36 @@ export async function POST(request: NextRequest) {
     userId: adminUser?.userId ?? null,
     hasPIN: !!adminUser?.pinHash,
   });
+
+  const rateLimitKey = buildRateLimitKey({
+    flow: "pin",
+    clientIp,
+    subject: adminUser?.userId ?? "no-device-auth",
+  });
+
+  const blockThreshold = new Date(
+    Date.now() - IP_BLOCK_DURATION_MS,
+  ).toISOString();
+  const recentAttempts = await db
+    .select()
+    .from(pinAttempts)
+    .where(
+      and(
+        eq(pinAttempts.ipAddress, rateLimitKey),
+        gt(pinAttempts.attemptedAt, blockThreshold),
+      ),
+    );
+
+  if (recentAttempts.length >= MAX_PIN_ATTEMPTS) {
+    return NextResponse.json(
+      {
+        error:
+          "試行回数の上限に達しました。24時間後に再度お試しください。",
+        blocked: true,
+      },
+      { status: 429 },
+    );
+  }
 
   if (!deviceAuthGrant || !adminUser) {
     return NextResponse.json(
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest) {
 
   if (!verifyPin(pin, adminUser.pinHash)) {
     // Record failed attempt
-    await db.insert(pinAttempts).values({ ipAddress: ip });
+    await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
 
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
     console.log("[pin/verify] PIN incorrect for", adminUser.userId, { remaining });
@@ -123,8 +129,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Success — clear previous attempts for this IP
-  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+  // Success — clear attempts for the verified subject bucket.
+  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, rateLimitKey));
 
   console.log("[pin/verify] PIN verified OK for", adminUser.userId);
 
