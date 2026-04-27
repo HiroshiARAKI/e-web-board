@@ -302,11 +302,11 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 | `GET` | `/api/media` | メディア一覧取得 | 内部向け |
 | `POST` | `/api/media` | メディアアップロード | 内部向け |
 | `PATCH` | `/api/media` | 表示順更新 | 内部向け |
-| `DELETE` | `/api/media` | 全メディア削除 | 内部向け |
+| `DELETE` | `/api/media` | 全メディア削除 | `admin` |
 | `DELETE` | `/api/media/[id]` | 1 件削除 | 内部向け |
 | `PATCH` | `/api/media/[id]` | 1 件の設定更新 | 内部向け |
-| `GET` | `/api/media/files` | ストレージ上ファイル一覧取得 | 内部向け |
-| `DELETE` | `/api/media/files` | ストレージ上ファイルと参照レコード削除 | 内部向け |
+| `GET` | `/api/media/files` | ストレージ上ファイル一覧取得 | `admin` |
+| `DELETE` | `/api/media/files` | ストレージ上ファイルと参照レコード削除 | `admin` |
 
 #### `POST /api/media`
 
@@ -351,7 +351,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 
 | Method | Path | 説明 | 認証 |
 | --- | --- | --- | --- |
-| `POST` | `/api/messages` | メッセージ作成 | 外部連携可 |
+| `POST` | `/api/messages` | メッセージ作成 | 内部向け |
 | `PATCH` | `/api/messages/[id]` | メッセージ更新 | 内部向け |
 | `DELETE` | `/api/messages/[id]` | メッセージ削除 | 内部向け |
 
@@ -375,12 +375,17 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 
 成功時は `message-updated` を発行します。
 
+注記:
+
+- 現在の `POST /api/messages` は認証済みセッションを前提とする内部 API です。
+- 外部連携として公開する場合は、別 endpoint と別認証方式で切り出す前提です。
+
 ## 8. 設定 API
 
 | Method | Path | 説明 | 認証 |
 | --- | --- | --- | --- |
-| `GET` | `/api/settings` | KV 設定をまとめて取得 | 内部向け |
-| `PATCH` | `/api/settings` | KV 設定を upsert | 内部向け |
+| `GET` | `/api/settings` | KV 設定をまとめて取得 | `admin` |
+| `PATCH` | `/api/settings` | KV 設定を upsert | `admin` |
 
 #### `PATCH /api/settings`
 
@@ -393,6 +398,8 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 ```
 
 現在の実装では value は文字列として保存します。
+
+設定 API は owner 全体に影響するため、管理者ユーザーのみ利用できます。
 
 ## 9. SSE / 補助 API
 

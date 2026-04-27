@@ -101,3 +101,13 @@ export async function getSessionUser() {
   });
   return session ?? null;
 }
+
+/** Return the current session only when the authenticated user is an admin. */
+export async function getAdminSessionUser() {
+  const session = await getSessionUser();
+  if (!session || session.user.role !== "admin") {
+    return null;
+  }
+
+  return session;
+}

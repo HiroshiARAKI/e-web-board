@@ -97,6 +97,11 @@ export function SettingsClient({ role, currentUserId }: { role: "admin" | "gener
   const [userIdChangeResult, setUserIdChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const fetchMedia = useCallback(async () => {
+    if (role !== "admin") {
+      setMediaLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/media/files");
       if (res.ok) {
@@ -110,6 +115,11 @@ export function SettingsClient({ role, currentUserId }: { role: "admin" | "gener
   // Load current settings
   useEffect(() => {
     (async () => {
+      if (role !== "admin") {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch("/api/settings");
         if (!res.ok) return;
@@ -171,7 +181,7 @@ export function SettingsClient({ role, currentUserId }: { role: "admin" | "gener
         }
       })
       .catch(() => {});
-  }, [fetchMedia]);
+  }, [fetchMedia, role]);
 
   function handlePrefChange(prefName: string | null) {
     if (!prefName) return;

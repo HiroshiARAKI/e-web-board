@@ -1,15 +1,15 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { getAdminSessionUser } from "@/lib/auth";
 import { listOwnerSettings, upsertOwnerSettings } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
 
 /** GET /api/settings — get all settings as key-value object */
 export async function GET() {
-  const session = await getSessionUser();
+  const session = await getAdminSessionUser();
   if (!session) {
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 });
   }
 
   return NextResponse.json(
@@ -19,9 +19,9 @@ export async function GET() {
 
 /** PATCH /api/settings — upsert settings { key: value, ... } */
 export async function PATCH(request: Request) {
-  const session = await getSessionUser();
+  const session = await getAdminSessionUser();
   if (!session) {
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 });
   }
 
   const body = await request.json();
