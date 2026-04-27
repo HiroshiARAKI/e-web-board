@@ -6,6 +6,7 @@ import { users, pinResetTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateResetToken, RESET_TOKEN_TTL_MS } from "@/lib/pin";
 import { isSmtpConfigured, sendPinResetEmail } from "@/lib/mail";
+import { isValidSignupEmail, normalizeSignupEmail } from "@/lib/signup";
 
 function getPinResetPublicOrigin(): string | null {
   const configuredOrigin = process.env.APP_PUBLIC_ORIGIN?.trim();
@@ -25,10 +26,18 @@ function getPinResetPublicOrigin(): string | null {
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { email } = body as { email?: string };
+  const normalizedEmail = typeof email === "string" ? normalizeSignupEmail(email) : "";
 
-  if (!email) {
+  if (!normalizedEmail) {
     return NextResponse.json(
       { error: "メールアドレスを入力してください" },
+      { status: 400 },
+    );
+  }
+
+  if (!isValidSignupEmail(normalizedEmail)) {
+    return NextResponse.json(
+      { error: "有効なメールアドレスを入力してください" },
       { status: 400 },
     );
   }
@@ -42,12 +51,14 @@ export async function POST(request: NextRequest) {
   }
 
   const adminUser = await db.query.users.findFirst({
-    where: eq(users.email, email),
+    where: eq(users.email, normalizedEmail),
   });
 
   if (!adminUser) {
-    // Always return success to prevent email enumeration
-    return NextResponse.json({ success: true, method: "email" });
+    return NextResponse.json(
+      { error: "登録済みのメールアドレスを入力してください" },
+      { status: 400 },
+    );
   }
 
   // Generate reset token
@@ -58,7 +69,13 @@ export async function POST(request: NextRequest) {
 
   const resetUrl = `${publicOrigin}/pin/reset/${token}`;
 
-  await sendPinResetEmail(email, resetUrl);
+  const mailSent = await sendPinResetEmail(normalizedEmail, resetUrl);
+  if (!mailSent) {
+    return NextResponse.json(
+      { error: "初期化メールの送信に失敗しました" },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ success: true, method: "email" });
 }

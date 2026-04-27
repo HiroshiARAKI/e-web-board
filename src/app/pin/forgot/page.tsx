@@ -86,7 +86,7 @@ export default function PinForgotPage() {
           ) : (
             <div className="space-y-4">
               <p className="text-center text-sm text-gray-600">
-                メールアドレスが登録されている場合、初期化リンクをメールで送信しました。
+                初期化リンクをメールで送信しました。
                 <br />
                 <span className="text-xs text-gray-400">
                   メールが届かない場合は迷惑メールフォルダをご確認ください。
