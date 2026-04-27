@@ -5,7 +5,11 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { deviceAuthGrants } from "@/db/schema";
-import { LAST_USER_COOKIE } from "@/lib/auth";
+import {
+  LAST_USER_COOKIE,
+  buildAuthCookieOptions,
+  buildExpiredAuthCookieOptions,
+} from "@/lib/auth";
 
 export const DEVICE_AUTH_COOKIE = "device-auth";
 export const DEVICE_AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -61,20 +65,13 @@ export async function storeDeviceFullAuth(params: {
 }
 
 export function setDeviceAuthCookie(response: NextResponse, deviceToken: string) {
-  response.cookies.set(DEVICE_AUTH_COOKIE, deviceToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: DEVICE_AUTH_COOKIE_MAX_AGE,
-  });
+  response.cookies.set(
+    DEVICE_AUTH_COOKIE,
+    deviceToken,
+    buildAuthCookieOptions(DEVICE_AUTH_COOKIE_MAX_AGE),
+  );
 }
 
 export function clearLegacyLastUserCookie(response: NextResponse) {
-  response.cookies.set(LAST_USER_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-    expires: new Date(0),
-  });
+  response.cookies.set(LAST_USER_COOKIE, "", buildExpiredAuthCookieOptions());
 }

@@ -34,6 +34,7 @@ export async function verifyPassword(
 
 /** Auth session cookie name */
 export const AUTH_SESSION_COOKIE = "auth-session";
+export const AUTH_COOKIE_SECURE = process.env.NODE_ENV === "production";
 
 /**
  * Legacy cookie that stored the last authenticated userId.
@@ -43,6 +44,23 @@ export const LAST_USER_COOKIE = "last-user-id";
 
 /** PIN session duration: 24 hours (in seconds, for cookie maxAge) */
 export const SESSION_MAX_AGE = 60 * 60 * 24;
+
+export function buildAuthCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+    secure: AUTH_COOKIE_SECURE,
+  };
+}
+
+export function buildExpiredAuthCookieOptions() {
+  return {
+    ...buildAuthCookieOptions(0),
+    expires: new Date(0),
+  };
+}
 
 /** Default full-auth expiry: 30 days */
 export const DEFAULT_AUTH_EXPIRE_DAYS = 30;

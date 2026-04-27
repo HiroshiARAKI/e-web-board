@@ -8,6 +8,7 @@ import {
   verifyPassword,
   AUTH_SESSION_COOKIE,
   SESSION_MAX_AGE,
+  buildAuthCookieOptions,
 } from "@/lib/auth";
 import {
   DEVICE_AUTH_COOKIE,
@@ -144,12 +145,7 @@ export async function POST(request: NextRequest) {
   });
 
   const res = NextResponse.json({ success: true });
-  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
+  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SESSION_MAX_AGE));
   setDeviceAuthCookie(res, deviceToken);
   clearLegacyLastUserCookie(res);
   return res;

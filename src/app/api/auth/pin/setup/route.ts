@@ -10,6 +10,7 @@ import {
   SESSION_MAX_AGE,
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
+  buildAuthCookieOptions,
   isFullAuthValid,
 } from "@/lib/auth";
 import {
@@ -116,12 +117,7 @@ export async function POST(request: NextRequest) {
   });
 
   const res = NextResponse.json({ success: true });
-  res.cookies.set(AUTH_SESSION_COOKIE, fullSessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
+  res.cookies.set(AUTH_SESSION_COOKIE, fullSessionToken, buildAuthCookieOptions(SESSION_MAX_AGE));
   if (deviceToken) {
     setDeviceAuthCookie(res, deviceToken);
   }
