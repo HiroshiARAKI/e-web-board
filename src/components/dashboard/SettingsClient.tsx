@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,7 +39,15 @@ interface VersionInfo {
   hasUpdate: boolean;
 }
 
-export function SettingsClient({ role, currentUserId }: { role: "admin" | "general"; currentUserId: string }) {
+export function SettingsClient({
+  role,
+  currentUserId,
+  isOwner,
+}: {
+  role: "admin" | "general";
+  currentUserId: string;
+  isOwner: boolean;
+}) {
   const [cityId, setCityId] = useState(DEFAULT_CITY_ID);
   const [selectedPref, setSelectedPref] = useState<WeatherPrefecture | null>(
     null,
@@ -1202,6 +1211,24 @@ export function SettingsClient({ role, currentUserId }: { role: "admin" | "gener
           </div>
         </div>
       </div>}
+
+      {isOwner && (
+        <div className="rounded-lg border border-red-300 bg-red-50/60 p-6">
+          <p className="text-sm font-medium text-red-700">Dangerous settings</p>
+          <h2 className="mt-2 text-lg font-semibold text-red-950">Ownerアカウントの退会</h2>
+          <p className="mt-3 text-sm leading-6 text-red-900/80">
+            普段使わない設定です。メールで送られる退会リンクを開くと、Owner配下の Shared ユーザー、ボード、メディア、設定、Preferences が削除されます。
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/delete-account"
+              className="inline-flex rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              退会設定を開く
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

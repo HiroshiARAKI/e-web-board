@@ -72,6 +72,10 @@ export function setDeviceAuthCookie(response: NextResponse, deviceToken: string)
   );
 }
 
+export function clearDeviceAuthCookie(response: NextResponse) {
+  response.cookies.set(DEVICE_AUTH_COOKIE, "", buildExpiredAuthCookieOptions());
+}
+
 export function clearLegacyLastUserCookie(response: NextResponse) {
   response.cookies.set(LAST_USER_COOKIE, "", buildExpiredAuthCookieOptions());
 }

@@ -127,6 +127,23 @@ export const signupRequests = pgTable("signup_requests", {
     .$onUpdate(() => new Date().toISOString()),
 });
 
+export const accountDeletionRequests = pgTable("account_deletion_requests", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  ownerUserId: text("owner_user_id").notNull().unique(),
+  token: text("token").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
+});
+
 // ── New auth tables ─────────────────────────────────────
 
 export const users = pgTable("users", {

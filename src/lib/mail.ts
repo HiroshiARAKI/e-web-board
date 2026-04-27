@@ -96,3 +96,23 @@ export async function sendOwnerSignupEmail(
     ],
   });
 }
+
+/** Send an owner account deletion confirmation email */
+export async function sendAccountDeletionEmail(
+  to: string,
+  deletionUrl: string,
+): Promise<boolean> {
+  return sendTextMail({
+    to,
+    subject: "[Keinage] アカウント削除確認リンク",
+    lines: [
+      "Keinage のOwnerアカウント削除リクエストを受け付けました。",
+      "",
+      "以下のリンクを開くと、Ownerアカウントと紐づくデータが削除されます：",
+      deletionUrl,
+      "",
+      "このリンクは10分間有効です。",
+      "心当たりがない場合は、このメールを無視してください。",
+    ],
+  });
+}
