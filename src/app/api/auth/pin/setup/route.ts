@@ -96,9 +96,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Save PIN hash to users table
+  const pinHash = await hashPin(pin);
   await db
     .update(users)
-    .set({ pinHash: hashPin(pin) })
+    .set({ pinHash })
     .where(eq(users.id, targetUser.id));
 
   // Delete any previous setup cookie session

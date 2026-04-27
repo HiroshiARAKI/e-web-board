@@ -66,9 +66,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const pinHash = await hashPin(pin);
   await db
     .update(users)
-    .set({ pinHash: hashPin(pin) })
+    .set({ pinHash })
     .where(eq(users.id, targetUser.id));
 
   return NextResponse.json({ success: true });
