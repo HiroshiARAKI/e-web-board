@@ -122,10 +122,11 @@ environment:
 
 #### SMTP 設定 (任意)
 
-PIN リセット時にメールで初期化リンクを送信したい場合は、`docker-compose.yml` の環境変数を設定してください。
+Owner 登録リンクと PIN リセットリンクをメール送信したい場合は、公開 URL と SMTP を設定してください。
 
 ```yaml
 environment:
+  - APP_PUBLIC_ORIGIN=https://keinage.example.com
   - SMTP_HOST=smtp.example.com
   - SMTP_PORT=587
   - SMTP_USER=noreply@example.com
@@ -133,7 +134,8 @@ environment:
   - SMTP_FROM=noreply@example.com
 ```
 
-> **Note:** SMTP 未設定でもリセットリンクは画面に直接表示されます。
+> **Note:** SMTP 未設定時、未認証の Owner signup / PIN reset メールフローは既定で無効です。
+> ローカル開発で signup 直リンクのプレビューを使う場合だけ、`.env` に `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定し、`APP_PUBLIC_ORIGIN` を `http://localhost:3000` のような localhost origin にしてください。
 
 ```bash
 # 停止
@@ -164,11 +166,11 @@ pnpm dev           # 開発サーバー起動
 http://localhost:3000 にアクセスし、初回は管理者アカウント
 （ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
 
-SMTP を設定する場合も `.env` に追記してください。
+SMTP を使う場合は `.env` に `APP_PUBLIC_ORIGIN` と `SMTP_*` を追記してください。ローカル開発でのみ signup 直リンクプレビューを許可したい場合は、追加で `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定します。
 
 ```bash
 cp .env.example .env
-# .env を編集して S3 / SMTP 情報を入力
+# .env を編集して S3 / APP_PUBLIC_ORIGIN / SMTP 情報を入力
 ```
 
 ---

@@ -3,44 +3,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { and, eq, isNull, or } from "drizzle-orm";
-import { networkInterfaces } from "os";
 import { db } from "@/db";
 import { signupRequests, users } from "@/db/schema";
 import { isSmtpConfigured, sendOwnerSignupEmail } from "@/lib/mail";
+import {
+  buildPublicAppUrl,
+  isUnauthenticatedSignupPreviewEnabled,
+} from "@/lib/public-origin";
 import {
   SIGNUP_REQUEST_COOKIE,
   computeSignupExpiry,
   generateSignupToken,
 } from "@/lib/signup";
 
-function buildSignupUrl(request: NextRequest, token: string): string {
-  const requestHost = request.headers.get("host") || "localhost:3000";
-  const protocol = request.headers.get("x-forwarded-proto") || "http";
-  const hostname = requestHost.split(":")[0];
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
-  let host = requestHost;
-
-  if (isLocalhost) {
-    const nets = networkInterfaces();
-    for (const name of Object.keys(nets)) {
-      for (const net of nets[name] ?? []) {
-        if (net.family === "IPv4" && !net.internal) {
-          const port = requestHost.includes(":") ? `:${requestHost.split(":")[1]}` : "";
-          host = `${net.address}${port}`;
-          break;
-        }
-      }
-      if (host !== requestHost) {
-        break;
-      }
-    }
-  }
-
-  return `${protocol}://${host}/signup/${token}`;
-}
-
 /** POST /api/auth/credentials/setup/resend — resend owner signup email */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   const cookieStore = await cookies();
   const signupRequestId = cookieStore.get(SIGNUP_REQUEST_COOKIE)?.value;
 
@@ -74,18 +51,36 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const smtpConfigured = isSmtpConfigured();
+  const previewEnabled = isUnauthenticatedSignupPreviewEnabled();
+  if (!smtpConfigured && !previewEnabled) {
+    return NextResponse.json(
+      { error: "この環境では登録リンクを再発行できません。SMTP を設定してください" },
+      { status: 503 },
+    );
+  }
+
   const token = generateSignupToken();
   const expiresAt = computeSignupExpiry();
+  const signupUrl = buildPublicAppUrl(`/signup/${token}`);
+  if (!signupUrl) {
+    return NextResponse.json(
+      { error: "APP_PUBLIC_ORIGIN が未設定、または不正です" },
+      { status: 503 },
+    );
+  }
+
   const [updatedRequest] = await db
     .update(signupRequests)
     .set({ token, expiresAt })
     .where(eq(signupRequests.id, signupRequest.id))
     .returning();
 
-  const signupUrl = buildSignupUrl(request, token);
-  const mailSent = await sendOwnerSignupEmail(updatedRequest.email, signupUrl);
+  const mailSent = smtpConfigured
+    ? await sendOwnerSignupEmail(updatedRequest.email, signupUrl)
+    : false;
 
-  if (!mailSent && isSmtpConfigured()) {
+  if (!mailSent && smtpConfigured) {
     return NextResponse.json(
       { error: "登録メールの再送に失敗しました。時間を置いて再度お試しください" },
       { status: 500 },
@@ -94,6 +89,6 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    previewUrl: !mailSent ? signupUrl : null,
+    previewUrl: previewEnabled ? signupUrl : null,
   });
 }

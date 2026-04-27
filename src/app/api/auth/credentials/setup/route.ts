@@ -7,6 +7,10 @@ import { eq, or } from "drizzle-orm";
 import { sendOwnerSignupEmail, isSmtpConfigured } from "@/lib/mail";
 import { buildAuthCookieOptions } from "@/lib/auth";
 import {
+  buildPublicAppUrl,
+  isUnauthenticatedSignupPreviewEnabled,
+} from "@/lib/public-origin";
+import {
   SIGNUP_REQUEST_COOKIE,
   SIGNUP_REQUEST_COOKIE_MAX_AGE,
   computeSignupExpiry,
@@ -16,33 +20,6 @@ import {
   normalizePhoneNumber,
   normalizeSignupEmail,
 } from "@/lib/signup";
-import { networkInterfaces } from "os";
-
-function buildSignupUrl(request: NextRequest, token: string): string {
-  const requestHost = request.headers.get("host") || "localhost:3000";
-  const protocol = request.headers.get("x-forwarded-proto") || "http";
-  const hostname = requestHost.split(":")[0];
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
-  let host = requestHost;
-
-  if (isLocalhost) {
-    const nets = networkInterfaces();
-    for (const name of Object.keys(nets)) {
-      for (const net of nets[name] ?? []) {
-        if (net.family === "IPv4" && !net.internal) {
-          const port = requestHost.includes(":") ? `:${requestHost.split(":")[1]}` : "";
-          host = `${net.address}${port}`;
-          break;
-        }
-      }
-      if (host !== requestHost) {
-        break;
-      }
-    }
-  }
-
-  return `${protocol}://${host}/signup/${token}`;
-}
 
 /** POST /api/auth/credentials/setup — request owner signup by email link */
 export async function POST(request: NextRequest) {
@@ -97,8 +74,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const smtpConfigured = isSmtpConfigured();
+  const previewEnabled = isUnauthenticatedSignupPreviewEnabled();
+  if (!smtpConfigured && !previewEnabled) {
+    return NextResponse.json(
+      { error: "この環境では登録リンクを発行できません。SMTP を設定してください" },
+      { status: 503 },
+    );
+  }
+
   const token = generateSignupToken();
   const expiresAt = computeSignupExpiry();
+  const signupUrl = buildPublicAppUrl(`/signup/${token}`);
+  if (!signupUrl) {
+    return NextResponse.json(
+      { error: "APP_PUBLIC_ORIGIN が未設定、または不正です" },
+      { status: 503 },
+    );
+  }
+
   const [signupRequest] = await db.insert(signupRequests).values({
     userId: normalizedUserId,
     email: normalizedEmail,
@@ -107,10 +101,11 @@ export async function POST(request: NextRequest) {
     expiresAt,
   }).returning();
 
-  const signupUrl = buildSignupUrl(request, token);
-  const mailSent = await sendOwnerSignupEmail(normalizedEmail, signupUrl);
+  const mailSent = smtpConfigured
+    ? await sendOwnerSignupEmail(normalizedEmail, signupUrl)
+    : false;
 
-  if (!mailSent && isSmtpConfigured()) {
+  if (!mailSent && smtpConfigured) {
     return NextResponse.json(
       { error: "登録メールの送信に失敗しました。時間を置いて再度お試しください" },
       { status: 500 },
@@ -119,7 +114,7 @@ export async function POST(request: NextRequest) {
 
   const res = NextResponse.json({
     success: true,
-    previewUrl: !mailSent ? signupUrl : null,
+    previewUrl: previewEnabled ? signupUrl : null,
   });
   res.cookies.set(
     SIGNUP_REQUEST_COOKIE,
