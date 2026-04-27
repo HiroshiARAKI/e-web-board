@@ -7,6 +7,8 @@ import { db } from "@/db";
 import { authSessions, signupRequests, users } from "@/db/schema";
 import {
   AUTH_SESSION_COOKIE,
+  buildAuthCookieOptions,
+  buildExpiredAuthCookieOptions,
   hashPassword,
 } from "@/lib/auth";
 import {
@@ -106,22 +108,11 @@ export async function POST(request: NextRequest) {
     authenticatedAt: now,
   });
   const res = NextResponse.json({ success: true, userId: createdUser.userId });
-  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SETUP_SESSION_MAX_AGE,
-  });
+  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SETUP_SESSION_MAX_AGE));
   setDeviceAuthCookie(res, deviceToken);
   clearLegacyLastUserCookie(res);
   if (cookieStore.get(SIGNUP_REQUEST_COOKIE)) {
-    res.cookies.set(SIGNUP_REQUEST_COOKIE, "", {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-      expires: new Date(0),
-    });
+    res.cookies.set(SIGNUP_REQUEST_COOKIE, "", buildExpiredAuthCookieOptions());
   }
 
   return res;

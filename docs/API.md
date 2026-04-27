@@ -21,6 +21,11 @@
 | `device-auth` | 端末単位の完全認証キャッシュ識別 |
 | `signup-request-id` | `/signingup` で仮登録状態を識別 |
 
+補足:
+
+- `auth-session`、`device-auth`、`signup-request-id` は `NODE_ENV=production` のとき `Secure` 属性付きで発行されます。
+- ローカル開発では HTTP 動作を維持するため `Secure` を付与しません。
+
 ### 2.2 認証の考え方
 
 API は大きく 3 種類に分かれます。

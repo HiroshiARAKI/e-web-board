@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { signupRequests, users } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
 import { sendOwnerSignupEmail, isSmtpConfigured } from "@/lib/mail";
+import { buildAuthCookieOptions } from "@/lib/auth";
 import {
   SIGNUP_REQUEST_COOKIE,
   SIGNUP_REQUEST_COOKIE_MAX_AGE,
@@ -120,11 +121,10 @@ export async function POST(request: NextRequest) {
     success: true,
     previewUrl: !mailSent ? signupUrl : null,
   });
-  res.cookies.set(SIGNUP_REQUEST_COOKIE, signupRequest.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SIGNUP_REQUEST_COOKIE_MAX_AGE,
-  });
+  res.cookies.set(
+    SIGNUP_REQUEST_COOKIE,
+    signupRequest.id,
+    buildAuthCookieOptions(SIGNUP_REQUEST_COOKIE_MAX_AGE),
+  );
   return res;
 }
