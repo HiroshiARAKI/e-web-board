@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Globe, Lock } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { templates } from "@/lib/templates";
 import type { TemplateId } from "@/types";
 
@@ -25,6 +27,7 @@ export default function NewBoardPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [templateId, setTemplateId] = useState<TemplateId>("simple");
+  const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +39,7 @@ export default function NewBoardPage() {
     const res = await fetch("/api/boards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, templateId }),
+      body: JSON.stringify({ name, templateId, visibility }),
     });
 
     if (!res.ok) {
@@ -105,6 +108,46 @@ export default function NewBoardPage() {
                     </div>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="space-y-1">
+                <Label htmlFor="board-visibility">公開設定</Label>
+                <p className="text-xs text-muted-foreground">
+                  Private が初期設定です。Private はログイン済みユーザーのみ表示URLを開けます。
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <div
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm ${
+                    visibility === "private"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <Lock className="size-3.5" />
+                  Private
+                </div>
+                <Switch
+                  id="board-visibility"
+                  checked={visibility === "public"}
+                  onCheckedChange={(checked) => setVisibility(checked ? "public" : "private")}
+                />
+                <div
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm ${
+                    visibility === "public"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <Globe className="size-3.5" />
+                  Public
+                </div>
+                <Badge variant={visibility === "public" ? "default" : "secondary"}>
+                  {visibility === "public" ? "公開中" : "認証必須"}
+                </Badge>
               </div>
             </div>
 

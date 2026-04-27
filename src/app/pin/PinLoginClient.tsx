@@ -9,7 +9,13 @@ import { Lock } from "lucide-react";
 import { PinInput } from "@/components/auth/PinInput";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
-export default function PinLoginClient({ userId }: { userId: string }) {
+export default function PinLoginClient({
+  userId,
+  redirectTo,
+}: {
+  userId: string;
+  redirectTo?: string | null;
+}) {
   const router = useRouter();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -42,15 +48,19 @@ export default function PinLoginClient({ userId }: { userId: string }) {
           return;
         }
 
-        router.push("/boards");
+        router.push(redirectTo || "/boards");
       } catch {
         setError("通信エラーが発生しました");
         setPin("");
         setVerifying(false);
       }
     },
-    [router, verifying, blocked],
+    [router, redirectTo, verifying, blocked],
   );
+
+  const accountLoginHref = redirectTo
+    ? `/pin/login?redirectTo=${encodeURIComponent(redirectTo)}`
+    : "/pin/login";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -92,7 +102,7 @@ export default function PinLoginClient({ userId }: { userId: string }) {
 
           <div className="mt-6 flex flex-col items-center gap-3">
             <Link
-              href="/pin/login"
+              href={accountLoginHref}
               className="text-sm font-medium text-blue-600 hover:text-blue-700"
             >
               メールアドレスまたはIDでログインする

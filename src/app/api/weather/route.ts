@@ -29,9 +29,17 @@ export async function GET(request: NextRequest) {
     const board = await db.query.boards.findFirst({
       where: eq(boards.id, boardId),
     });
-    if (!board) {
+    if (!board || !board.isActive) {
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
+
+    if (board.visibility === "private") {
+      const session = await getSessionUser();
+      if (!session) {
+        return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+      }
+    }
+
     ownerUserId = board.ownerUserId;
   } else {
     const session = await getSessionUser();

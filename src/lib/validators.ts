@@ -12,15 +12,19 @@ export const templateIdSchema = z.enum([
   "call-number",
 ]);
 
+export const boardVisibilitySchema = z.enum(["public", "private"]);
+
 export const createBoardSchema = z.object({
   name: z.string().min(1).max(100),
   templateId: templateIdSchema,
+  visibility: boardVisibilitySchema.optional().default("private"),
   config: z.record(z.unknown()).optional().default({}),
 });
 
 export const updateBoardSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   templateId: templateIdSchema.optional(),
+  visibility: boardVisibilitySchema.optional(),
   config: z.record(z.unknown()).optional(),
   isActive: z.boolean().optional(),
 });

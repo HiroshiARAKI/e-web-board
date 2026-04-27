@@ -49,3 +49,15 @@ export function normalizeConfig<T extends { config: unknown }>(record: T): Omit<
     config: parseJsonObject(record.config),
   };
 }
+
+export function sanitizeRedirectTarget(value: string | null | undefined): string | null {
+  if (!value || !value.startsWith("/")) {
+    return null;
+  }
+
+  if (value.startsWith("//")) {
+    return null;
+  }
+
+  return value;
+}
