@@ -1,11 +1,15 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { signupRequests } from "@/db/schema";
 import { isSmtpConfigured } from "@/lib/mail";
+import {
+  buildPublicAppUrl,
+  isUnauthenticatedSignupPreviewEnabled,
+} from "@/lib/public-origin";
 import { SIGNUP_REQUEST_COOKIE } from "@/lib/signup";
 import SigningUpClient from "./SigningUpClient";
 
@@ -30,12 +34,13 @@ export default async function SigningUpPage() {
     redirect("/signup");
   }
 
-  const headerStore = await headers();
-  const protocol = headerStore.get("x-forwarded-proto") || "http";
-  const host = headerStore.get("host") || "localhost:3000";
-  const previewUrl = !isSmtpConfigured()
-    ? `${protocol}://${host}/signup/${signupRequest.token}`
+  const previewUrl = !isSmtpConfigured() && isUnauthenticatedSignupPreviewEnabled()
+    ? buildPublicAppUrl(`/signup/${signupRequest.token}`)
     : null;
+
+  if (!isSmtpConfigured() && !previewUrl) {
+    redirect("/signup");
+  }
 
   return (
     <SigningUpClient

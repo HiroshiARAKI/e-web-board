@@ -53,7 +53,7 @@ Owner アカウントの登録は `/signup` から開始します。
 1. `/signup` でユーザーID、メールアドレス、電話番号を登録する
 2. 重複がなければ `/signingup` へ遷移する
 3. SMTP が設定されていれば登録用 URL をメール送信する
-4. SMTP 未設定時はメール送信を行わず、`/signingup` 画面上に登録リンクを表示する
+4. SMTP 未設定時は、ローカル開発で `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` かつ `APP_PUBLIC_ORIGIN` が localhost の場合に限って、`/signingup` 画面上に登録リンクを表示する
 5. `/signup/<token>` でパスワードを設定する
 6. 続けて `/pin/setup` で 6 桁 PIN を設定する
 7. PIN 設定後にセッションを発行し、そのままダッシュボードへ入る

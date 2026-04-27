@@ -74,7 +74,7 @@ Owner 登録の仮受付を行います。
 }
 ```
 
-正常時は `signup-request-id` Cookie を設定します。SMTP が設定されていれば登録用 URL をメール送信し、SMTP 未設定時はレスポンスの `previewUrl` と `/signingup` 画面上で登録リンクを扱います。
+正常時は `signup-request-id` Cookie を設定します。登録用 URL は `APP_PUBLIC_ORIGIN` を基準に組み立てます。SMTP が設定されていれば登録用 URL をメール送信し、SMTP 未設定時は `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` かつ localhost 開発環境でのみ `previewUrl` を返します。それ以外では `503` を返します。
 
 レスポンス例:
 
@@ -87,7 +87,7 @@ Owner 登録の仮受付を行います。
 
 #### `POST /api/auth/credentials/setup/resend`
 
-現在の仮登録に対して登録用 URL を再送または再発行します。成功すると以前のトークンは無効になります。
+現在の仮登録に対して登録用 URL を再送または再発行します。成功すると以前のトークンは無効になります。`previewUrl` の返却条件は `POST /api/auth/credentials/setup` と同じです。
 
 レスポンス例:
 

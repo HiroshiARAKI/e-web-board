@@ -75,7 +75,7 @@ export default function SigningUpClient({
           <div className="space-y-4">
             <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
               {usesDirectLink
-                ? "SMTP が未設定のためメール送信は行っていません。リンクを再発行すると以前のリンクは無効になります。"
+                ? "SMTP が未設定のため、ローカル開発用の登録リンクを表示しています。リンクを再発行すると以前のリンクは無効になります。"
                 : "メールが届かない場合は迷惑メールフォルダをご確認ください。再送すると以前のリンクは無効になります。"}
             </p>
 
