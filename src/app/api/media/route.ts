@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { mediaItems, boards } from "@/db/schema";
 import { and, eq, asc, inArray } from "drizzle-orm";
-import { getSessionUser } from "@/lib/auth";
+import { getAdminSessionUser, getSessionUser } from "@/lib/auth";
 import { updateMediaOrderSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
 import {
@@ -253,9 +253,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE() {
-  const session = await getSessionUser();
+  const session = await getAdminSessionUser();
   if (!session) {
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 });
   }
 
   const ownerUserId = resolveOwnerUserId(session.user);

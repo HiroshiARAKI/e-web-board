@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { mediaItems, boards } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
-import { getSessionUser } from "@/lib/auth";
+import { getAdminSessionUser } from "@/lib/auth";
 import { emitSSE } from "@/lib/sse";
 import {
   deleteStoredObject,
@@ -24,9 +24,9 @@ import path from "path";
  * For each file, cross-reference the DB to find which boards reference it.
  */
 export async function GET() {
-  const session = await getSessionUser();
+  const session = await getAdminSessionUser();
   if (!session) {
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 });
   }
 
   const storedObjects = await listStoredObjects();
@@ -91,9 +91,9 @@ export async function GET() {
  * Body: { filename: string }
  */
 export async function DELETE(request: NextRequest) {
-  const session = await getSessionUser();
+  const session = await getAdminSessionUser();
   if (!session) {
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 });
   }
 
   let body: { filename?: string };
