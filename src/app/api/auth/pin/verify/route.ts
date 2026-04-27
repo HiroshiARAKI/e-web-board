@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, authSessions, pinAttempts } from "@/db/schema";
-import { eq, and, gt, isNotNull } from "drizzle-orm";
+import { authSessions, pinAttempts } from "@/db/schema";
+import { eq, and, gt } from "drizzle-orm";
 import {
   verifyPin,
   generateSessionToken,
@@ -16,8 +16,13 @@ import {
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
-  LAST_USER_COOKIE,
 } from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  clearLegacyLastUserCookie,
+  getDeviceAuthGrantByToken,
+  setDeviceAuthCookie,
+} from "@/lib/device-auth";
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
 
@@ -63,43 +68,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Resolve target user — same logic as pin/page.tsx:
-  //   Cookie user found + has PIN → that user
-  //   Cookie user found + no PIN → error (should not reach verify)
-  //   Cookie user not found → first user with PIN
-  const cookieStore = request.cookies;
-  const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
-  let adminUser = lastUserId
-    ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
-    : null;
+  const deviceToken = request.cookies.get(DEVICE_AUTH_COOKIE)?.value;
+  const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
+  const adminUser = deviceAuthGrant?.user ?? null;
 
-  console.log("[pin/verify] User resolution", {
-    lastUserId,
-    cookieUserFound: !!adminUser,
-    cookieUserHasPIN: !!adminUser?.pinHash,
+  console.log("[pin/verify] Device auth lookup", {
+    hasDeviceAuthGrant: !!deviceAuthGrant,
+    userId: adminUser?.userId ?? null,
+    hasPIN: !!adminUser?.pinHash,
   });
 
-  if (adminUser) {
-    if (!adminUser.pinHash) {
-      // Cookie user has no PIN — they shouldn't be using PIN verify
-      console.log("[pin/verify] Cookie user has no PIN → error");
-      return NextResponse.json(
-        { error: "PINが設定されていません。メールアドレスでログインしてください。", requiresFullAuth: true },
-        { status: 403 },
-      );
-    }
-  } else {
-    // No cookie or cookie user not found — fall back to first user with a PIN
-    adminUser = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
-    console.log("[pin/verify] Fallback user with PIN", {
-      found: !!adminUser,
-      userId: adminUser?.userId ?? null,
-    });
-  }
-  if (!adminUser?.pinHash) {
+  if (!deviceAuthGrant || !adminUser) {
     return NextResponse.json(
-      { error: "PINが設定されていません" },
-      { status: 400 },
+      { error: "メールアドレスとパスワードによる認証が必要です", requiresFullAuth: true },
+      { status: 403 },
+    );
+  }
+
+  if (!adminUser.pinHash) {
+    return NextResponse.json(
+      { error: "PINが設定されていません。メールアドレスでログインしてください。", requiresFullAuth: true },
+      { status: 403 },
     );
   }
 
@@ -112,7 +101,7 @@ export async function POST(request: NextRequest) {
     ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
-  if (!isFullAuthValid(adminUser.lastFullAuthAt, expireDays)) {
+  if (!isFullAuthValid(deviceAuthGrant.lastFullAuthAt, expireDays)) {
     return NextResponse.json(
       { error: "メールアドレスとパスワードによる認証が必要です", requiresFullAuth: true },
       { status: 403 },
@@ -156,12 +145,9 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
-  // Keep LAST_USER_COOKIE up-to-date so next logout shows the correct PIN screen
-  res.cookies.set(LAST_USER_COOKIE, adminUser.userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-  });
+  if (deviceToken) {
+    setDeviceAuthCookie(res, deviceToken);
+  }
+  clearLegacyLastUserCookie(res);
   return res;
 }

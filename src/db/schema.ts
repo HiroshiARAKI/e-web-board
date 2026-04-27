@@ -176,10 +176,29 @@ export const authSessions = pgTable("auth_sessions", {
     .default(isoNow),
 });
 
+export const deviceAuthGrants = pgTable("device_auth_grants", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  deviceTokenHash: text("device_token_hash").notNull().unique(),
+  lastFullAuthAt: text("last_full_auth_at").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
+});
+
 // ── Relations ────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(authSessions),
+  deviceAuthGrants: many(deviceAuthGrants),
   pinResetTokens: many(pinResetTokens),
 }));
 
@@ -193,6 +212,13 @@ export const pinResetTokensRelations = relations(pinResetTokens, ({ one }) => ({
 export const authSessionsRelations = relations(authSessions, ({ one }) => ({
   user: one(users, {
     fields: [authSessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const deviceAuthGrantsRelations = relations(deviceAuthGrants, ({ one }) => ({
+  user: one(users, {
+    fields: [deviceAuthGrants.userId],
     references: [users.id],
   }),
 }));

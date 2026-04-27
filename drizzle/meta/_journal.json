@@ -29,6 +29,13 @@
       "when": 1777211409250,
       "tag": "0003_mature_rattler",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777249886716,
+      "tag": "0004_tough_silk_fever",
+      "breakpoints": true
     }
   ]
 }

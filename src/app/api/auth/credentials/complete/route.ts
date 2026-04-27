@@ -7,9 +7,14 @@ import { db } from "@/db";
 import { authSessions, signupRequests, users } from "@/db/schema";
 import {
   AUTH_SESSION_COOKIE,
-  LAST_USER_COOKIE,
   hashPassword,
 } from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  clearLegacyLastUserCookie,
+  setDeviceAuthCookie,
+  storeDeviceFullAuth,
+} from "@/lib/device-auth";
 import { generateSessionToken } from "@/lib/pin";
 import {
   SIGNUP_REQUEST_COOKIE,
@@ -95,6 +100,11 @@ export async function POST(request: NextRequest) {
   });
 
   const cookieStore = await cookies();
+  const { deviceToken } = await storeDeviceFullAuth({
+    deviceToken: cookieStore.get(DEVICE_AUTH_COOKIE)?.value,
+    userId: createdUser.id,
+    authenticatedAt: now,
+  });
   const res = NextResponse.json({ success: true, userId: createdUser.userId });
   res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
     httpOnly: true,
@@ -102,12 +112,8 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: SETUP_SESSION_MAX_AGE,
   });
-  res.cookies.set(LAST_USER_COOKIE, createdUser.userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
+  setDeviceAuthCookie(res, deviceToken);
+  clearLegacyLastUserCookie(res);
   if (cookieStore.get(SIGNUP_REQUEST_COOKIE)) {
     res.cookies.set(SIGNUP_REQUEST_COOKIE, "", {
       httpOnly: true,

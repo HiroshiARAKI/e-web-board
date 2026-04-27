@@ -7,12 +7,17 @@ import { and, eq, gt } from "drizzle-orm";
 import { hashPin, generateSessionToken } from "@/lib/pin";
 import {
   AUTH_SESSION_COOKIE,
-  LAST_USER_COOKIE,
   SESSION_MAX_AGE,
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
 } from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  clearLegacyLastUserCookie,
+  getDeviceAuthGrantByToken,
+  setDeviceAuthCookie,
+} from "@/lib/device-auth";
 import { cookies } from "next/headers";
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
@@ -21,6 +26,7 @@ import { resolveOwnerUserId } from "@/lib/ownership";
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_AUTH_COOKIE)?.value;
 
   if (!sessionToken) {
     return NextResponse.json(
@@ -76,9 +82,13 @@ export async function POST(request: NextRequest) {
   const expireDays = expireSetting
     ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
+  const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
+  const deviceAuthLastFullAuthAt = deviceAuthGrant?.user.id === targetUser.id
+    ? deviceAuthGrant.lastFullAuthAt
+    : null;
 
   // Verify full-auth is still valid (set during credentials/setup)
-  if (!isFullAuthValid(targetUser.lastFullAuthAt, expireDays)) {
+  if (!isFullAuthValid(deviceAuthLastFullAuthAt, expireDays)) {
     return NextResponse.json(
       { error: "認証セッションが無効です。再度ログインしてください" },
       { status: 401 },
@@ -111,12 +121,10 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
-  res.cookies.set(LAST_USER_COOKIE, targetUser.userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
+  if (deviceToken) {
+    setDeviceAuthCookie(res, deviceToken);
+  }
+  clearLegacyLastUserCookie(res);
   return res;
 }
 

@@ -36,9 +36,8 @@ export async function verifyPassword(
 export const AUTH_SESSION_COOKIE = "auth-session";
 
 /**
- * Cookie that stores the userId (human-readable) of the most recently
- * authenticated user. Used to target the correct account on the PIN screen.
- * Long-lived (1 year), httpOnly.
+ * Legacy cookie that stored the last authenticated userId.
+ * Kept only so newer auth flows can explicitly clear it during migration.
  */
 export const LAST_USER_COOKIE = "last-user-id";
 
