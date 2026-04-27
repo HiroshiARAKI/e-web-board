@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { authSessions, pinAttempts } from "@/db/schema";
+import { authSessions, pinAttempts, users } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import {
+  hashPin,
+  needsPinRehash,
   verifyPin,
   generateSessionToken,
   MAX_PIN_ATTEMPTS,
@@ -114,7 +116,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!verifyPin(pin, adminUser.pinHash)) {
+  if (!(await verifyPin(pin, adminUser.pinHash))) {
     // Record failed attempt
     await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
 
@@ -127,6 +129,13 @@ export async function POST(request: NextRequest) {
       },
       { status: 401 },
     );
+  }
+
+  if (needsPinRehash(adminUser.pinHash)) {
+    await db
+      .update(users)
+      .set({ pinHash: await hashPin(pin) })
+      .where(eq(users.id, adminUser.id));
   }
 
   // Success — clear attempts for the verified subject bucket.

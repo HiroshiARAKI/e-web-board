@@ -1,20 +1,65 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, scrypt, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 
-/**
- * Hash a 6-digit PIN using SHA-256 with a static salt.
- * Sufficient for a 6-digit numeric PIN in localhost context.
- */
-export function hashPin(pin: string): string {
+const scryptAsync = promisify(scrypt);
+const PIN_SCRYPT_PREFIX = "scrypt";
+
+function hashLegacyPin(pin: string): string {
   return createHash("sha256")
     .update(`e-web-board-pin:${pin}`)
     .digest("hex");
 }
 
+function parseScryptPinHash(storedHash: string) {
+  if (!storedHash.startsWith(`${PIN_SCRYPT_PREFIX}:`)) {
+    return null;
+  }
+
+  const payload = storedHash.slice(PIN_SCRYPT_PREFIX.length + 1);
+  const [hashed, salt] = payload.split(".");
+  if (!hashed || !salt) {
+    return null;
+  }
+
+  return { hashed, salt };
+}
+
+/**
+ * Hash a 6-digit PIN using scrypt and return a self-describing value.
+ */
+export async function hashPin(pin: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(pin, salt, 64)) as Buffer;
+  return `${PIN_SCRYPT_PREFIX}:${buf.toString("hex")}.${salt}`;
+}
+
 /** Verify a PIN against a stored hash */
-export function verifyPin(pin: string, storedHash: string): boolean {
-  return hashPin(pin) === storedHash;
+export async function verifyPin(pin: string, storedHash: string): Promise<boolean> {
+  const parsed = parseScryptPinHash(storedHash);
+  if (parsed) {
+    try {
+      const buf = (await scryptAsync(pin, parsed.salt, 64)) as Buffer;
+      const hashedBuf = Buffer.from(parsed.hashed, "hex");
+      if (buf.length !== hashedBuf.length) {
+        return false;
+      }
+      return timingSafeEqual(buf, hashedBuf);
+    } catch {
+      return false;
+    }
+  }
+
+  return timingSafeEqual(
+    Buffer.from(hashLegacyPin(pin), "hex"),
+    Buffer.from(storedHash, "hex"),
+  );
+}
+
+/** Return true when a verified PIN hash should be upgraded to the current format. */
+export function needsPinRehash(storedHash: string): boolean {
+  return parseScryptPinHash(storedHash) === null;
 }
 
 /** Generate a cryptographically random session token */
