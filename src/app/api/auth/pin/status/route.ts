@@ -11,20 +11,14 @@ import {
   computeFullAuthExpiry,
   AUTH_SESSION_COOKIE,
 } from "@/lib/auth";
-import {
-  DEVICE_AUTH_COOKIE,
-  getDeviceAuthGrantByToken,
-} from "@/lib/device-auth";
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
 
 /** GET /api/auth/pin/status — check if admin user and PIN are configured */
 export async function GET() {
   const cookieStore = await cookies();
-  const deviceToken = cookieStore.get(DEVICE_AUTH_COOKIE)?.value;
-  const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
 
-  // Prefer the logged-in session user; fall back to the remembered device-auth user.
+  // Identity details are returned only for an authenticated dashboard session.
   let targetUser: typeof users.$inferSelect | null | undefined = null;
 
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
@@ -39,11 +33,7 @@ export async function GET() {
     targetUser = session?.user ?? null;
   }
 
-  if (!targetUser) {
-    targetUser = deviceAuthGrant?.user ?? null;
-  }
-
-  const anyUser = targetUser ? targetUser : await db.query.users.findFirst();
+  const anyUser = await db.query.users.findFirst();
 
   const ownerUserId = targetUser ? resolveOwnerUserId(targetUser) : null;
   const expireSetting = ownerUserId
@@ -53,11 +43,8 @@ export async function GET() {
     ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
-  const fullAuthAt = targetUser && deviceAuthGrant?.user.id === targetUser.id
-    ? deviceAuthGrant.lastFullAuthAt
-    : null;
   const fullAuthExpiry = targetUser
-    ? computeFullAuthExpiry(fullAuthAt, expireDays)
+    ? computeFullAuthExpiry(targetUser.lastFullAuthAt, expireDays)
     : null;
 
   return NextResponse.json({

@@ -6,19 +6,19 @@ import { users, pinResetTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateResetToken, RESET_TOKEN_TTL_MS } from "@/lib/pin";
 import { isSmtpConfigured, sendPinResetEmail } from "@/lib/mail";
-import { networkInterfaces } from "os";
 
-/** Get the first non-internal IPv4 address */
-function getLocalIp(): string | null {
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] ?? []) {
-      if (net.family === "IPv4" && !net.internal) {
-        return net.address;
-      }
-    }
+function getPinResetPublicOrigin(): string | null {
+  const configuredOrigin = process.env.APP_PUBLIC_ORIGIN?.trim();
+  if (!configuredOrigin) {
+    return null;
   }
-  return null;
+
+  try {
+    return new URL(configuredOrigin).origin;
+  } catch {
+    console.error("[pin/forgot] APP_PUBLIC_ORIGIN is invalid");
+    return null;
+  }
 }
 
 /** POST /api/auth/pin/forgot — verify email and issue reset token */
@@ -33,13 +33,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const publicOrigin = getPinResetPublicOrigin();
+  if (!isSmtpConfigured() || !publicOrigin) {
+    return NextResponse.json(
+      { error: "この環境ではメールによるPIN初期化を利用できません" },
+      { status: 503 },
+    );
+  }
+
   const adminUser = await db.query.users.findFirst({
     where: eq(users.email, email),
   });
 
   if (!adminUser) {
     // Always return success to prevent email enumeration
-    return NextResponse.json({ success: true, method: isSmtpConfigured() ? "email" : "link" });
+    return NextResponse.json({ success: true, method: "email" });
   }
 
   // Generate reset token
@@ -48,25 +56,9 @@ export async function POST(request: NextRequest) {
 
   await db.insert(pinResetTokens).values({ token, expiresAt, userId: adminUser.id });
 
-  // Build reset URL
-  const requestHost = request.headers.get("host") || "localhost:3000";
-  const protocol = request.headers.get("x-forwarded-proto") || "http";
-  const hostname = requestHost.split(":")[0];
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
-  let host = requestHost;
-  if (isLocalhost) {
-    const localIp = getLocalIp();
-    if (localIp) {
-      const port = requestHost.includes(":") ? `:${requestHost.split(":")[1]}` : "";
-      host = `${localIp}${port}`;
-    }
-  }
-  const resetUrl = `${protocol}://${host}/pin/reset/${token}`;
+  const resetUrl = `${publicOrigin}/pin/reset/${token}`;
 
-  if (isSmtpConfigured()) {
-    await sendPinResetEmail(email, resetUrl);
-    return NextResponse.json({ success: true, method: "email" });
-  }
+  await sendPinResetEmail(email, resetUrl);
 
-  return NextResponse.json({ success: true, method: "link", resetUrl });
+  return NextResponse.json({ success: true, method: "email" });
 }

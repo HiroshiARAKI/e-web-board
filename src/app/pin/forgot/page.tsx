@@ -10,8 +10,6 @@ import { KeinageLogo } from "@/components/KeinageLogo";
 export default function PinForgotPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
-  const [resetUrl, setResetUrl] = useState("");
-  const [method, setMethod] = useState<"email" | "link" | "">("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -36,10 +34,6 @@ export default function PinForgotPage() {
       }
 
       setSubmitted(true);
-      if (data.method) setMethod(data.method);
-      if (data.resetUrl) {
-        setResetUrl(data.resetUrl);
-      }
     } catch {
       setError("通信エラーが発生しました");
     } finally {
@@ -91,34 +85,13 @@ export default function PinForgotPage() {
             </form>
           ) : (
             <div className="space-y-4">
-              {method === "email" ? (
-                <p className="text-center text-sm text-gray-600">
-                  メールアドレスが登録されている場合、初期化リンクをメールで送信しました。
-                  <br />
-                  <span className="text-xs text-gray-400">
-                    メールが届かない場合は迷惑メールフォルダをご確認ください。
-                  </span>
-                </p>
-              ) : resetUrl ? (
-                <>
-                  <p className="text-center text-sm text-gray-600">
-                    メールアドレスが確認されました。以下のリンクからPINを再設定してください。
-                  </p>
-                  <a
-                    href={resetUrl}
-                    className="block break-all rounded-lg bg-blue-50 px-4 py-3 text-center text-sm font-medium text-blue-700 hover:bg-blue-100"
-                  >
-                    PINを再設定する
-                  </a>
-                  <p className="text-center text-xs text-gray-400">
-                    このリンクは30分間有効です
-                  </p>
-                </>
-              ) : (
-                <p className="text-center text-sm text-gray-600">
-                  メールアドレスが登録されている場合、初期化リンクを送信しました。
-                </p>
-              )}
+              <p className="text-center text-sm text-gray-600">
+                メールアドレスが登録されている場合、初期化リンクをメールで送信しました。
+                <br />
+                <span className="text-xs text-gray-400">
+                  メールが届かない場合は迷惑メールフォルダをご確認ください。
+                </span>
+              </p>
             </div>
           )}
 
