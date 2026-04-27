@@ -18,7 +18,7 @@
 | Cookie | 用途 |
 | --- | --- |
 | `auth-session` | 認証済みセッション識別 |
-| `last-user-id` | 次回 PIN 認証対象のユーザー識別 |
+| `device-auth` | 端末単位の完全認証キャッシュ識別 |
 | `signup-request-id` | `/signingup` で仮登録状態を識別 |
 
 ### 2.2 認証の考え方
@@ -122,7 +122,7 @@ Owner 登録の仮受付を行います。
 }
 ```
 
-PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-id` Cookie も更新します。
+PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位の `device-auth` Cookie も更新します。
 
 ### 3.2 ログイン / ログアウト
 
@@ -147,7 +147,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 仕様:
 
 - `identifier` はメールアドレスまたは `userId`
-- 成功時に `auth-session` と `last-user-id` Cookie を設定
+- 成功時に `auth-session` と `device-auth` Cookie を設定
 - 失敗回数は `client + identifier` bucket ベースで制限
 
 #### `POST /api/auth/pin/verify`
@@ -162,7 +162,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
 
 仕様:
 
-- `last-user-id` があればそのユーザーの PIN を優先検証
+- `device-auth` に紐づく端末認証キャッシュがあればそのユーザーの PIN を検証
 - 対象ユーザーに PIN がない場合は `requiresFullAuth: true` を返す
 - フル認証期限切れでも `requiresFullAuth: true` を返す
 - 失敗回数は `client + target user` bucket ベースで制限
@@ -181,6 +181,11 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
   "authExpireDays": 30
 }
 ```
+
+注記:
+
+- 未認証アクセスでは `email` / `userId` を返しません。
+- 詳細な期限情報は認証済みセッション時のみ返します。
 
 ### 3.3 PIN / アカウント情報変更
 
@@ -212,6 +217,26 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、`last-user-i
   "newPin": "654321"
 }
 ```
+
+#### `POST /api/auth/pin/forgot`
+
+仕様:
+
+- remembered user がいる端末からのみ利用できます。対象ユーザーを特定できない GET 直アクセスは `/pin` または `/pin/login` へ戻します。
+- POST では `targetUserId` を受け取り、現在その端末で PIN 入力対象になっているユーザーと一致する必要があります。
+- 入力メールアドレスは、その対象ユーザーに登録されているメールアドレスと完全一致する必要があります。
+- 未認証レスポンスでは reset URL や token 相当の情報を返しません。
+- PIN 初期化リンクは `APP_PUBLIC_ORIGIN` を基準に組み立て、メールでのみ配布します。
+- `SMTP_*` と `APP_PUBLIC_ORIGIN` が未設定の環境では、このエンドポイントは `503` を返します。
+- メール送信に失敗した場合は `500` を返します。
+
+#### `POST /api/auth/pin/reset`
+
+仕様:
+
+- リセットトークンは必ず特定ユーザーに紐づいている必要があります。
+- 運用上、未認証の PIN リセットはメールで受け取ったリンク経由のみを想定します。
+- ログイン済みユーザーの PIN 変更は `/api/auth/pin/change` を使用します。
 
 ## 4. ユーザー API
 

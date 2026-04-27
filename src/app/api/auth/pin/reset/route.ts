@@ -48,10 +48,17 @@ export async function POST(request: NextRequest) {
     .set({ usedAt: now })
     .where(eq(pinResetTokens.id, resetToken.id));
 
-  // Find the user linked to this token, else fall back to first admin user
-  let targetUser = resetToken.userId
-    ? await db.query.users.findFirst({ where: eq(users.id, resetToken.userId) })
-    : await db.query.users.findFirst();
+  // Reset tokens must be bound to a specific user.
+  if (!resetToken.userId) {
+    return NextResponse.json(
+      { error: "無効なトークンです" },
+      { status: 400 },
+    );
+  }
+
+  const targetUser = await db.query.users.findFirst({
+    where: eq(users.id, resetToken.userId),
+  });
   if (!targetUser) {
     return NextResponse.json(
       { error: "管理者ユーザーが見つかりません" },
