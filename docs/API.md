@@ -441,7 +441,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 | `GET` | `/api/sse/[boardId]` | ボード単位の SSE ストリーム | 表示画面 |
 | `GET` | `/api/sse` | 誤アクセス時の案内 | なし |
 | `GET` | `/api/weather` | 設定地域の天気取得 | 内部向け / 表示向け |
-| `GET` | `/api/network` | ローカル IPv4 を返す | 内部向け |
+| `GET` | `/api/network` | ローカル IPv4 を返す | `admin` |
 | `GET` | `/api/version` | 現在/最新バージョン情報 | 内部向け |
 
 #### `GET /api/sse/[boardId]`
@@ -458,6 +458,11 @@ data: {}
 - `settings.weatherCityId` を参照します。
 - 30 分のインメモリキャッシュを使います。
 - 返却内容は外部 API レスポンス互換の JSON です。
+
+#### `GET /api/network`
+
+- 管理者セッションがある場合のみ、最初に見つかった非 internal IPv4 を返します。
+- 権限がない場合は `403` を返します。
 
 #### `GET /api/version`
 

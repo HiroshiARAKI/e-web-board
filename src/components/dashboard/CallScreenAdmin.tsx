@@ -41,7 +41,10 @@ export default function CallScreenAdmin({
     (async () => {
       try {
         const res = await fetch("/api/network");
-        if (!res.ok) return;
+        if (!res.ok) {
+          setNetworkOrigin(window.location.origin);
+          return;
+        }
         const data = await res.json();
         if (data.ip) {
           const port = window.location.port;
