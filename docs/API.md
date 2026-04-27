@@ -37,6 +37,13 @@ API は大きく 3 種類に分かれます。
 - `boards`、`media`、`messages`、`settings` など一部の内部 API は、現状レイアウト側の認証ゲート利用を前提にしており、Route Handler 単体では厳密な認可チェックを入れていないものがあります。
 - `POST /api/messages` は外部連携向けです。
 
+### 2.3 ログイン試行制限の IP 解決
+
+- `POST /api/auth/credentials/login` と `POST /api/auth/pin/verify` は `pin_attempts` を使って試行制限します。
+- `TRUST_PROXY_HEADERS=true` のときだけ `x-forwarded-for` / `x-real-ip` を client IP として利用します。
+- `TRUST_PROXY_HEADERS=false` のときは proxy header を信用せず、`client + auth subject` 単位の bucket で試行回数を管理します。
+- 公開運用で ALB / CloudFront / Nginx などが header を上書きする場合のみ `TRUST_PROXY_HEADERS=true` を設定してください。
+
 ## 3. 認証 API
 
 ### 3.1 Owner サインアップ / 初期 PIN 設定
@@ -141,7 +148,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 
 - `identifier` はメールアドレスまたは `userId`
 - 成功時に `auth-session` と `device-auth` Cookie を設定
-- 失敗回数は IP ベースで制限
+- 失敗回数は `client + identifier` bucket ベースで制限
 
 #### `POST /api/auth/pin/verify`
 
@@ -158,6 +165,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 - `device-auth` に紐づく端末認証キャッシュがあればそのユーザーの PIN を検証
 - 対象ユーザーに PIN がない場合は `requiresFullAuth: true` を返す
 - フル認証期限切れでも `requiresFullAuth: true` を返す
+- 失敗回数は `client + target user` bucket ベースで制限
 
 #### `GET /api/auth/pin/status`
 
@@ -327,11 +335,11 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 | `GET` | `/api/media` | メディア一覧取得 | 内部向け |
 | `POST` | `/api/media` | メディアアップロード | 内部向け |
 | `PATCH` | `/api/media` | 表示順更新 | 内部向け |
-| `DELETE` | `/api/media` | 全メディア削除 | 内部向け |
+| `DELETE` | `/api/media` | 全メディア削除 | `admin` |
 | `DELETE` | `/api/media/[id]` | 1 件削除 | 内部向け |
 | `PATCH` | `/api/media/[id]` | 1 件の設定更新 | 内部向け |
-| `GET` | `/api/media/files` | ストレージ上ファイル一覧取得 | 内部向け |
-| `DELETE` | `/api/media/files` | ストレージ上ファイルと参照レコード削除 | 内部向け |
+| `GET` | `/api/media/files` | ストレージ上ファイル一覧取得 | `admin` |
+| `DELETE` | `/api/media/files` | ストレージ上ファイルと参照レコード削除 | `admin` |
 
 #### `POST /api/media`
 
@@ -376,7 +384,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 
 | Method | Path | 説明 | 認証 |
 | --- | --- | --- | --- |
-| `POST` | `/api/messages` | メッセージ作成 | 外部連携可 |
+| `POST` | `/api/messages` | メッセージ作成 | 内部向け |
 | `PATCH` | `/api/messages/[id]` | メッセージ更新 | 内部向け |
 | `DELETE` | `/api/messages/[id]` | メッセージ削除 | 内部向け |
 
@@ -400,12 +408,17 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 
 成功時は `message-updated` を発行します。
 
+注記:
+
+- 現在の `POST /api/messages` は認証済みセッションを前提とする内部 API です。
+- 外部連携として公開する場合は、別 endpoint と別認証方式で切り出す前提です。
+
 ## 8. 設定 API
 
 | Method | Path | 説明 | 認証 |
 | --- | --- | --- | --- |
-| `GET` | `/api/settings` | KV 設定をまとめて取得 | 内部向け |
-| `PATCH` | `/api/settings` | KV 設定を upsert | 内部向け |
+| `GET` | `/api/settings` | KV 設定をまとめて取得 | `admin` |
+| `PATCH` | `/api/settings` | KV 設定を upsert | `admin` |
 
 #### `PATCH /api/settings`
 
@@ -418,6 +431,8 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 ```
 
 現在の実装では value は文字列として保存します。
+
+設定 API は owner 全体に影響するため、管理者ユーザーのみ利用できます。
 
 ## 9. SSE / 補助 API
 

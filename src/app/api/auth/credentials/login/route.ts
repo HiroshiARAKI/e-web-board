@@ -20,15 +20,29 @@ import {
   IP_BLOCK_DURATION_MS,
   generateSessionToken,
 } from "@/lib/pin";
+import {
+  buildRateLimitKey,
+  resolveRateLimitClientIp,
+} from "@/lib/rate-limit";
 
 /** POST /api/auth/credentials/login — email/userId + password login */
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const clientIp = resolveRateLimitClientIp(request);
 
-  // IP rate-limit (shared with PIN attempts)
+  const body = await request.json();
+  const { identifier, password } = body as {
+    identifier?: string;
+    password?: string;
+  };
+
+  const normalizedIdentifier = identifier?.trim() ?? "";
+  const rateLimitKey = buildRateLimitKey({
+    flow: "credentials",
+    clientIp,
+    subject: normalizedIdentifier || "missing-identifier",
+  });
+
+  // Rate-limit per client/subject bucket. Proxy headers are trusted only when configured.
   const blockThreshold = new Date(
     Date.now() - IP_BLOCK_DURATION_MS,
   ).toISOString();
@@ -37,7 +51,7 @@ export async function POST(request: NextRequest) {
     .from(pinAttempts)
     .where(
       and(
-        eq(pinAttempts.ipAddress, ip),
+        eq(pinAttempts.ipAddress, rateLimitKey),
         gt(pinAttempts.attemptedAt, blockThreshold),
       ),
     );
@@ -53,13 +67,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
-  const { identifier, password } = body as {
-    identifier?: string;
-    password?: string;
-  };
-
-  if (!identifier || !password) {
+  if (!normalizedIdentifier || !password) {
     return NextResponse.json(
       { error: "ユーザーIDまたはメールアドレスとパスワードを入力してください" },
       { status: 400 },
@@ -68,20 +76,20 @@ export async function POST(request: NextRequest) {
 
   const user = await db.query.users.findFirst({
     where: or(
-      eq(users.email, identifier),
-      eq(users.userId, identifier),
+      eq(users.email, normalizedIdentifier),
+      eq(users.userId, normalizedIdentifier),
     ),
   });
 
   console.log("[credentials/login] User lookup", {
-    identifier,
+    identifier: normalizedIdentifier,
     found: !!user,
     userId: user?.userId ?? null,
   });
 
   // Constant-time failure to prevent user enumeration
   if (!user) {
-    await db.insert(pinAttempts).values({ ipAddress: ip });
+    await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
     return NextResponse.json(
       { error: "ユーザーIDまたはパスワードが正しくありません" },
       { status: 401 },
@@ -95,7 +103,7 @@ export async function POST(request: NextRequest) {
     pwHashLen: user.passwordHash?.length ?? 0,
   });
   if (!valid) {
-    await db.insert(pinAttempts).values({ ipAddress: ip });
+    await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
     return NextResponse.json(
       {
@@ -106,8 +114,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Clear IP attempts on success
-  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+  // Clear attempts for the successfully authenticated subject bucket.
+  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, rateLimitKey));
 
   console.log("[credentials/login] Password verified OK for", user.userId);
 
