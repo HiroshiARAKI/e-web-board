@@ -7,6 +7,7 @@ import { authSessions } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { SettingsClient } from "@/components/dashboard/SettingsClient";
+import { isOwnerUser } from "@/lib/ownership";
 
 export default async function SettingsPage() {
   const cookieStore = await cookies();
@@ -25,7 +26,11 @@ export default async function SettingsPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">設定</h1>
-      <SettingsClient role={session.user.role as "admin" | "general"} currentUserId={session.user.userId} />
+      <SettingsClient
+        role={session.user.role as "admin" | "general"}
+        currentUserId={session.user.userId}
+        isOwner={isOwnerUser(session.user)}
+      />
     </div>
   );
 }
