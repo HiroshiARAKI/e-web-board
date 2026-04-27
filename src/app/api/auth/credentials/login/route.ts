@@ -4,7 +4,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, pinAttempts, authSessions } from "@/db/schema";
 import { eq, or, and, gt } from "drizzle-orm";
-import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE, LAST_USER_COOKIE } from "@/lib/auth";
+import {
+  verifyPassword,
+  AUTH_SESSION_COOKIE,
+  SESSION_MAX_AGE,
+} from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  clearLegacyLastUserCookie,
+  setDeviceAuthCookie,
+  storeDeviceFullAuth,
+} from "@/lib/device-auth";
 import {
   MAX_PIN_ATTEMPTS,
   IP_BLOCK_DURATION_MS,
@@ -109,6 +119,12 @@ export async function POST(request: NextRequest) {
     .set({ lastFullAuthAt: now })
     .where(eq(users.id, user.id));
 
+  const { deviceToken } = await storeDeviceFullAuth({
+    deviceToken: request.cookies.get(DEVICE_AUTH_COOKIE)?.value,
+    userId: user.id,
+    authenticatedAt: now,
+  });
+
   // Create session
   const sessionToken = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString();
@@ -126,12 +142,7 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
-  // Remember which user last authenticated so the PIN screen can target them
-  res.cookies.set(LAST_USER_COOKIE, user.userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-  });
+  setDeviceAuthCookie(res, deviceToken);
+  clearLegacyLastUserCookie(res);
   return res;
 }

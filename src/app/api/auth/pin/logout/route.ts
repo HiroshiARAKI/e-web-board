@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { authSessions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import { clearLegacyLastUserCookie } from "@/lib/device-auth";
 import { cookies } from "next/headers";
 
 /** POST /api/auth/pin/logout — clear session */
@@ -20,6 +21,14 @@ export async function POST() {
       .where(eq(authSessions.sessionToken, sessionToken));
   }
 
-  cookieStore.delete(AUTH_SESSION_COOKIE);
-  return NextResponse.json({ success: true });
+  const res = NextResponse.json({ success: true });
+  res.cookies.set(AUTH_SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
+  clearLegacyLastUserCookie(res);
+  return res;
 }

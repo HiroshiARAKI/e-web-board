@@ -11,6 +11,10 @@ import {
   AUTH_EXPIRE_DAYS_KEY,
   isFullAuthValid,
 } from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  getDeviceAuthGrantByToken,
+} from "@/lib/device-auth";
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
 import { ThemeProvider } from "@/components/dashboard/ThemeProvider";
@@ -24,6 +28,7 @@ export default async function DashboardLayout({
   // Read cookies first to signal Next.js that this layout is dynamic.
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_AUTH_COOKIE)?.value;
 
   console.log("[dashboard/layout] Auth check", { hasSessionToken: !!sessionToken });
 
@@ -53,17 +58,23 @@ export default async function DashboardLayout({
     ? parseInt(expireSetting, 10)
     : DEFAULT_AUTH_EXPIRE_DAYS;
 
-  const fullValid = isFullAuthValid(session.user.lastFullAuthAt, expireDays);
+  const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
+  const sameUser = deviceAuthGrant?.user.id === session.user.id;
+  const deviceAuthLastFullAuthAt = sameUser
+    ? deviceAuthGrant.lastFullAuthAt
+    : null;
+  const fullValid = isFullAuthValid(deviceAuthLastFullAuthAt, expireDays);
   console.log("[dashboard/layout] Full auth check", {
     userId: session.user.userId,
-    lastFullAuthAt: session.user.lastFullAuthAt,
+    deviceAuthUserId: deviceAuthGrant?.user.userId ?? null,
+    lastFullAuthAt: deviceAuthLastFullAuthAt,
     expireDays,
     fullValid,
   });
 
   if (!fullValid) {
-    console.log("[dashboard/layout] Full auth expired → /pin");
-    redirect("/pin");
+    console.log("[dashboard/layout] Full auth expired for this device → /pin/login");
+    redirect("/pin/login");
   }
 
   const { userId, role, colorTheme } = session.user;
