@@ -50,6 +50,7 @@ services:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/keinage
+      - APP_PUBLIC_ORIGIN=${APP_PUBLIC_ORIGIN:-http://localhost:3000}
       - S3_ENDPOINT=${S3_INTERNAL_ENDPOINT:-${S3_ENDPOINT:-}}
       - S3_REGION=${S3_REGION:-}
       - S3_BUCKET=${S3_BUCKET:-}
