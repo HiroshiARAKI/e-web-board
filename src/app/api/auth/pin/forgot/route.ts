@@ -1,12 +1,13 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, pinResetTokens } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { pinResetTokens } from "@/db/schema";
 import { generateResetToken, RESET_TOKEN_TTL_MS } from "@/lib/pin";
 import { isSmtpConfigured, sendPinResetEmail } from "@/lib/mail";
 import { isValidSignupEmail, normalizeSignupEmail } from "@/lib/signup";
+import { DEVICE_AUTH_COOKIE, getDeviceAuthGrantByToken } from "@/lib/device-auth";
 
 function getPinResetPublicOrigin(): string | null {
   const configuredOrigin = process.env.APP_PUBLIC_ORIGIN?.trim();
@@ -25,8 +26,16 @@ function getPinResetPublicOrigin(): string | null {
 /** POST /api/auth/pin/forgot — verify email and issue reset token */
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { email } = body as { email?: string };
+  const { email, targetUserId } = body as { email?: string; targetUserId?: string };
   const normalizedEmail = typeof email === "string" ? normalizeSignupEmail(email) : "";
+  const normalizedTargetUserId = typeof targetUserId === "string" ? targetUserId.trim() : "";
+
+  if (!normalizedTargetUserId) {
+    return NextResponse.json(
+      { error: "PIN初期化対象のユーザーが不明です" },
+      { status: 400 },
+    );
+  }
 
   if (!normalizedEmail) {
     return NextResponse.json(
@@ -50,13 +59,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const adminUser = await db.query.users.findFirst({
-    where: eq(users.email, normalizedEmail),
-  });
+  const cookieStore = await cookies();
+  const deviceToken = cookieStore.get(DEVICE_AUTH_COOKIE)?.value;
+  const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
 
-  if (!adminUser) {
+  if (!deviceAuthGrant?.user) {
     return NextResponse.json(
-      { error: "登録済みのメールアドレスを入力してください" },
+      { error: "PIN初期化対象のユーザーを特定できません" },
+      { status: 400 },
+    );
+  }
+
+  if (deviceAuthGrant.user.userId !== normalizedTargetUserId) {
+    return NextResponse.json(
+      { error: "現在のPIN初期化対象ユーザーと一致しません" },
+      { status: 400 },
+    );
+  }
+
+  if (normalizeSignupEmail(deviceAuthGrant.user.email) !== normalizedEmail) {
+    return NextResponse.json(
+      { error: "このユーザーに登録されているメールアドレスを入力してください" },
       { status: 400 },
     );
   }
@@ -65,11 +88,15 @@ export async function POST(request: NextRequest) {
   const token = generateResetToken();
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
 
-  await db.insert(pinResetTokens).values({ token, expiresAt, userId: adminUser.id });
+  await db.insert(pinResetTokens).values({
+    token,
+    expiresAt,
+    userId: deviceAuthGrant.user.id,
+  });
 
   const resetUrl = `${publicOrigin}/pin/reset/${token}`;
 
-  const mailSent = await sendPinResetEmail(normalizedEmail, resetUrl);
+  const mailSent = await sendPinResetEmail(deviceAuthGrant.user.email, resetUrl);
   if (!mailSent) {
     return NextResponse.json(
       { error: "初期化メールの送信に失敗しました" },
