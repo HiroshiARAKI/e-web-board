@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -43,6 +44,7 @@ export function MessageBoardConfigEditor({
   onChange,
 }: MessageBoardConfigEditorProps) {
   useLoadAllGoogleFonts();
+  const { t } = useLocale();
 
   const maxDisplayCount = (config.maxDisplayCount as number) ?? 10;
   const fontSize = (config.fontSize as number) ?? 20;
@@ -66,7 +68,7 @@ export function MessageBoardConfigEditor({
           onCheckedChange={(v) => update("showClock", v)}
         />
         <Label htmlFor="cfg-showClock" className="min-w-0 flex-1 leading-snug">
-          現在時刻を表示
+          {t("configEditor.showClock")}
         </Label>
       </div>
 
@@ -77,17 +79,17 @@ export function MessageBoardConfigEditor({
           onCheckedChange={(v) => update("showWeather", v)}
         />
         <Label htmlFor="cfg-showWeather" className="min-w-0 flex-1 leading-snug">
-          天気予報を表示
+          {t("configEditor.showWeather")}
         </Label>
       </div>
       {showWeather && (
         <p className="break-words text-xs text-muted-foreground">
-          表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+          {t("configEditor.weatherHint")}
         </p>
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-maxDisplay">最大表示件数</Label>
+        <Label htmlFor="cfg-maxDisplay">{t("configEditor.maxDisplayCount")}</Label>
         <Input
           id="cfg-maxDisplay"
           type="number"
@@ -102,7 +104,7 @@ export function MessageBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-fontSize">文字サイズ ({fontSize}px)</Label>
+        <Label htmlFor="cfg-fontSize">{t("configEditor.fontSize", { size: fontSize })}</Label>
         <input
           id="cfg-fontSize"
           type="range"
@@ -116,7 +118,7 @@ export function MessageBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-bgColor">背景色</Label>
+        <Label htmlFor="cfg-bgColor">{t("configEditor.backgroundColor")}</Label>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <input
             type="color"
@@ -135,7 +137,7 @@ export function MessageBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-textColor">文字色</Label>
+        <Label htmlFor="cfg-textColor">{t("configEditor.textColor")}</Label>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <input
             type="color"
@@ -154,7 +156,7 @@ export function MessageBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-accentColor">アクセントカラー</Label>
+        <Label htmlFor="cfg-accentColor">{t("configEditor.accentColor")}</Label>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <input
             type="color"
@@ -173,14 +175,14 @@ export function MessageBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-font">フォント</Label>
+        <Label htmlFor="cfg-font">{t("configEditor.font")}</Label>
         <Select
           value={fontFamily}
           onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
         >
           <SelectTrigger id="cfg-font" className="w-full sm:max-w-64">
-            <SelectValue placeholder="フォントを選択">
-              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
+            <SelectValue placeholder={t("configEditor.fontPlaceholder")}>
+              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? t("common.default")}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>

@@ -43,6 +43,13 @@
       "when": 1777298550561,
       "tag": "0005_harsh_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777346363127,
+      "tag": "0006_skinny_marten_broadcloak",
+      "breakpoints": true
     }
   ]
 }

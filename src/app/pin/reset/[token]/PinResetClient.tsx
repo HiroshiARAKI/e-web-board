@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { PinInput } from "@/components/auth/PinInput";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 interface PinResetClientProps {
@@ -14,6 +15,7 @@ interface PinResetClientProps {
 
 export default function PinResetClient({ token }: PinResetClientProps) {
   const router = useRouter();
+  const { t } = useLocale();
   const [step, setStep] = useState<"pin" | "confirm">("pin");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -28,7 +30,7 @@ export default function PinResetClient({ token }: PinResetClientProps) {
 
   async function handleConfirmComplete(value: string) {
     if (value !== pin) {
-      setError("PINが一致しません。もう一度入力してください。");
+      setError(t("auth.pinReset.mismatch"));
       setConfirmPin("");
       return;
     }
@@ -45,14 +47,14 @@ export default function PinResetClient({ token }: PinResetClientProps) {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "PINの変更に失敗しました");
+        setError(data.error || t("auth.pinReset.failed"));
         setSubmitting(false);
         return;
       }
 
       router.push("/pin");
     } catch {
-      setError("通信エラーが発生しました");
+      setError(t("error.network"));
       setSubmitting(false);
     }
   }
@@ -69,13 +71,11 @@ export default function PinResetClient({ token }: PinResetClientProps) {
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <KeyRound className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">
-              PINの再設定
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.pinReset.title")}</h2>
             <p className="text-center text-sm text-gray-500">
               {step === "pin"
-                ? "新しい6桁のPINを入力してください"
-                : "確認のためもう一度入力してください"}
+                ? t("auth.pinReset.stepPin")
+                : t("auth.pinReset.stepConfirm")}
             </p>
           </div>
 
@@ -99,7 +99,7 @@ export default function PinResetClient({ token }: PinResetClientProps) {
               />
               {submitting && (
                 <p className="mt-3 text-center text-sm text-gray-500">
-                  変更中...
+                  {t("auth.pinReset.changing")}
                 </p>
               )}
             </div>
@@ -120,7 +120,7 @@ export default function PinResetClient({ token }: PinResetClientProps) {
               }}
               className="mt-4 block w-full text-center text-sm text-gray-500 hover:text-gray-700"
             >
-              PINを入力し直す
+              {t("auth.pinReset.retry")}
             </button>
           )}
         </div>

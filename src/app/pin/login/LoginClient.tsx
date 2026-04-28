@@ -6,6 +6,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { KeyRound } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 export default function LoginClient({
@@ -16,6 +17,7 @@ export default function LoginClient({
   showPinLoginLink: boolean;
 }) {
   const router = useRouter();
+  const { t } = useLocale();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,7 +43,7 @@ export default function LoginClient({
 
         if (!res.ok) {
           if (data.blocked) setBlocked(true);
-          setError(data.error || "認証に失敗しました");
+          setError(data.error || t("error.authFailed"));
           setPassword("");
           setSubmitting(false);
           return;
@@ -49,12 +51,12 @@ export default function LoginClient({
 
         router.push(redirectTo || "/boards");
       } catch {
-        setError("通信エラーが発生しました");
+        setError(t("error.network"));
         setPassword("");
         setSubmitting(false);
       }
     },
-    [router, redirectTo, identifier, password, submitting, blocked],
+    [router, redirectTo, identifier, password, submitting, blocked, t],
   );
 
   const pinLoginHref = redirectTo
@@ -73,9 +75,9 @@ export default function LoginClient({
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <KeyRound className="size-8 text-gray-400" />
-            <h2 className="text-lg font-bold text-gray-900">アカウントログイン</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.login.title")}</h2>
             <p className="text-center text-sm text-gray-500">
-              メールアドレスまたはユーザーIDとパスワードを入力してください
+              {t("auth.login.subtitle")}
             </p>
           </div>
 
@@ -85,14 +87,14 @@ export default function LoginClient({
                 htmlFor="identifier"
                 className="mb-1.5 block text-sm font-medium text-gray-700"
               >
-                メールアドレス / ユーザーID
+                {t("auth.login.identifierLabel")}
               </label>
               <input
                 id="identifier"
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="admin@example.com または admin"
+                placeholder={t("auth.login.identifierPlaceholder")}
                 required
                 autoFocus
                 disabled={blocked}
@@ -104,14 +106,14 @@ export default function LoginClient({
                 htmlFor="password"
                 className="mb-1.5 block text-sm font-medium text-gray-700"
               >
-                パスワード
+                {t("auth.login.passwordLabel")}
               </label>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="パスワード"
+                placeholder={t("auth.login.passwordPlaceholder")}
                 required
                 disabled={blocked}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
@@ -127,7 +129,7 @@ export default function LoginClient({
               disabled={submitting || blocked}
               className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
             >
-              {submitting ? "認証中..." : "ログイン"}
+              {submitting ? t("auth.login.submitting") : t("auth.login.submit")}
             </button>
           </form>
 
@@ -137,7 +139,7 @@ export default function LoginClient({
                 href={pinLoginHref}
                 className="text-sm text-gray-500 hover:text-blue-600"
               >
-                PINでログインする
+                {t("auth.login.loginWithPin")}
               </Link>
             </div>
           )}

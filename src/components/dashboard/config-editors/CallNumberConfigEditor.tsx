@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -17,34 +18,34 @@ import {
 /** Color presets for Light / Dark themes */
 const COLOR_PRESETS = [
   {
-    label: "ダーク（デフォルト）",
+    labelKey: "configEditor.darkDefault",
     backgroundColor: "#1a1a2e",
     waitingTextColor: "#ffffff",
     calledTextColor: "#00ff88",
     highlightColor: "#ff6b35",
   },
   {
-    label: "ライト",
+    labelKey: "configEditor.light",
     backgroundColor: "#f5f5f5",
     waitingTextColor: "#333333",
     calledTextColor: "#16a34a",
     highlightColor: "#dc2626",
   },
   {
-    label: "ネイビー",
+    labelKey: "configEditor.navy",
     backgroundColor: "#0f172a",
     waitingTextColor: "#e2e8f0",
     calledTextColor: "#38bdf8",
     highlightColor: "#f59e0b",
   },
   {
-    label: "ホスピタルグリーン",
+    labelKey: "configEditor.hospitalGreen",
     backgroundColor: "#ecfdf5",
     waitingTextColor: "#1e3a2f",
     calledTextColor: "#059669",
     highlightColor: "#dc2626",
   },
-];
+] as const;
 
 interface CallNumberConfigEditorProps {
   config: Record<string, unknown>;
@@ -55,6 +56,7 @@ export function CallNumberConfigEditor({
   config,
   onChange,
 }: CallNumberConfigEditorProps) {
+  const { t } = useLocale();
   const showClock = (config.showClock as boolean) ?? true;
   const backgroundColor = (config.backgroundColor as string) ?? "#1a1a2e";
   const waitingTextColor = (config.waitingTextColor as string) ?? "#ffffff";
@@ -82,31 +84,31 @@ export function CallNumberConfigEditor({
     <div className="space-y-6">
       {/* Clock */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">時計</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.clockSection")}</h4>
         <div className="flex flex-wrap items-start gap-3">
           <Switch
             id="cfg-showClock"
             checked={showClock}
             onCheckedChange={(v) => update("showClock", v)}
           />
-          <Label htmlFor="cfg-showClock">日付・時刻を表示</Label>
+          <Label htmlFor="cfg-showClock">{t("configEditor.showClock")}</Label>
         </div>
       </div>
 
       {/* Layout */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">レイアウト</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.layoutSection")}</h4>
         <div className="space-y-1.5">
-          <Label htmlFor="cfg-layout">レーン配置</Label>
+          <Label htmlFor="cfg-layout">{t("configEditor.laneLayout")}</Label>
           <Select value={layout} onValueChange={(v) => update("layout", v)}>
             <SelectTrigger id="cfg-layout" className="w-full max-w-48">
               <SelectValue>
-                {layout === "horizontal" ? "横レイアウト" : "縦レイアウト"}
+                {layout === "horizontal" ? t("configEditor.horizontalLayout") : t("configEditor.verticalLayout")}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="horizontal">横レイアウト</SelectItem>
-              <SelectItem value="vertical">縦レイアウト</SelectItem>
+              <SelectItem value="horizontal">{t("configEditor.horizontalLayout")}</SelectItem>
+              <SelectItem value="vertical">{t("configEditor.verticalLayout")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -114,10 +116,10 @@ export function CallNumberConfigEditor({
 
       {/* Number display */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">番号表示</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.numberDisplaySection")}</h4>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-numberFontSize">番号のフォントサイズ ({numberFontSize}px)</Label>
+            <Label htmlFor="cfg-numberFontSize">{t("configEditor.numberFontSize", { size: numberFontSize })}</Label>
             <input
               id="cfg-numberFontSize"
               type="range"
@@ -134,7 +136,7 @@ export function CallNumberConfigEditor({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-calledExpire">呼び出し済み番号の自動削除 (分)</Label>
+            <Label htmlFor="cfg-calledExpire">{t("configEditor.calledExpire")}</Label>
             <Input
               id="cfg-calledExpire"
               type="number"
@@ -145,7 +147,7 @@ export function CallNumberConfigEditor({
               className="w-28"
             />
             <p className="text-xs text-muted-foreground">
-              呼び出し後、指定時間が経過した番号はボード画面から自動で削除されます
+              {t("configEditor.calledExpireHint")}
             </p>
           </div>
         </div>
@@ -153,11 +155,11 @@ export function CallNumberConfigEditor({
 
       {/* Color presets */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">カラープリセット</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.colorPresets")}</h4>
         <div className="flex flex-wrap gap-2">
           {COLOR_PRESETS.map((preset) => (
             <Button
-              key={preset.label}
+              key={preset.labelKey}
               type="button"
               variant="outline"
               size="sm"
@@ -168,7 +170,7 @@ export function CallNumberConfigEditor({
                 className="inline-block size-3 rounded-full border"
                 style={{ backgroundColor: preset.backgroundColor }}
               />
-              {preset.label}
+              {t(preset.labelKey)}
             </Button>
           ))}
         </div>
@@ -176,10 +178,10 @@ export function CallNumberConfigEditor({
 
       {/* Colors */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">カラー設定</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.colorSettings")}</h4>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-bgColor">背景色</Label>
+            <Label htmlFor="cfg-bgColor">{t("configEditor.backgroundColor")}</Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
@@ -198,7 +200,7 @@ export function CallNumberConfigEditor({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-waitingColor">呼び出し前のテキスト色</Label>
+            <Label htmlFor="cfg-waitingColor">{t("configEditor.waitingTextColor")}</Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
@@ -217,7 +219,7 @@ export function CallNumberConfigEditor({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-calledColor">呼び出し済みのテキスト色</Label>
+            <Label htmlFor="cfg-calledColor">{t("configEditor.calledTextColor")}</Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
@@ -236,7 +238,7 @@ export function CallNumberConfigEditor({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-highlightColor">直近呼び出しのハイライト色</Label>
+            <Label htmlFor="cfg-highlightColor">{t("configEditor.highlightColor")}</Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"

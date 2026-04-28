@@ -6,6 +6,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { PinInput } from "@/components/auth/PinInput";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
@@ -17,6 +18,7 @@ export default function PinLoginClient({
   redirectTo?: string | null;
 }) {
   const router = useRouter();
+  const { t } = useLocale();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -42,7 +44,7 @@ export default function PinLoginClient({
           if (data.blocked) {
             setBlocked(true);
           }
-          setError(data.error || "認証に失敗しました");
+          setError(data.error || t("error.authFailed"));
           setPin("");
           setVerifying(false);
           return;
@@ -50,12 +52,12 @@ export default function PinLoginClient({
 
         router.push(redirectTo || "/boards");
       } catch {
-        setError("通信エラーが発生しました");
+        setError(t("error.network"));
         setPin("");
         setVerifying(false);
       }
     },
-    [router, redirectTo, verifying, blocked],
+    [router, redirectTo, verifying, blocked, t],
   );
 
   const accountLoginHref = redirectTo
@@ -75,10 +77,10 @@ export default function PinLoginClient({
           <div className="mb-6 flex flex-col items-center gap-2">
             <Lock className="size-8 text-gray-400" />
             <h2 className="text-lg font-bold text-gray-900">
-              PIN入力
+              {t("auth.pin.title")}
             </h2>
             <p className="text-center text-sm text-gray-500">
-              <span className="font-medium text-gray-700">{userId}</span> のPINを入力してください
+              {t("auth.pin.subtitle", { userId })}
             </p>
           </div>
 
@@ -92,7 +94,7 @@ export default function PinLoginClient({
 
           {verifying && !error && (
             <p className="mt-3 text-center text-sm text-gray-500">
-              認証中...
+              {t("auth.pin.verifying")}
             </p>
           )}
 
@@ -105,13 +107,13 @@ export default function PinLoginClient({
               href={accountLoginHref}
               className="text-sm font-medium text-blue-600 hover:text-blue-700"
             >
-              メールアドレスまたはIDでログインする
+              {t("auth.pin.loginWithAccount")}
             </Link>
             <Link
               href="/pin/forgot"
               className="text-sm text-gray-500 hover:text-blue-600"
             >
-              PINを忘れた場合
+              {t("auth.pin.forgot")}
             </Link>
           </div>
         </div>

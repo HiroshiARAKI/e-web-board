@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { eq, and, or, isNull, gt } from "drizzle-orm";
 import { parseJsonObject } from "@/lib/utils";
+import { getRequestI18n } from "@/lib/i18n-server";
 import CallScreenClient from "./CallScreenClient";
 import PasscodeForm from "./PasscodeForm";
 
@@ -19,6 +20,7 @@ export default async function CallPage({
 }) {
   const { boardId } = await params;
   const { passcode } = await searchParams;
+  const { t } = await getRequestI18n();
 
   const board = await db.query.boards.findFirst({
     where: eq(boards.id, boardId),
@@ -38,7 +40,7 @@ export default async function CallPage({
 
   // Validate passcode
   if (!storedPasscode || passcode !== storedPasscode) {
-    return <PasscodeForm boardId={boardId} error={passcode ? "パスコードが正しくありません" : undefined} />;
+    return <PasscodeForm boardId={boardId} error={passcode ? t("call.passcodeInvalid") : undefined} />;
   }
 
   // Fetch active messages (queue numbers)

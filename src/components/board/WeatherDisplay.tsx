@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface WeatherData {
   location: { city: string; prefecture: string };
@@ -36,6 +37,7 @@ export function WeatherDisplay({
   fontFamily,
 }: WeatherDisplayProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const { t, translateWeatherTelop } = useLocale();
 
   const fetchWeather = useCallback(async () => {
     try {
@@ -88,7 +90,10 @@ export function WeatherDisplay({
       <div className="flex flex-col gap-1 text-lg leading-snug">
         {/* Location header */}
         <span className="font-bold text-xl">
-          {weather.location?.city ?? ""}の天気: {weather.telop}
+          {t("weather.current", {
+            city: weather.location?.city ?? "",
+            telop: translateWeatherTelop(weather.telop),
+          })}
         </span>
 
         {/* Temperature */}
@@ -96,25 +101,25 @@ export function WeatherDisplay({
           weather.temperature.min.celsius) && (
           <span className="opacity-80">
             {weather.temperature.max.celsius &&
-              `最高 ${weather.temperature.max.celsius}°C`}
+              t("weather.high", { value: weather.temperature.max.celsius })}
             {weather.temperature.max.celsius &&
               weather.temperature.min.celsius &&
               " / "}
             {weather.temperature.min.celsius &&
-              `最低 ${weather.temperature.min.celsius}°C`}
+              t("weather.low", { value: weather.temperature.min.celsius })}
           </span>
         )}
 
         {/* Chance of rain — all time slots */}
         <div className="flex items-center gap-1 opacity-80 text-base">
-          <span>降水確率:</span>
-          <span>0-6時 {r(rain.T00_06)}</span>
+          <span>{t("weather.rainChance")}:</span>
+          <span>{t("weather.slot00_06", { value: r(rain.T00_06) })}</span>
           <span className="opacity-40">|</span>
-          <span>6-12時 {r(rain.T06_12)}</span>
+          <span>{t("weather.slot06_12", { value: r(rain.T06_12) })}</span>
           <span className="opacity-40">|</span>
-          <span>12-18時 {r(rain.T12_18)}</span>
+          <span>{t("weather.slot12_18", { value: r(rain.T12_18) })}</span>
           <span className="opacity-40">|</span>
-          <span>18-24時 {r(rain.T18_24)}</span>
+          <span>{t("weather.slot18_24", { value: r(rain.T18_24) })}</span>
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { templates } from "@/lib/templates";
 import type { TemplateId } from "@/types";
 
@@ -25,6 +26,7 @@ const templateList = Object.values(templates);
 
 export default function NewBoardPage() {
   const router = useRouter();
+  const { t, getTemplateCopy } = useLocale();
   const [name, setName] = useState("");
   const [templateId, setTemplateId] = useState<TemplateId>("simple");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
@@ -44,7 +46,7 @@ export default function NewBoardPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? "作成に失敗しました");
+      setError(data.error ?? t("error.createFailed"));
       setSubmitting(false);
       return;
     }
@@ -61,61 +63,60 @@ export default function NewBoardPage() {
           className={buttonVariants({ variant: "ghost", size: "sm" })}
         >
           <ArrowLeft data-icon="inline-start" />
-          ボード一覧に戻る
+          {t("boards.backToList")}
         </Link>
       </div>
 
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>新規ボード作成</CardTitle>
-          <CardDescription>
-            テンプレートを選んでボードを作成します
-          </CardDescription>
+          <CardTitle>{t("boards.newTitle")}</CardTitle>
+          <CardDescription>{t("boards.newDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Board name */}
             <div className="space-y-2">
-              <Label htmlFor="name">ボード名</Label>
+              <Label htmlFor="name">{t("boards.nameLabel")}</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="例: 1F ロビー掲示板"
+                placeholder={t("boards.namePlaceholder")}
                 required
                 maxLength={100}
               />
             </div>
 
-            {/* Template selection */}
             <div className="space-y-3">
-              <Label>テンプレート</Label>
+              <Label>{t("boards.templateLabel")}</Label>
               <div className="grid gap-3 sm:grid-cols-2">
-                {templateList.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTemplateId(t.id)}
-                    className={`rounded-lg border p-4 text-left transition-colors ${
-                      templateId === t.id
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "border-border hover:bg-accent"
-                    }`}
-                  >
-                    <div className="font-medium">{t.name}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {t.description}
-                    </div>
-                  </button>
-                ))}
+                {templateList.map((template) => {
+                  const templateCopy = getTemplateCopy(template.id);
+                  return (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => setTemplateId(template.id)}
+                      className={`rounded-lg border p-4 text-left transition-colors ${
+                        templateId === template.id
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:bg-accent"
+                      }`}
+                    >
+                      <div className="font-medium">{templateCopy.name}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {templateCopy.description}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="space-y-3 rounded-lg border p-4">
               <div className="space-y-1">
-                <Label htmlFor="board-visibility">公開設定</Label>
+                <Label htmlFor="board-visibility">{t("boards.visibilityLabel")}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Private が初期設定です。Private はログイン済みユーザーのみ表示URLを開けます。
+                  {t("boards.visibilityDescription")}
                 </p>
               </div>
 
@@ -128,7 +129,7 @@ export default function NewBoardPage() {
                   }`}
                 >
                   <Lock className="size-3.5" />
-                  Private
+                  {t("common.private")}
                 </div>
                 <Switch
                   id="board-visibility"
@@ -143,27 +144,27 @@ export default function NewBoardPage() {
                   }`}
                 >
                   <Globe className="size-3.5" />
-                  Public
+                  {t("common.public")}
                 </div>
                 <Badge variant={visibility === "public" ? "default" : "secondary"}>
-                  {visibility === "public" ? "公開中" : "認証必須"}
+                  {visibility === "public"
+                    ? t("boards.visibilityPublicStatus")
+                    : t("boards.visibilityPrivateStatus")}
                 </Badge>
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-3">
               <Button type="submit" disabled={submitting || !name.trim()}>
-                {submitting ? "作成中..." : "作成"}
+                {submitting ? t("boards.createSubmitting") : t("common.create")}
               </Button>
               <Link
                 href="/boards"
                 className={buttonVariants({ variant: "outline" })}
               >
-                キャンセル
+                {t("common.cancel")}
               </Link>
             </div>
           </form>

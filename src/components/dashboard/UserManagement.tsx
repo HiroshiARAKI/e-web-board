@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Trash2, UserPlus } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface UserRow {
   id: string;
@@ -32,6 +33,7 @@ interface UserRow {
 }
 
 export function UserManagement() {
+  const { t } = useLocale();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,11 +52,11 @@ export function UserManagement() {
     try {
       const res = await fetch("/api/users");
       if (res.ok) setUsers(await res.json());
-      else setError("ユーザー一覧の取得に失敗しました");
+      else setError(t("users.fetchError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -66,18 +68,18 @@ export function UserManagement() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error ?? "ロール変更に失敗しました");
+      setError(data.error ?? t("users.roleChangeError"));
       return;
     }
     setUsers((prev) => prev.map((u) => u.id === id ? { ...u, role } : u));
   }
 
   async function handleDelete(id: string, userId: string) {
-    if (!confirm(`ユーザー「${userId}」を削除しますか？`)) return;
+    if (!confirm(t("users.confirmDelete", { userId }))) return;
     const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error ?? "削除に失敗しました");
+      setError(data.error ?? t("users.deleteError"));
       return;
     }
     setUsers((prev) => prev.filter((u) => u.id !== id));
@@ -100,7 +102,7 @@ export function UserManagement() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setCreateError(data.error ?? "作成に失敗しました");
+        setCreateError(data.error ?? t("users.createError"));
         return;
       }
       setShowCreate(false);
@@ -117,10 +119,10 @@ export function UserManagement() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">ユーザー一覧</h2>
+        <h2 className="text-lg font-semibold">{t("users.list")}</h2>
         <Button size="sm" onClick={() => { setShowCreate(true); setCreateError(null); }}>
           <UserPlus className="mr-1.5 size-4" />
-          ユーザー追加
+          {t("users.add")}
         </Button>
       </div>
 
@@ -129,17 +131,17 @@ export function UserManagement() {
       )}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">読み込み中...</p>
+        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
-                <th className="px-4 py-2 text-left">ユーザーID</th>
-                <th className="px-4 py-2 text-left">メールアドレス</th>
-                <th className="px-4 py-2 text-left">属性</th>
-                <th className="px-4 py-2 text-left">ロール</th>
-                <th className="px-4 py-2 text-right">操作</th>
+                <th className="px-4 py-2 text-left">{t("common.userId")}</th>
+                <th className="px-4 py-2 text-left">{t("common.email")}</th>
+                <th className="px-4 py-2 text-left">{t("common.attribute")}</th>
+                <th className="px-4 py-2 text-left">{t("common.role")}</th>
+                <th className="px-4 py-2 text-right">{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -149,7 +151,7 @@ export function UserManagement() {
                   <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                   <td className="px-4 py-3">
                     <Badge variant={user.attribute === "owner" ? "default" : "secondary"}>
-                      {user.attribute === "owner" ? "Owner" : "Shared"}
+                      {user.attribute === "owner" ? t("users.owner") : t("users.shared")}
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
@@ -162,22 +164,22 @@ export function UserManagement() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="admin">{t("common.roleAdmin")}</SelectItem>
+                        <SelectItem value="general">{t("common.roleGeneral")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </td>
                   <td className="px-4 py-3 text-right">
                     {user.attribute === "owner" ? (
-                      <span className="text-xs text-muted-foreground">削除不可</span>
+                      <span className="text-xs text-muted-foreground">{t("users.undeletable")}</span>
                     ) : (
                       <button
                         onClick={() => handleDelete(user.id, user.userId)}
                         className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
-                        title="削除"
+                        title={t("common.delete")}
                       >
                         <Trash2 className="size-3.5" />
-                        削除
+                        {t("common.delete")}
                       </button>
                     )}
                   </td>
@@ -192,26 +194,26 @@ export function UserManagement() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>新しいユーザーを追加</DialogTitle>
+            <DialogTitle>{t("users.addDialogTitle")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 pt-2">
             <p className="text-sm text-muted-foreground">
-              ここで追加されるユーザーは、現在のOwnerに紐づく Shared ユーザーとして作成されます。
+              {t("users.addDialogDescription")}
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="cu-userId">ユーザーID</Label>
+              <Label htmlFor="cu-userId">{t("common.userId")}</Label>
               <Input
                 id="cu-userId"
                 value={createUserId}
                 onChange={(e) => setCreateUserId(e.target.value)}
-                placeholder="例: john_doe"
+                placeholder="john_doe"
                 pattern="[a-zA-Z0-9_\-]{3,32}"
-                title="3〜32文字の英数字・_・-"
+                title={t("users.userIdHint")}
                 required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cu-email">メールアドレス</Label>
+              <Label htmlFor="cu-email">{t("common.email")}</Label>
               <Input
                 id="cu-email"
                 type="email"
@@ -222,26 +224,26 @@ export function UserManagement() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cu-password">パスワード</Label>
+              <Label htmlFor="cu-password">{t("common.password")}</Label>
               <Input
                 id="cu-password"
                 type="password"
                 value={createPassword}
                 onChange={(e) => setCreatePassword(e.target.value)}
-                placeholder="8文字以上"
+                placeholder={t("users.passwordHint")}
                 minLength={8}
                 required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cu-role">ロール</Label>
+              <Label htmlFor="cu-role">{t("common.role")}</Label>
               <Select value={createRole} onValueChange={(v) => setCreateRole(v as "admin" | "general")}>
                 <SelectTrigger id="cu-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin（全権限）</SelectItem>
-                  <SelectItem value="general">General（一部制限）</SelectItem>
+                  <SelectItem value="admin">{t("users.roleAdmin")}</SelectItem>
+                  <SelectItem value="general">{t("users.roleGeneral")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -250,10 +252,10 @@ export function UserManagement() {
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
-                キャンセル
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={creating}>
-                {creating ? "作成中..." : "作成"}
+                {creating ? t("users.createSubmitting") : t("common.create")}
               </Button>
             </div>
           </form>

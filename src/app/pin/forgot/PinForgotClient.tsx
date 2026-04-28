@@ -5,6 +5,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Mail } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 export default function PinForgotClient({
@@ -12,6 +13,7 @@ export default function PinForgotClient({
 }: {
   targetUserId: string;
 }) {
+  const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -35,14 +37,14 @@ export default function PinForgotClient({
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "エラーが発生しました");
+        setError(data.error || t("auth.pinForgot.failed"));
         setSubmitting(false);
         return;
       }
 
       setSubmitted(true);
     } catch {
-      setError("通信エラーが発生しました");
+      setError(t("error.network"));
     } finally {
       setSubmitting(false);
     }
@@ -59,12 +61,9 @@ export default function PinForgotClient({
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <Mail className="size-8 text-gray-400" />
-            <h2 className="text-lg font-bold text-gray-900">
-              PINの初期化
-            </h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.pinForgot.title")}</h2>
             <p className="text-center text-sm text-gray-500">
-              <span className="font-medium text-gray-700">{targetUserId}</span>
-              {" "}に登録しているメールアドレスを入力してください
+              {t("auth.pinForgot.subtitle", { userId: targetUserId })}
             </p>
           </div>
 
@@ -87,16 +86,16 @@ export default function PinForgotClient({
                 disabled={submitting}
                 className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
               >
-                {submitting ? "送信中..." : "初期化リンクを発行"}
+                {submitting ? t("auth.pinForgot.submitting") : t("auth.pinForgot.submit")}
               </button>
             </form>
           ) : (
             <div className="space-y-4">
               <p className="text-center text-sm text-gray-600">
-                初期化リンクをメールで送信しました。
+                {t("auth.pinForgot.success")}
                 <br />
                 <span className="text-xs text-gray-400">
-                  メールが届かない場合は迷惑メールフォルダをご確認ください。
+                  {t("auth.pinForgot.successNote")}
                 </span>
               </p>
             </div>
@@ -107,7 +106,7 @@ export default function PinForgotClient({
               href="/pin"
               className="text-sm text-gray-500 hover:text-blue-600"
             >
-              PIN入力に戻る
+              {t("auth.pinForgot.backToPin")}
             </Link>
           </div>
         </div>

@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 const REDIRECT_SECONDS = 10;
 
 export default function DeletedAccountClient() {
   const router = useRouter();
+  const { t } = useLocale();
   const [secondsLeft, setSecondsLeft] = useState(REDIRECT_SECONDS);
 
   useEffect(() => {
@@ -40,15 +42,15 @@ export default function DeletedAccountClient() {
         <div className="rounded-2xl border bg-white p-8 text-center shadow-sm">
           <div className="flex flex-col items-center gap-3">
             <CheckCircle2 className="size-10 text-emerald-600" />
-            <h2 className="text-lg font-bold text-gray-900">アカウント削除が完了しました</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("accountDeletion.completedTitle")}</h2>
             <p className="text-sm leading-6 text-gray-500">
-              Ownerアカウントと関連データを削除しました。{secondsLeft} 秒後にサインアップ画面へ移動します。
+              {t("accountDeletion.completedMessage", { seconds: secondsLeft })}
             </p>
             <Link
               href="/signup"
               className="mt-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
             >
-              今すぐサインアップへ移動
+              {t("accountDeletion.goSignupNow")}
             </Link>
           </div>
         </div>
