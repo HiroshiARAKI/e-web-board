@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import { getSessionUser } from "@/lib/auth";
 import { getOwnerSetting } from "@/lib/owner-settings";
-import { resolveOwnerUserId } from "@/lib/ownership";
+import { isInOwnerScope, resolveOwnerUserId } from "@/lib/ownership";
 
 const WEATHER_API_BASE = "https://weather.tsukumijima.net/api/forecast/city";
 
@@ -37,6 +37,10 @@ export async function GET(request: NextRequest) {
       const session = await getSessionUser();
       if (!session) {
         return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+      }
+
+      if (!isInOwnerScope(session.user, board.ownerUserId)) {
+        return NextResponse.json({ error: "Board not found" }, { status: 404 });
       }
     }
 

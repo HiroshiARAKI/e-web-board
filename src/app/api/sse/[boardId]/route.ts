@@ -6,6 +6,7 @@ import { boards } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
 import { addClient, removeClient } from "@/lib/sse";
+import { isInOwnerScope } from "@/lib/ownership";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,10 @@ export async function GET(
     const session = await getSessionUser();
     if (!session) {
       return new Response("Unauthorized", { status: 401 });
+    }
+
+    if (!isInOwnerScope(session.user, board.ownerUserId)) {
+      return new Response("Board not found", { status: 404 });
     }
   }
 
