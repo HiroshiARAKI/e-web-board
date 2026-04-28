@@ -1,11 +1,15 @@
 # Keinage
 
-> Open Source Signage — カスタマイズ可能なデジタルサイネージ
+<div style="text-align: center">
+<img src="./screenshots/keinage.png" style="max-width: 600px">
 
-病院の待合室、スーパーマーケット、飲食店など、あらゆる場所で情報を掲示するためのフリーツールです。  
+**Web上で簡単にカスタマイズ可能な掲示板、案内板、デジタルサイネージ**
+
+病院の待合室、スーパーマーケット、飲食店など、あらゆる場所で情報を掲示するためのフリーツール (OSS) です。  
 管理画面からコンテンツを登録するだけで、表示用の画面がリアルタイムに更新されます。
 
----
+</div>
+
 
 ## 特徴
 
@@ -20,30 +24,28 @@
 ## テンプレート
 
 ### シンプルな電子掲示板
-![Simple Board](./screenshots/e-web-board-simple.png)
+![Simple Board](./screenshots/keinage-simple-guide.png)
 
-メイン領域で画像や動画をスライドショー形式で表示し、下部にテキストメッセージをティッカー (横スクロール) で流すデザインです。  
+メイン領域で画像や動画をスライドショー形式で表示し、テキストメッセージをティッカー (横スクロール) で流すデザインです。  
 店舗のプロモーション表示や施設案内に最適です。
 
-### レトロな掲示板
-![Retro Board](./screenshots/e-web-board-retro.png)
-
-駅の案内板を模した、ドットマトリクス風のクラシックなデザインです。  
-独特のレトロな雰囲気で、カフェやイベント会場などの掲示に映えます。
-
 ### フォトクロック掲示板
-![Clock Board](./screenshots/e-web-board-clock.png)
+![Clock Board](./screenshots/keinage-photoclock.png)
 
 画像のスライドショーを全画面で表示しつつ、現在の日付と時刻を常時オーバーレイ表示するデザインです。  
 オフィスのロビーやエントランス、ホテルのラウンジなどに最適です。
 
-### メッセージ掲示板
-![Message Board](./screenshots/e-web-board-messages.png)
+### レトロな掲示板
+![Retro Board](./screenshots/keinage-retro.png)
 
-外部システムから API 経由で受信したメッセージをリアルタイムに表示するデザインです。  
-病院の待合室での呼び出しや、飲食店の番号呼び出しなどに活用できます。
+駅の案内板を模した、ドットマトリクス風のクラシックなデザインです。  
+独特のレトロな雰囲気で、カフェやイベント会場などの掲示に映えます。
 
-> **Note:** 情報送信側は本アプリの REST API を叩いて送信できます。送信側ソフトウェアは別途ご用意ください。
+### 呼び出し番号
+![Message Board](./screenshots/keinage-ordercall.png)
+
+スマホなどから、呼び出し番号の追加と呼び出しを行えるテンプレートです。
+
 
 ---
 
