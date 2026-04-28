@@ -45,6 +45,29 @@ export default async function LoginPage({
   const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_AUTH_COOKIE)?.value;
   const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
+  let showPinLoginLink = false;
+
+  if (deviceAuthGrant?.user.pinHash) {
+    const expireSetting = await getOwnerSetting(
+      resolveOwnerUserId(deviceAuthGrant.user),
+      AUTH_EXPIRE_DAYS_KEY,
+    );
+    const expireDays = expireSetting
+      ? parseInt(expireSetting, 10)
+      : DEFAULT_AUTH_EXPIRE_DAYS;
+
+    showPinLoginLink = isFullAuthValid(
+      deviceAuthGrant.lastFullAuthAt,
+      expireDays,
+    );
+
+    console.log("[/pin/login] PIN link eligibility", {
+      userId: deviceAuthGrant.user.userId,
+      expireDays,
+      showPinLoginLink,
+    });
+  }
+
   if (sessionCookie) {
     const sessionRow = await db.query.authSessions.findFirst({
       where: and(
@@ -91,5 +114,10 @@ export default async function LoginPage({
   }
 
   console.log("[/pin/login] Rendering LoginClient");
-  return <LoginClient redirectTo={redirectTo} />;
+  return (
+    <LoginClient
+      redirectTo={redirectTo}
+      showPinLoginLink={showPinLoginLink}
+    />
+  );
 }
