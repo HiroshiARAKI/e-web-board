@@ -22,6 +22,10 @@ export function isSameOwnerScope(left: UserLike, right: UserLike): boolean {
   return resolveOwnerUserId(left) === resolveOwnerUserId(right);
 }
 
+export function isInOwnerScope(user: UserLike, ownerUserId: string): boolean {
+  return resolveOwnerUserId(user) === ownerUserId;
+}
+
 export async function findOwnedBoard(boardId: string, ownerUserId: string) {
   return db.query.boards.findFirst({
     where: and(

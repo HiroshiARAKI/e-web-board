@@ -8,7 +8,13 @@ import Link from "next/link";
 import { KeyRound } from "lucide-react";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
-export default function LoginClient({ redirectTo }: { redirectTo?: string | null }) {
+export default function LoginClient({
+  redirectTo,
+  showPinLoginLink,
+}: {
+  redirectTo?: string | null;
+  showPinLoginLink: boolean;
+}) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -125,14 +131,16 @@ export default function LoginClient({ redirectTo }: { redirectTo?: string | null
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <Link
-              href={pinLoginHref}
-              className="text-sm text-gray-500 hover:text-blue-600"
-            >
-              PINでログインする
-            </Link>
-          </div>
+          {showPinLoginLink && (
+            <div className="mt-6 text-center">
+              <Link
+                href={pinLoginHref}
+                className="text-sm text-gray-500 hover:text-blue-600"
+              >
+                PINでログインする
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isInOwnerScope } from "@/lib/ownership";
 
 export async function GET(
   _request: NextRequest,
@@ -23,6 +24,10 @@ export async function GET(
     const session = await getSessionUser();
     if (!session) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    }
+
+    if (!isInOwnerScope(session.user, board.ownerUserId)) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
   }
 
