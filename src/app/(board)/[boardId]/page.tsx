@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc, and, or, isNull, gt } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isInOwnerScope } from "@/lib/ownership";
 import { getTemplate } from "@/lib/templates";
 import { normalizeConfig } from "@/lib/utils";
 import LiveBoard from "@/components/board/LiveBoard";
@@ -40,6 +41,10 @@ export default async function BoardPage({
     });
     if (!session) {
       redirect(`/pin?redirectTo=${encodeURIComponent(`/${boardId}`)}`);
+    }
+
+    if (!isInOwnerScope(session.user, board.ownerUserId)) {
+      notFound();
     }
   }
 
