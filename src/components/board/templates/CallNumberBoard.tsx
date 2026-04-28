@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps } from "@/types";
@@ -37,6 +38,7 @@ export default function CallNumberBoard({
   messages,
 }: BoardTemplateProps) {
   const config = parseConfig(board.config);
+  const { locale, t } = useLocale();
   const [now, setNow] = useState(() => Date.now());
   const expireMs = (config.calledExpireMinutes ?? 5) * 60_000;
 
@@ -76,15 +78,21 @@ export default function CallNumberBoard({
       }
     }
     // Sort waiting by content (number order)
-    w.sort((a, b) => a.content.localeCompare(b.content, "ja", { numeric: true }));
+    w.sort((a, b) => a.content.localeCompare(b.content, locale, { numeric: true }));
     // Sort called: recently called first, then by updatedAt desc
     c.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return { waiting: w, called: c };
-  }, [messages, now, expireMs]);
+  }, [messages, now, expireMs, locale]);
 
   const isHorizontal = config.layout === "horizontal";
   const baseFontSize = config.numberFontSize ?? 60;
   const highlightFontSize = Math.round(baseFontSize * 1.3);
+  const waitingLabel = config.waitingLabel === callNumberDefaultConfig.waitingLabel
+    ? t("board.call.waitingLabel")
+    : config.waitingLabel;
+  const calledLabel = config.calledLabel === callNumberDefaultConfig.calledLabel
+    ? t("board.call.calledLabel")
+    : config.calledLabel;
 
   return (
     <div
@@ -123,10 +131,10 @@ export default function CallNumberBoard({
               className="text-2xl font-bold"
               style={{ color: config.waitingTextColor }}
             >
-              {config.waitingLabel}
+              {waitingLabel}
             </h2>
             <p className="mt-1 text-sm text-white/40">
-              {waiting.length} 件
+              {t("board.call.waitingCount", { count: waiting.length })}
             </p>
           </div>
           <div className="flex-1 overflow-auto px-6 pb-4">
@@ -142,7 +150,7 @@ export default function CallNumberBoard({
               ))}
               {waiting.length === 0 && (
                 <p className="py-8 text-sm text-white/30">
-                  待機中の番号はありません
+                  {t("board.call.noneWaiting")}
                 </p>
               )}
             </div>
@@ -169,10 +177,10 @@ export default function CallNumberBoard({
               className="text-2xl font-bold"
               style={{ color: config.calledTextColor }}
             >
-              {config.calledLabel}
+              {calledLabel}
             </h2>
             <p className="mt-1 text-sm text-white/40">
-              {called.length} 件
+              {t("board.call.calledCount", { count: called.length })}
             </p>
           </div>
           <div className="flex-1 overflow-auto px-6 pb-4">
@@ -202,7 +210,7 @@ export default function CallNumberBoard({
               })}
               {called.length === 0 && (
                 <p className="py-8 text-sm text-white/30">
-                  呼び出し済みの番号はありません
+                  {t("board.call.noneCalled")}
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useSSE } from "@/hooks/useSSE";
 import { parseJsonObject } from "@/lib/utils";
 import type { Board, MediaItem, Message, BoardTemplateProps } from "@/types";
@@ -34,6 +35,7 @@ export default function LiveBoard({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useLocale();
 
   // --- Cursor auto-hide ---
   const resetCursorTimer = useCallback(() => {
@@ -123,9 +125,9 @@ export default function LiveBoard({
           pointerEvents: cursorVisible ? "auto" : "none",
           transition: "opacity 0.3s ease",
         }}
-        title={isFullscreen ? "全画面を解除" : "全画面表示"}
+        title={isFullscreen ? t("board.fullscreenExit") : t("board.fullscreenEnter")}
       >
-        {isFullscreen ? "⤓ 元に戻す" : "⤢ 全画面表示"}
+        {isFullscreen ? `⤓ ${t("board.restore")}` : `⤢ ${t("board.fullscreenEnter")}`}
       </button>
     </div>
   );

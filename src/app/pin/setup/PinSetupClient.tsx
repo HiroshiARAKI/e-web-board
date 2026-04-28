@@ -6,12 +6,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { PinInput } from "@/components/auth/PinInput";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 type Step = "pin" | "confirmPin";
 
 export default function PinSetupClient() {
   const router = useRouter();
+  const { t } = useLocale();
   const [step, setStep] = useState<Step>("pin");
 
   // PIN step
@@ -29,7 +31,7 @@ export default function PinSetupClient() {
 
   async function handleConfirmPinComplete(value: string) {
     if (value !== pin) {
-      setError("PINが一致しません。もう一度入力してください。");
+      setError(t("auth.pinSetup.mismatch"));
       setConfirmPin("");
       return;
     }
@@ -43,7 +45,7 @@ export default function PinSetupClient() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "PIN登録に失敗しました");
+        setError(data.error || t("auth.pinSetup.failed"));
         setStep("pin");
         setPin("");
         setConfirmPin("");
@@ -51,15 +53,15 @@ export default function PinSetupClient() {
       }
       router.push("/boards");
     } catch {
-      setError("通信エラーが発生しました");
+      setError(t("error.network"));
     } finally {
       setSubmitting(false);
     }
   }
 
   const stepLabels: Record<Step, string> = {
-    pin: "6桁のPINを設定してください",
-    confirmPin: "確認のためもう一度入力してください",
+    pin: t("auth.pinSetup.stepPin"),
+    confirmPin: t("auth.pinSetup.stepConfirm"),
   };
 
   return (
@@ -74,7 +76,7 @@ export default function PinSetupClient() {
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <ShieldCheck className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">PINの設定</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.pinSetup.title")}</h2>
             <p className="text-center text-sm text-gray-500">{stepLabels[step]}</p>
           </div>
 
@@ -110,7 +112,7 @@ export default function PinSetupClient() {
                 }}
                 className="mt-4 block w-full text-center text-sm text-gray-500 hover:text-gray-700"
               >
-                PINを入力し直す
+                {t("auth.pinSetup.retry")}
               </button>
             </div>
           )}

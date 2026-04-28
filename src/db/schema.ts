@@ -168,6 +168,8 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("general"),
   /** Dashboard color theme preference: "system" | "light" | "dark" */
   colorTheme: text("color_theme").notNull().default("system"),
+  /** Preferred UI locale. Null means fallback to Accept-Language per request. */
+  locale: text("locale"),
   /** Timestamp of the last successful email+password login */
   lastFullAuthAt: text("last_full_auth_at"),
   createdAt: text("created_at")

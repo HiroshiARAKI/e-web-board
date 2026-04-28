@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { templates } from "@/lib/templates";
 import { getSessionUser } from "@/lib/auth";
+import { getRequestI18n } from "@/lib/i18n-server";
 import { resolveOwnerUserId } from "@/lib/ownership";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function BoardsPage() {
   if (!session) {
     return null;
   }
+  const { t, formatDate, getTemplateCopy } = await getRequestI18n();
 
   const allBoards = await db
     .select()
@@ -36,9 +38,9 @@ export default async function BoardsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold sm:text-2xl">ボード管理</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{t("boards.title")}</h1>
           <p className="text-xs text-muted-foreground sm:text-sm">
-            ボードの作成・編集・削除を行います。表示確認や共有は各カードの「表示」を使用してください。
+            {t("boards.subtitle")}
           </p>
         </div>
         <Link
@@ -46,7 +48,7 @@ export default async function BoardsPage() {
           className={buttonVariants()}
         >
           <Plus data-icon="inline-start" />
-          新規作成
+          {t("boards.new")}
         </Link>
       </div>
 
@@ -54,14 +56,14 @@ export default async function BoardsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="mb-4 text-muted-foreground">
-              ボードがまだありません
+              {t("boards.empty")}
             </p>
             <Link
               href="/boards/new"
               className={buttonVariants()}
             >
               <Plus data-icon="inline-start" />
-              最初のボードを作成
+              {t("boards.firstCreate")}
             </Link>
           </CardContent>
         </Card>
@@ -69,6 +71,7 @@ export default async function BoardsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {allBoards.map((board) => {
             const template = templates[board.templateId as keyof typeof templates];
+            const templateCopy = getTemplateCopy(board.templateId);
             return (
               <Card key={board.id} className="transition-shadow hover:shadow-md">
                 <CardHeader className="pb-3">
@@ -76,36 +79,36 @@ export default async function BoardsPage() {
                     <CardTitle className="text-base">{board.name}</CardTitle>
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <Badge variant={board.isActive ? "default" : "secondary"}>
-                        {board.isActive ? "有効" : "無効"}
+                        {board.isActive ? t("common.enabled") : t("common.disabled")}
                       </Badge>
                       <Badge variant={board.visibility === "public" ? "default" : "secondary"}>
                         {board.visibility === "public" ? (
                           <>
                             <Globe data-icon="inline-start" />
-                            Public
+                            {t("common.public")}
                           </>
                         ) : (
                           <>
                             <Lock data-icon="inline-start" />
-                            Private
+                            {t("common.private")}
                           </>
                         )}
                       </Badge>
                     </div>
                   </div>
                   <CardDescription>
-                    {template?.name ?? board.templateId}
+                    {template ? templateCopy.name : board.templateId}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <div>
-                      作成: {new Date(board.createdAt).toLocaleDateString("ja-JP")}
+                      {t("common.createdAt")}: {formatDate(board.createdAt)}
                     </div>
                     <div>
                       {board.visibility === "public"
-                        ? "表示URLは非認証でも開けます"
-                        : "表示URLはログイン済みユーザーのみ開けます"}
+                        ? t("boards.publicHint")
+                        : t("boards.privateHint")}
                     </div>
                   </div>
 
@@ -115,7 +118,7 @@ export default async function BoardsPage() {
                       className={buttonVariants({ variant: "outline", size: "sm" })}
                     >
                       <Settings2 data-icon="inline-start" />
-                      管理
+                      {t("common.manage")}
                     </Link>
                     <a
                       href={`/${board.id}`}
@@ -124,7 +127,7 @@ export default async function BoardsPage() {
                       className={buttonVariants({ size: "sm" })}
                     >
                       <ExternalLink data-icon="inline-start" />
-                      表示
+                      {t("common.display")}
                     </a>
                   </div>
                 </CardContent>

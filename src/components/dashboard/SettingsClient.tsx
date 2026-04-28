@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,7 +19,9 @@ import { Switch } from "@/components/ui/switch";
 import { WEATHER_AREAS, DEFAULT_CITY_ID } from "@/lib/weather-areas";
 import type { WeatherPrefecture } from "@/lib/weather-areas";
 import { PinInput } from "@/components/auth/PinInput";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useTheme, type Theme } from "@/components/dashboard/ThemeProvider";
+import { SUPPORTED_LOCALES, type SupportedLocale } from "@/lib/i18n";
 import { QRCodeSVG } from "qrcode.react";
 
 interface UploadedFile {
@@ -48,6 +51,7 @@ export function SettingsClient({
   currentUserId: string;
   isOwner: boolean;
 }) {
+  const router = useRouter();
   const [cityId, setCityId] = useState(DEFAULT_CITY_ID);
   const [selectedPref, setSelectedPref] = useState<WeatherPrefecture | null>(
     null,
@@ -66,7 +70,9 @@ export function SettingsClient({
   const [imageSaved, setImageSaved] = useState(false);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const { theme, setTheme } = useTheme();
+  const { locale, setLocale, t, formatDate } = useLocale();
   const [dashboardUrl, setDashboardUrl] = useState<string | null>(null);
+  const [localeSaving, setLocaleSaving] = useState(false);
 
   // PIN/Email change states
   const [pinConfigured, setPinConfigured] = useState(false);
@@ -237,6 +243,36 @@ export function SettingsClient({
       if (res.ok) setImageSaved(true);
     } finally {
       setImageSaving(false);
+    }
+  }
+
+  async function handleLocaleChange(nextLocale: SupportedLocale) {
+    if (nextLocale === locale || localeSaving) return;
+
+    const previousLocale = locale;
+    setLocale(nextLocale);
+    setLocaleSaving(true);
+    let saved = false;
+
+    try {
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: nextLocale }),
+      });
+
+      if (!res.ok) {
+        setLocale(previousLocale);
+      } else {
+        saved = true;
+      }
+    } catch {
+      setLocale(previousLocale);
+    } finally {
+      setLocaleSaving(false);
+      if (saved) {
+        router.refresh();
+      }
     }
   }
 
@@ -572,15 +608,38 @@ export function SettingsClient({
 
       {/* Theme Selection */}
       <div className="rounded-lg border p-6">
-        <h2 className="mb-4 text-lg font-semibold">テーマ設定</h2>
+        <h2 className="mb-4 text-lg font-semibold">{t("settings.languageTitle")}</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          管理画面の表示テーマを選択します。
+          {t("settings.languageDescription")}
+        </p>
+        <Select value={locale} onValueChange={(value) => handleLocaleChange(value as SupportedLocale)}>
+          <SelectTrigger className="w-full max-w-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SUPPORTED_LOCALES.map((item) => (
+              <SelectItem key={item.code} value={item.code}>
+                {item.flag} {item.territory}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {localeSaving && (
+          <p className="mt-3 text-sm text-muted-foreground">{t("common.loading")}</p>
+        )}
+      </div>
+
+      {/* Theme Selection */}
+      <div className="rounded-lg border p-6">
+        <h2 className="mb-4 text-lg font-semibold">{t("settings.themeTitle")}</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {t("settings.themeDescription")}
         </p>
         <div className="flex gap-3">
           {([
-            { value: "system" as Theme, label: "システムに準拠" },
-            { value: "light" as Theme, label: "ライト" },
-            { value: "dark" as Theme, label: "ダーク" },
+            { value: "system" as Theme, label: t("settings.themeSystem") },
+            { value: "light" as Theme, label: t("settings.themeLight") },
+            { value: "dark" as Theme, label: t("settings.themeDark") },
           ]).map((opt) => (
             <button
               key={opt.value}
@@ -921,7 +980,7 @@ export function SettingsClient({
               <p className="mb-3 text-sm text-muted-foreground">
                 現在の有効期限:{" "}
                 <span className="font-medium">
-                  {new Date(fullAuthExpiry).toLocaleDateString("ja-JP", {
+                    {formatDate(fullAuthExpiry, {
                     year: "numeric", month: "long", day: "numeric",
                   })}
                 </span>
@@ -947,7 +1006,7 @@ export function SettingsClient({
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border hover:bg-accent hover:text-accent-foreground"
                     }`}
-                    title={expiry.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric" })}
+                      title={formatDate(expiry, { year: "numeric", month: "long", day: "numeric" })}
                   >
                     {opt.label}
                   </button>
@@ -968,7 +1027,7 @@ export function SettingsClient({
           {/* Logout */}
           <div className="mt-6 border-t pt-4">
             <Button variant="outline" onClick={handleLogout}>
-              ログアウト
+              {t("dashboard.logout")}
             </Button>
           </div>
         </div>
@@ -1111,7 +1170,7 @@ export function SettingsClient({
           {/* Logout */}
           <div className="mt-6 border-t pt-4">
             <Button variant="outline" onClick={handleLogout}>
-              ログアウト
+              {t("dashboard.logout")}
             </Button>
           </div>
         </div>

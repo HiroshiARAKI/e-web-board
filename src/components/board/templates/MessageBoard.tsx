@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { WeatherDisplay } from "@/components/board/WeatherDisplay";
 import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
@@ -52,9 +53,9 @@ function priorityColor(priority: number): string {
 }
 
 function priorityLabel(priority: number): string {
-  if (priority >= 5) return "緊急";
-  if (priority >= 3) return "重要";
-  return "通常";
+  if (priority >= 5) return "board.message.priorityUrgent";
+  if (priority >= 3) return "board.message.priorityHigh";
+  return "board.message.priorityNormal";
 }
 
 /** Check if a message is expired */
@@ -68,6 +69,7 @@ export default function MessageBoard({
   messages,
 }: BoardTemplateProps) {
   const config = parseConfig(board.config);
+  const { t, formatDateTime } = useLocale();
 
   const [currentMessages, setCurrentMessages] = useState<Message[]>(() =>
     messages
@@ -147,7 +149,7 @@ export default function MessageBoard({
           )}
           <div className="flex items-center gap-2 text-sm opacity-60">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
-            LIVE
+            {t("common.live")}
           </div>
         </div>
       </div>
@@ -156,7 +158,7 @@ export default function MessageBoard({
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {currentMessages.length === 0 ? (
           <div className="flex h-full items-center justify-center opacity-40">
-            <p style={{ fontSize: `${config.fontSize}px` }}>メッセージはありません</p>
+            <p style={{ fontSize: `${config.fontSize}px` }}>{t("board.message.none")}</p>
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
@@ -187,7 +189,7 @@ export default function MessageBoard({
                       className="rounded px-2 py-0.5 text-xs font-bold text-white"
                       style={{ backgroundColor: priorityColor(msg.priority) }}
                     >
-                      {priorityLabel(msg.priority)}
+                      {t(priorityLabel(msg.priority) as "board.message.priorityUrgent" | "board.message.priorityHigh" | "board.message.priorityNormal")}
                     </span>
 
                     {isNew && (
@@ -205,7 +207,7 @@ export default function MessageBoard({
                     {/* Expiry indicator */}
                     {msg.expiresAt && (
                       <span className="ml-auto text-xs opacity-40">
-                        期限: {new Date(msg.expiresAt).toLocaleString("ja-JP")}
+                        {t("board.message.expiresAt", { value: formatDateTime(msg.expiresAt) })}
                       </span>
                     )}
                   </div>
@@ -237,8 +239,8 @@ export default function MessageBoard({
         className="flex items-center justify-between border-t px-6 py-2 text-xs opacity-40"
         style={{ borderColor: config.accentColor + "40" }}
       >
-        <span>{currentMessages.length} 件表示</span>
-        <span>自動更新中 (3秒間隔)</span>
+        <span>{t("board.message.itemsVisible", { count: currentMessages.length })}</span>
+        <span>{t("board.message.autoRefresh", { seconds: 3 })}</span>
       </div>
     </div>
   );
