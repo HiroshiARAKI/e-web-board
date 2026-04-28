@@ -4,7 +4,7 @@
 <img src="./screenshots/keinage.png" width="400">
 <p>
 <p align="center">
-**Web上で簡単にカスタマイズ可能な掲示板、案内板、デジタルサイネージ**
+Web上で簡単にカスタマイズ可能な掲示板、案内板、デジタルサイネージ
 </p>
 
 ## 特徴
