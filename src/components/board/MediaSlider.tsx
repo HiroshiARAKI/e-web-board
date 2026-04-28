@@ -21,6 +21,7 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const preloadedRef = useRef<Set<string>>(new Set());
+  const currentImageRef = useRef<HTMLImageElement | null>(null);
 
   const advance = useCallback(() => {
     setImageLoaded(false);
@@ -41,6 +42,19 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
       }
     }
   }, [currentIndex, mediaItems]);
+
+  const current = mediaItems[currentIndex];
+
+  useEffect(() => {
+    if (!current) return;
+
+    if (current.type !== "image") {
+      setImageLoaded(true);
+      return;
+    }
+
+    setImageLoaded(Boolean(currentImageRef.current?.complete));
+  }, [current?.id, current?.filePath, current?.type]);
 
   // --- Auto-advance timer (starts only after the current image has loaded) ---
   useEffect(() => {
@@ -84,8 +98,6 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
       </div>
     );
   }
-
-  const current = mediaItems[currentIndex];
   const fitClass = objectFit === "cover" ? "object-cover" : "object-contain";
 
   return (
@@ -110,10 +122,12 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
             />
           ) : (
             <img
+              ref={currentImageRef}
               src={current.filePath}
               alt=""
               className={`h-full w-full ${fitClass}`}
               onLoad={() => setImageLoaded(true)}
+              onError={() => setImageLoaded(true)}
             />
           )}
         </motion.div>
