@@ -22,11 +22,11 @@ export function isSmtpConfigured(): boolean {
   return getSmtpConfig() !== null;
 }
 
-/** Send a PIN reset email */
-export async function sendPinResetEmail(
-  to: string,
-  resetUrl: string,
-): Promise<boolean> {
+async function sendTextMail(options: {
+  to: string;
+  subject: string;
+  lines: string[];
+}): Promise<boolean> {
   const config = getSmtpConfig();
   if (!config) {
     console.warn("[mail] SMTP not configured — skipping email send");
@@ -46,9 +46,26 @@ export async function sendPinResetEmail(
   try {
     await transporter.sendMail({
       from: config.from,
-      to,
-      subject: "[Keinage] PIN初期化リンク",
-      text: [
+      to: options.to,
+      subject: options.subject,
+      text: options.lines.join("\n"),
+    });
+    return true;
+  } catch (err) {
+    console.error("[mail] Failed to send email:", err);
+    return false;
+  }
+}
+
+/** Send a PIN reset email */
+export async function sendPinResetEmail(
+  to: string,
+  resetUrl: string,
+): Promise<boolean> {
+  return sendTextMail({
+    to,
+    subject: "[Keinage] PIN初期化リンク",
+    lines: [
         "Keinage のPIN初期化リクエストを受け付けました。",
         "",
         "以下のリンクからPINを再設定してください：",
@@ -56,11 +73,46 @@ export async function sendPinResetEmail(
         "",
         "このリンクは30分間有効です。",
         "心当たりがない場合は、このメールを無視してください。",
-      ].join("\n"),
-    });
-    return true;
-  } catch (err) {
-    console.error("[mail] Failed to send email:", err);
-    return false;
-  }
+    ],
+  });
+}
+
+/** Send an owner signup email */
+export async function sendOwnerSignupEmail(
+  to: string,
+  signupUrl: string,
+): Promise<boolean> {
+  return sendTextMail({
+    to,
+    subject: "[Keinage] Ownerアカウント登録リンク",
+    lines: [
+      "Keinage のOwnerアカウント登録リクエストを受け付けました。",
+      "",
+      "以下のリンクからパスワード登録を完了してください：",
+      signupUrl,
+      "",
+      "このリンクは10分間有効です。",
+      "心当たりがない場合は、このメールを無視してください。",
+    ],
+  });
+}
+
+/** Send an owner account deletion confirmation email */
+export async function sendAccountDeletionEmail(
+  to: string,
+  deletionUrl: string,
+): Promise<boolean> {
+  return sendTextMail({
+    to,
+    subject: "[Keinage] アカウント削除確認リンク",
+    lines: [
+      "Keinage のOwnerアカウント削除リクエストを受け付けました。",
+      "",
+      "以下のリンクを開くと、Ownerアカウントと紐づくデータが削除されます：",
+      deletionUrl,
+      "",
+      "このリンクは10分間有効です。",
+      "心当たりがない場合は、このメールを無視してください。",
+    ],
+  });
 }

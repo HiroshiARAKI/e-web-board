@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSSE } from "@/hooks/useSSE";
+import { parseJsonObject } from "@/lib/utils";
 import type { Board, MediaItem, Message, BoardTemplateProps } from "@/types";
 
 const CURSOR_HIDE_DELAY = 3000;
@@ -69,15 +70,17 @@ export default function LiveBoard({
   // --- SSE live updates ---
   const refetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/boards/${initialBoard.id}`);
+      const res = await fetch(`/api/public/boards/${initialBoard.id}`);
       if (!res.ok) return;
       const data = await res.json();
 
       setBoard({
         id: data.id,
         name: data.name,
+        ownerUserId: data.ownerUserId,
+        visibility: data.visibility,
         templateId: data.templateId,
-        config: data.config,
+        config: parseJsonObject(data.config),
         isActive: data.isActive,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
@@ -90,7 +93,7 @@ export default function LiveBoard({
   }, [initialBoard.id]);
 
   const handleSSEEvent = useCallback(
-    (_event: string, _data: Record<string, unknown>) => {
+    () => {
       // On any event, refetch the full board data
       refetchData();
     },

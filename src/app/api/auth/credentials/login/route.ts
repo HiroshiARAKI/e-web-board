@@ -4,21 +4,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, pinAttempts, authSessions } from "@/db/schema";
 import { eq, or, and, gt } from "drizzle-orm";
-import { verifyPassword, AUTH_SESSION_COOKIE, SESSION_MAX_AGE, LAST_USER_COOKIE } from "@/lib/auth";
+import {
+  verifyPassword,
+  AUTH_SESSION_COOKIE,
+  SESSION_MAX_AGE,
+  buildAuthCookieOptions,
+} from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  clearLegacyLastUserCookie,
+  setDeviceAuthCookie,
+  storeDeviceFullAuth,
+} from "@/lib/device-auth";
 import {
   MAX_PIN_ATTEMPTS,
   IP_BLOCK_DURATION_MS,
   generateSessionToken,
 } from "@/lib/pin";
+import {
+  buildRateLimitKey,
+  resolveRateLimitClientIp,
+} from "@/lib/rate-limit";
 
 /** POST /api/auth/credentials/login — email/userId + password login */
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const clientIp = resolveRateLimitClientIp(request);
 
-  // IP rate-limit (shared with PIN attempts)
+  const body = await request.json();
+  const { identifier, password } = body as {
+    identifier?: string;
+    password?: string;
+  };
+
+  const normalizedIdentifier = identifier?.trim() ?? "";
+  const rateLimitKey = buildRateLimitKey({
+    flow: "credentials",
+    clientIp,
+    subject: normalizedIdentifier || "missing-identifier",
+  });
+
+  // Rate-limit per client/subject bucket. Proxy headers are trusted only when configured.
   const blockThreshold = new Date(
     Date.now() - IP_BLOCK_DURATION_MS,
   ).toISOString();
@@ -27,7 +52,7 @@ export async function POST(request: NextRequest) {
     .from(pinAttempts)
     .where(
       and(
-        eq(pinAttempts.ipAddress, ip),
+        eq(pinAttempts.ipAddress, rateLimitKey),
         gt(pinAttempts.attemptedAt, blockThreshold),
       ),
     );
@@ -43,13 +68,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
-  const { identifier, password } = body as {
-    identifier?: string;
-    password?: string;
-  };
-
-  if (!identifier || !password) {
+  if (!normalizedIdentifier || !password) {
     return NextResponse.json(
       { error: "ユーザーIDまたはメールアドレスとパスワードを入力してください" },
       { status: 400 },
@@ -58,20 +77,20 @@ export async function POST(request: NextRequest) {
 
   const user = await db.query.users.findFirst({
     where: or(
-      eq(users.email, identifier),
-      eq(users.userId, identifier),
+      eq(users.email, normalizedIdentifier),
+      eq(users.userId, normalizedIdentifier),
     ),
   });
 
   console.log("[credentials/login] User lookup", {
-    identifier,
+    identifier: normalizedIdentifier,
     found: !!user,
     userId: user?.userId ?? null,
   });
 
   // Constant-time failure to prevent user enumeration
   if (!user) {
-    await db.insert(pinAttempts).values({ ipAddress: ip });
+    await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
     return NextResponse.json(
       { error: "ユーザーIDまたはパスワードが正しくありません" },
       { status: 401 },
@@ -85,7 +104,7 @@ export async function POST(request: NextRequest) {
     pwHashLen: user.passwordHash?.length ?? 0,
   });
   if (!valid) {
-    await db.insert(pinAttempts).values({ ipAddress: ip });
+    await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
     return NextResponse.json(
       {
@@ -96,8 +115,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Clear IP attempts on success
-  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+  // Clear attempts for the successfully authenticated subject bucket.
+  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, rateLimitKey));
 
   console.log("[credentials/login] Password verified OK for", user.userId);
 
@@ -108,6 +127,12 @@ export async function POST(request: NextRequest) {
     .update(users)
     .set({ lastFullAuthAt: now })
     .where(eq(users.id, user.id));
+
+  const { deviceToken } = await storeDeviceFullAuth({
+    deviceToken: request.cookies.get(DEVICE_AUTH_COOKIE)?.value,
+    userId: user.id,
+    authenticatedAt: now,
+  });
 
   // Create session
   const sessionToken = generateSessionToken();
@@ -120,18 +145,8 @@ export async function POST(request: NextRequest) {
   });
 
   const res = NextResponse.json({ success: true });
-  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
-  // Remember which user last authenticated so the PIN screen can target them
-  res.cookies.set(LAST_USER_COOKIE, user.userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-  });
+  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SESSION_MAX_AGE));
+  setDeviceAuthCookie(res, deviceToken);
+  clearLegacyLastUserCookie(res);
   return res;
 }

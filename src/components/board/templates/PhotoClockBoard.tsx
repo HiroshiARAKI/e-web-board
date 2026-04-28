@@ -90,6 +90,7 @@ export default function PhotoClockBoard({
         />
         {config.showWeather && (
           <WeatherDisplay
+            boardId={board.id}
             color={config.clockColor}
             bgOpacity={config.clockBgOpacity}
             fontFamily={config.fontFamily || undefined}

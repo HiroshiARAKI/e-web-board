@@ -1,16 +1,62 @@
 services:
+  db:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: keinage
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d keinage"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # rustfs:
+  #   image: rustfs/rustfs:latest
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   environment:
+  #     - RUSTFS_ACCESS_KEY=rustfsadmin
+  #     - RUSTFS_SECRET_KEY=rustfsadmin
+  #   volumes:
+  #     - ./rustfs-data:/data
+  #     - ./rustfs-logs:/logs
+  #   restart: unless-stopped
+  #   # rustfs は alpha のため、既定では起動しません。
+  #   # 切替手順:
+  #   # 1. この service のコメントを外す
+  #   # 2. `.env` で S3_* を有効化する
+  #   # 3. `docker compose up -d db rustfs app` を実行する
+
   app:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "3000:3000"
     volumes:
-      - db-data:/app/data
       - upload-data:/app/uploads
     environment:
       - NODE_ENV=production
       - HOSTNAME=0.0.0.0
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/keinage
+      - APP_PUBLIC_ORIGIN=${APP_PUBLIC_ORIGIN:-http://localhost:3000}
+      - S3_ENDPOINT=${S3_INTERNAL_ENDPOINT:-${S3_ENDPOINT:-}}
+      - S3_REGION=${S3_REGION:-}
+      - S3_BUCKET=${S3_BUCKET:-}
+      - S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-}
+      - S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-}
+      - S3_FORCE_PATH_STYLE=${S3_FORCE_PATH_STYLE:-}
       # SMTP settings for PIN reset email (optional)
       # - SMTP_HOST=smtp.example.com
       # - SMTP_PORT=587
@@ -26,5 +72,5 @@ services:
       start_period: 10s
 
 volumes:
-  db-data:
+  postgres-data:
   upload-data:

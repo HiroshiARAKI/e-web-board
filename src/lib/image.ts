@@ -2,16 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 import sharp from "sharp";
 import path from "path";
-import fs from "fs";
 
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
-const THUMB_DIR = path.join(UPLOAD_DIR, "thumbs");
+const THUMBNAIL_MIME_TYPES: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+};
 
 /** Default long-edge maximum (4K). 0 means no limit. */
 export const DEFAULT_IMAGE_MAX_LONG_EDGE = 3840;
 
 /** Thumbnail long-edge size. */
 export const THUMBNAIL_LONG_EDGE = 600;
+
+export type GeneratedThumbnail = {
+  filename: string;
+  buffer: Buffer;
+  contentType: string;
+};
 
 /**
  * Resize an image so that its longest edge does not exceed `maxLongEdge`.
@@ -47,56 +56,36 @@ export async function resizeImage(
 }
 
 /**
- * Generate a thumbnail (600px long edge) and save to uploads/thumbs/.
- * Returns the public URL path of the thumbnail (e.g. `/uploads/thumbs/uuid.jpg`).
+ * Generate a thumbnail (600px long edge) buffer for later storage.
  *
  * GIF files get a static JPEG thumbnail (first frame).
  */
 export async function generateThumbnail(
   buffer: Buffer,
   filename: string,
-): Promise<string> {
-  fs.mkdirSync(THUMB_DIR, { recursive: true });
-
+): Promise<GeneratedThumbnail> {
   const ext = path.extname(filename).toLowerCase();
-  // For GIF, generate a JPEG thumbnail from the first frame
   const thumbExt = ext === ".gif" ? ".jpg" : ext;
-  const thumbFilename =
-    path.basename(filename, ext) + thumbExt;
-  const thumbPath = path.join(THUMB_DIR, thumbFilename);
+  const thumbFilename = path.basename(filename, ext) + thumbExt;
 
   let pipeline = sharp(buffer);
 
   if (ext === ".gif") {
-    // Extract first frame and convert to JPEG
     pipeline = pipeline.jpeg({ quality: 80 });
   }
 
-  await pipeline
+  const thumbnailBuffer = await pipeline
     .resize({
       width: THUMBNAIL_LONG_EDGE,
       height: THUMBNAIL_LONG_EDGE,
       fit: "inside",
       withoutEnlargement: true,
     })
-    .toFile(thumbPath);
+    .toBuffer();
 
-  return `/uploads/thumbs/${thumbFilename}`;
-}
-
-/**
- * Delete a thumbnail for a given original filename, if it exists.
- */
-export function deleteThumbnail(filename: string): void {
-  const ext = path.extname(filename).toLowerCase();
-  const thumbExt = ext === ".gif" ? ".jpg" : ext;
-  const thumbFilename = path.basename(filename, ext) + thumbExt;
-  const thumbPath = path.join(THUMB_DIR, thumbFilename);
-  try {
-    if (fs.existsSync(thumbPath)) {
-      fs.unlinkSync(thumbPath);
-    }
-  } catch {
-    // ignore
-  }
+  return {
+    filename: thumbFilename,
+    buffer: thumbnailBuffer,
+    contentType: THUMBNAIL_MIME_TYPES[thumbExt] ?? "image/jpeg",
+  };
 }

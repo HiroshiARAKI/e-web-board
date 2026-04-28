@@ -14,6 +14,8 @@ import {
   Pencil,
   Check,
   X,
+  Lock,
+  Globe,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -59,6 +61,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   // Edit state
   const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [config, setConfig] = useState<Record<string, unknown>>({});
 
   // New message state
@@ -81,6 +84,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
     setBoard(data);
     setName(data.name);
     setIsActive(data.isActive);
+    setVisibility(data.visibility === "public" ? "public" : "private");
     const parsed =
       typeof data.config === "string" ? JSON.parse(data.config) : data.config;
     setConfig(parsed && typeof parsed === "object" ? parsed : {});
@@ -98,7 +102,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
     const res = await fetch(`/api/boards/${boardId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, isActive, config }),
+      body: JSON.stringify({ name, isActive, visibility, config }),
     });
 
     if (!res.ok) {
@@ -209,7 +213,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           className={buttonVariants({ variant: "outline", size: "sm" })}
         >
           <ExternalLink data-icon="inline-start" />
-          プレビュー
+          表示URLを開く
         </a>
       </div>
 
@@ -247,6 +251,46 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 <Badge variant={isActive ? "default" : "secondary"}>
                   {isActive ? "有効" : "無効"}
                 </Badge>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <div className="space-y-1">
+                  <Label htmlFor="board-visibility">公開設定</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Private はログイン済みユーザーのみ表示URLを開けます。Public は誰でも表示URLを閲覧できます。
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm ${
+                      visibility === "private"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Lock className="size-3.5" />
+                    Private
+                  </div>
+                  <Switch
+                    id="board-visibility"
+                    checked={visibility === "public"}
+                    onCheckedChange={(checked) => setVisibility(checked ? "public" : "private")}
+                  />
+                  <div
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm ${
+                      visibility === "public"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Globe className="size-3.5" />
+                    Public
+                  </div>
+                  <Badge variant={visibility === "public" ? "default" : "secondary"}>
+                    {visibility === "public" ? "公開中" : "認証必須"}
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -444,7 +488,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 className={buttonVariants({ variant: "outline", className: "w-full" })}
               >
                 <ExternalLink data-icon="inline-start" />
-                プレビュー
+                表示URLを開く
               </a>
 
               <Separator />

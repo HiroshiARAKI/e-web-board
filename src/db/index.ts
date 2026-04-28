@@ -1,31 +1,38 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import * as schema from "./schema";
-import path from "path";
-import fs from "fs";
 
-const DB_PATH = path.resolve(process.cwd(), "data", "e-web-board.db");
+const DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://postgres:postgres@127.0.0.1:5432/keinage";
 
 type DbInstance = ReturnType<typeof drizzle<typeof schema>>;
+type GlobalDbState = {
+  __keinageDbPool?: Pool;
+  __keinageDb?: DbInstance;
+};
 
-let _db: DbInstance | undefined;
+const globalDbState = globalThis as typeof globalThis & GlobalDbState;
 
 function initDb(): DbInstance {
-  if (!_db) {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    const sqlite = new Database(DB_PATH);
-    sqlite.pragma("journal_mode = WAL");
-    sqlite.pragma("busy_timeout = 5000");
-    sqlite.pragma("foreign_keys = ON");
-    _db = drizzle(sqlite, { schema });
+  if (!globalDbState.__keinageDbPool) {
+    globalDbState.__keinageDbPool = new Pool({
+      connectionString: DATABASE_URL,
+    });
   }
-  return _db;
+
+  if (!globalDbState.__keinageDb) {
+    globalDbState.__keinageDb = drizzle(globalDbState.__keinageDbPool, {
+      schema,
+    });
+  }
+
+  return globalDbState.__keinageDb;
 }
 
 // Lazy proxy: DB connection is established on first access, not at import time.
-// This prevents SQLITE_BUSY errors when Next.js build workers evaluate modules concurrently.
+// This keeps build-time module evaluation from opening connections before they are needed.
 export const db: DbInstance = new Proxy({} as DbInstance, {
   get(_, prop) {
     return (initDb() as never)[prop];

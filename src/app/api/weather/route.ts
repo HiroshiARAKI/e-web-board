@@ -1,10 +1,13 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { settings } from "@/db/schema";
+import { boards } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { DEFAULT_CITY_ID } from "@/lib/weather-areas";
+import { getSessionUser } from "@/lib/auth";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
 
 const WEATHER_API_BASE = "https://weather.tsukumijima.net/api/forecast/city";
 
@@ -17,14 +20,40 @@ let weatherCache: { cityId: string; data: unknown; fetchedAt: number } | null =
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 /** GET /api/weather — fetch today's weather for the configured city */
-export async function GET() {
-  // Get configured city from settings
-  const row = await db
-    .select()
-    .from(settings)
-    .where(eq(settings.key, "weatherCityId"))
-    .limit(1);
-  const cityId = row[0]?.value ?? DEFAULT_CITY_ID;
+export async function GET(request: NextRequest) {
+  const boardId = request.nextUrl.searchParams.get("boardId");
+
+  let ownerUserId: string | null = null;
+
+  if (boardId) {
+    const board = await db.query.boards.findFirst({
+      where: eq(boards.id, boardId),
+    });
+    if (!board || !board.isActive) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    if (board.visibility === "private") {
+      const session = await getSessionUser();
+      if (!session) {
+        return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+      }
+    }
+
+    ownerUserId = board.ownerUserId;
+  } else {
+    const session = await getSessionUser();
+    if (session) {
+      ownerUserId = resolveOwnerUserId(session.user);
+    } else {
+      const firstUser = await db.query.users.findFirst();
+      ownerUserId = firstUser ? resolveOwnerUserId(firstUser) : null;
+    }
+  }
+
+  const cityId = ownerUserId
+    ? (await getOwnerSetting(ownerUserId, "weatherCityId")) ?? DEFAULT_CITY_ID
+    : DEFAULT_CITY_ID;
 
   if (!CITY_ID_RE.test(cityId)) {
     return NextResponse.json(

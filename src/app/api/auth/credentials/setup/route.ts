@@ -2,31 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users } from "@/db/schema";
-import { hashPassword, AUTH_SESSION_COOKIE } from "@/lib/auth";
-import { generateSessionToken } from "@/lib/pin";
+import { signupRequests, users } from "@/db/schema";
+import { eq, or } from "drizzle-orm";
+import { sendOwnerSignupEmail, isSmtpConfigured } from "@/lib/mail";
+import { buildAuthCookieOptions } from "@/lib/auth";
+import {
+  buildPublicAppUrl,
+  isUnauthenticatedSignupPreviewEnabled,
+} from "@/lib/public-origin";
+import {
+  SIGNUP_REQUEST_COOKIE,
+  SIGNUP_REQUEST_COOKIE_MAX_AGE,
+  computeSignupExpiry,
+  generateSignupToken,
+  isValidSignupEmail,
+  isValidSignupUserId,
+  normalizePhoneNumber,
+  normalizeSignupEmail,
+} from "@/lib/signup";
 
-/** POST /api/auth/credentials/setup — initial admin user registration */
+/** POST /api/auth/credentials/setup — request owner signup by email link */
 export async function POST(request: NextRequest) {
-  // Ensure no user exists yet
-  const existing = await db.select().from(users).limit(1);
-  if (existing.length > 0) {
-    return NextResponse.json(
-      { error: "管理者は既に登録されています" },
-      { status: 400 },
-    );
-  }
-
   const body = await request.json();
-  const { userId, email, password } = body as {
+  const { userId, email, phoneNumber } = body as {
     userId?: string;
     email?: string;
-    password?: string;
+    phoneNumber?: string;
   };
 
+  const normalizedUserId = userId?.trim() ?? "";
+  const normalizedEmail = email ? normalizeSignupEmail(email) : "";
+
   if (
-    !userId ||
-    !/^[a-zA-Z0-9_\-]{3,32}$/.test(userId)
+    !normalizedUserId ||
+    !isValidSignupUserId(normalizedUserId)
   ) {
     return NextResponse.json(
       {
@@ -36,39 +45,81 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!normalizedEmail || !isValidSignupEmail(normalizedEmail)) {
     return NextResponse.json(
       { error: "有効なメールアドレスを入力してください" },
       { status: 400 },
     );
   }
-  if (!password || password.length < 8) {
+  const normalizedPhoneNumber =
+    typeof phoneNumber === "string" ? normalizePhoneNumber(phoneNumber) : null;
+  if (!normalizedPhoneNumber) {
     return NextResponse.json(
-      { error: "パスワードは8文字以上で入力してください" },
+      { error: "電話番号を正しく入力してください" },
       { status: 400 },
     );
   }
 
-  const passwordHash = await hashPassword(password);
-
-  await db.insert(users).values({
-    userId,
-    email,
-    passwordHash,
-    role: "admin",
-    lastFullAuthAt: new Date().toISOString(),
+  const existingUser = await db.query.users.findFirst({
+    where: or(
+      eq(users.userId, normalizedUserId),
+      eq(users.email, normalizedEmail),
+      eq(users.phoneNumber, normalizedPhoneNumber),
+    ),
   });
+  if (existingUser) {
+    return NextResponse.json(
+      { error: "同じユーザーID・メールアドレス・電話番号では登録できません" },
+      { status: 409 },
+    );
+  }
 
-  // Return a setup-complete token for the PIN setup step (short TTL client-side token)
-  const setupToken = generateSessionToken();
+  const smtpConfigured = isSmtpConfigured();
+  const previewEnabled = isUnauthenticatedSignupPreviewEnabled();
+  if (!smtpConfigured && !previewEnabled) {
+    return NextResponse.json(
+      { error: "この環境では登録リンクを発行できません。SMTP を設定してください" },
+      { status: 503 },
+    );
+  }
 
-  const res = NextResponse.json({ success: true, setupToken });
-  // Provide a temporary setup cookie so PIN setup route can verify continuity
-  res.cookies.set(AUTH_SESSION_COOKIE, setupToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 15, // 15 minutes for setup
+  const token = generateSignupToken();
+  const expiresAt = computeSignupExpiry();
+  const signupUrl = buildPublicAppUrl(`/signup/${token}`);
+  if (!signupUrl) {
+    return NextResponse.json(
+      { error: "APP_PUBLIC_ORIGIN が未設定、または不正です" },
+      { status: 503 },
+    );
+  }
+
+  const [signupRequest] = await db.insert(signupRequests).values({
+    userId: normalizedUserId,
+    email: normalizedEmail,
+    phoneNumber: normalizedPhoneNumber,
+    token,
+    expiresAt,
+  }).returning();
+
+  const mailSent = smtpConfigured
+    ? await sendOwnerSignupEmail(normalizedEmail, signupUrl)
+    : false;
+
+  if (!mailSent && smtpConfigured) {
+    return NextResponse.json(
+      { error: "登録メールの送信に失敗しました。時間を置いて再度お試しください" },
+      { status: 500 },
+    );
+  }
+
+  const res = NextResponse.json({
+    success: true,
+    previewUrl: previewEnabled ? signupUrl : null,
   });
+  res.cookies.set(
+    SIGNUP_REQUEST_COOKIE,
+    signupRequest.id,
+    buildAuthCookieOptions(SIGNUP_REQUEST_COOKIE_MAX_AGE),
+  );
   return res;
 }

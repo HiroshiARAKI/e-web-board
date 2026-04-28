@@ -2,21 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { mediaItems, boards, settings } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { mediaItems, boards } from "@/db/schema";
+import { and, eq, asc, inArray } from "drizzle-orm";
+import { getAdminSessionUser, getSessionUser } from "@/lib/auth";
 import { updateMediaOrderSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
 import {
   resizeImage,
   generateThumbnail,
-  deleteThumbnail,
   DEFAULT_IMAGE_MAX_LONG_EDGE,
 } from "@/lib/image";
+import {
+  deleteStoredObject,
+  publicPathForStorageKey,
+  storageKeyFromPublicPath,
+  thumbnailStorageKeyFromFilename,
+  thumbnailStorageKeyFromPublicPath,
+  writeStoredObject,
+} from "@/lib/media-storage";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
+import { parseJsonObject } from "@/lib/utils";
 import path from "path";
-import fs from "fs";
 import { randomUUID } from "crypto";
-
-const UPLOAD_DIR = path.resolve(process.cwd(), "uploads");
 
 const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",
@@ -29,15 +37,16 @@ const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 function readSlideInterval(config: unknown): number | undefined {
-  if (!config || typeof config !== "object") {
-    return undefined;
-  }
-
-  const raw = (config as Record<string, unknown>).slideInterval;
+  const raw = parseJsonObject(config).slideInterval;
   return typeof raw === "number" && Number.isFinite(raw) && raw >= 1 ? raw : undefined;
 }
 
 export async function GET() {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   const items = await db
     .select({
       id: mediaItems.id,
@@ -51,12 +60,18 @@ export async function GET() {
       boardName: boards.name,
     })
     .from(mediaItems)
-    .leftJoin(boards, eq(mediaItems.boardId, boards.id))
+    .innerJoin(boards, eq(mediaItems.boardId, boards.id))
+    .where(eq(boards.ownerUserId, resolveOwnerUserId(session.user)))
     .orderBy(asc(mediaItems.displayOrder));
   return NextResponse.json(items);
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -88,6 +103,9 @@ export async function POST(request: NextRequest) {
   if (!board) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
+  if (board.ownerUserId !== resolveOwnerUserId(session.user)) {
+    return NextResponse.json({ error: "Board not found" }, { status: 404 });
+  }
 
   // Validate file type
   if (!ALLOWED_TYPES.includes(file.type)) {
@@ -116,30 +134,30 @@ export async function POST(request: NextRequest) {
   const ext = path.extname(file.name) || `.${file.type.split("/")[1]}`;
   const sanitizedExt = ext.replace(/[^a-zA-Z0-9.]/g, "");
   const filename = `${randomUUID()}${sanitizedExt}`;
-  const filePath = path.join(UPLOAD_DIR, filename);
 
-  // Ensure upload directory exists
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-  // Write file to disk (resize images if needed)
   let buffer: Buffer = Buffer.from(await file.arrayBuffer());
 
   if (mediaType === "image") {
     // Read the max long edge setting
-    const maxSetting = await db.query.settings.findFirst({
-      where: eq(settings.key, "imageMaxLongEdge"),
-    });
+    const maxSetting = await getOwnerSetting(board.ownerUserId, "imageMaxLongEdge");
     const maxLongEdge = maxSetting
-      ? parseInt(maxSetting.value, 10)
+      ? parseInt(maxSetting, 10)
       : DEFAULT_IMAGE_MAX_LONG_EDGE;
 
     buffer = Buffer.from(await resizeImage(buffer, sanitizedExt, maxLongEdge));
-
-    // Generate thumbnail
-    await generateThumbnail(buffer, filename);
   }
 
-  fs.writeFileSync(filePath, buffer);
+  const thumbnail =
+    mediaType === "image" ? await generateThumbnail(buffer, filename) : null;
+
+  await writeStoredObject(filename, buffer, file.type);
+  if (thumbnail) {
+    await writeStoredObject(
+      thumbnailStorageKeyFromFilename(filename),
+      thumbnail.buffer,
+      thumbnail.contentType,
+    );
+  }
 
   // Calculate display order (append at end)
   const existing = await db
@@ -164,7 +182,7 @@ export async function POST(request: NextRequest) {
     .values({
       boardId,
       type: mediaType,
-      filePath: `/uploads/${filename}`,
+      filePath: publicPathForStorageKey(filename),
       displayOrder: maxOrder + 1,
       duration: durationValue,
     })
@@ -176,6 +194,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -193,9 +216,24 @@ export async function PATCH(request: NextRequest) {
 
   const updates = result.data;
   const updated: unknown[] = [];
+  const ownerUserId = resolveOwnerUserId(session.user);
 
   const boardIds = new Set<string>();
   for (const item of updates) {
+    const scopedItem = await db
+      .select({
+        id: mediaItems.id,
+        boardId: mediaItems.boardId,
+      })
+      .from(mediaItems)
+      .innerJoin(boards, eq(mediaItems.boardId, boards.id))
+      .where(and(eq(mediaItems.id, item.id), eq(boards.ownerUserId, ownerUserId)))
+      .limit(1);
+
+    if (scopedItem.length === 0) {
+      return NextResponse.json({ error: "Media item not found" }, { status: 404 });
+    }
+
     const [row] = await db
       .update(mediaItems)
       .set({ displayOrder: item.displayOrder })
@@ -215,51 +253,41 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE() {
-  // Delete all media items and their files on disk
-  const items = await db.select().from(mediaItems);
+  const session = await getAdminSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 });
+  }
+
+  const ownerUserId = resolveOwnerUserId(session.user);
+  const items = await db
+    .select({
+      id: mediaItems.id,
+      boardId: mediaItems.boardId,
+      filePath: mediaItems.filePath,
+    })
+    .from(mediaItems)
+    .innerJoin(boards, eq(mediaItems.boardId, boards.id))
+    .where(eq(boards.ownerUserId, ownerUserId));
 
   const boardIds = new Set<string>();
-  const deletedFiles = new Set<string>();
   for (const item of items) {
     boardIds.add(item.boardId);
-    const basename = path.basename(item.filePath);
-    const filePath = path.join(UPLOAD_DIR, basename);
-    deletedFiles.add(basename);
     try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      await deleteStoredObject(storageKeyFromPublicPath(item.filePath));
     } catch {
       // continue even if file deletion fails
     }
-    deleteThumbnail(basename);
-  }
-
-  await db.delete(mediaItems);
-
-  // Also delete any orphan files on disk that have no DB record
-  if (fs.existsSync(UPLOAD_DIR)) {
-    const remaining = fs.readdirSync(UPLOAD_DIR);
-    for (const name of remaining) {
-      if (name.startsWith(".") || name === "thumbs") continue;
-      if (deletedFiles.has(name)) continue;
-      try {
-        fs.unlinkSync(path.join(UPLOAD_DIR, name));
-      } catch {
-        // ignore
-      }
-      deleteThumbnail(name);
+    try {
+      await deleteStoredObject(thumbnailStorageKeyFromPublicPath(item.filePath));
+    } catch {
+      // continue even if thumbnail deletion fails
     }
   }
 
-  // Clean up thumbs directory entirely
-  const thumbDir = path.join(UPLOAD_DIR, "thumbs");
-  try {
-    if (fs.existsSync(thumbDir)) {
-      fs.rmSync(thumbDir, { recursive: true });
-    }
-  } catch {
-    // ignore
+  if (items.length > 0) {
+    await db
+      .delete(mediaItems)
+      .where(inArray(mediaItems.id, items.map((item) => item.id)));
   }
 
   for (const boardId of boardIds) {

@@ -1,27 +1,33 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-export const boards = sqliteTable("boards", {
+const isoNow = sql`to_char(timezone('utc', now()), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+
+export const boards = pgTable("boards", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  visibility: text("visibility").notNull().default("private"),
   templateId: text("template_id").notNull(), // "simple" | "photo-clock" | "retro" | "message" | "call-number"
-  config: text("config", { mode: "json" }).notNull().default("{}"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  config: text("config").notNull().default("{}"),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const mediaItems = sqliteTable("media_items", {
+export const mediaItems = pgTable("media_items", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -34,14 +40,14 @@ export const mediaItems = sqliteTable("media_items", {
   duration: integer("duration").notNull().default(5), // seconds
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const messages = sqliteTable("messages", {
+export const messages = pgTable("messages", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -53,23 +59,32 @@ export const messages = sqliteTable("messages", {
   expiresAt: text("expires_at"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const settings = sqliteTable("settings", {
-  key: text("key").primaryKey(),
-  value: text("value").notNull(),
-  updatedAt: text("updated_at")
-    .notNull()
-    .default(sql`(datetime('now'))`)
-    .$onUpdate(() => new Date().toISOString()),
-});
+export const settings = pgTable(
+  "settings",
+  {
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: text("value").notNull(),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(isoNow)
+      .$onUpdate(() => new Date().toISOString()),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.ownerUserId, table.key] }),
+  }),
+);
 
-export const pinResetTokens = sqliteTable("pin_reset_tokens", {
+export const pinResetTokens = pgTable("pin_reset_tokens", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -80,46 +95,91 @@ export const pinResetTokens = sqliteTable("pin_reset_tokens", {
   usedAt: text("used_at"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
 });
 
-export const pinAttempts = sqliteTable("pin_attempts", {
+export const pinAttempts = pgTable("pin_attempts", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
   ipAddress: text("ip_address").notNull(),
   attemptedAt: text("attempted_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
+});
+
+export const signupRequests = pgTable("signup_requests", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  userId: text("user_id").notNull(),
+  email: text("email").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
+});
+
+export const accountDeletionRequests = pgTable("account_deletion_requests", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  ownerUserId: text("owner_user_id").notNull().unique(),
+  token: text("token").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
 });
 
 // ── New auth tables ─────────────────────────────────────
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
   /** Human-readable login ID (e.g. "admin") */
   userId: text("user_id").notNull().unique(),
   email: text("email").notNull().unique(),
+  /** Phone number for owner sign-up uniqueness checks */
+  phoneNumber: text("phone_number").unique(),
   passwordHash: text("password_hash").notNull(),
   /** 6-digit PIN hash (nullable until PIN is configured) */
   pinHash: text("pin_hash"),
-  role: text("role").notNull().default("admin"),
+  /** Owner of an isolated workspace, or a shared member under an owner */
+  attribute: text("attribute").notNull().default("shared"),
+  /** Shared users point at their owner user; owner users keep this null */
+  ownerUserId: text("owner_user_id").references(
+    (): AnyPgColumn => users.id,
+    { onDelete: "set null" },
+  ),
+  role: text("role").notNull().default("general"),
   /** Dashboard color theme preference: "system" | "light" | "dark" */
   colorTheme: text("color_theme").notNull().default("system"),
   /** Timestamp of the last successful email+password login */
   lastFullAuthAt: text("last_full_auth_at"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`)
+    .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
 });
 
-export const authSessions = sqliteTable("auth_sessions", {
+export const authSessions = pgTable("auth_sessions", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => randomUUID()),
@@ -130,13 +190,32 @@ export const authSessions = sqliteTable("auth_sessions", {
   expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(isoNow),
+});
+
+export const deviceAuthGrants = pgTable("device_auth_grants", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  deviceTokenHash: text("device_token_hash").notNull().unique(),
+  lastFullAuthAt: text("last_full_auth_at").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
 });
 
 // ── Relations ────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(authSessions),
+  deviceAuthGrants: many(deviceAuthGrants),
   pinResetTokens: many(pinResetTokens),
 }));
 
@@ -150,6 +229,13 @@ export const pinResetTokensRelations = relations(pinResetTokens, ({ one }) => ({
 export const authSessionsRelations = relations(authSessions, ({ one }) => ({
   user: one(users, {
     fields: [authSessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const deviceAuthGrantsRelations = relations(deviceAuthGrants, ({ one }) => ({
+  user: one(users, {
+    fields: [deviceAuthGrants.userId],
     references: [users.id],
   }),
 }));

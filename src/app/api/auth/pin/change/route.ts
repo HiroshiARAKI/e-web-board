@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, authSessions } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { hashPin, verifyPin } from "@/lib/pin";
+import { hashPin, needsPinRehash, verifyPin } from "@/lib/pin";
 import { AUTH_SESSION_COOKIE } from "@/lib/auth";
 import { cookies } from "next/headers";
 
@@ -40,6 +40,18 @@ export async function PATCH(request: NextRequest) {
   if (!adminUser) {
     return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
   }
+  const adminUserId = adminUser.id;
+
+  async function upgradeLegacyPinHashIfNeeded(currentHash: string, verifiedPin: string) {
+    if (!needsPinRehash(currentHash)) {
+      return;
+    }
+
+    await db
+      .update(users)
+      .set({ pinHash: await hashPin(verifiedPin) })
+      .where(eq(users.id, adminUserId));
+  }
 
   // ── setupPin: set initial PIN for a user who has none ──────────────────────
   if (action === "setupPin") {
@@ -56,10 +68,11 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    const pinHash = await hashPin(newPin);
     await db
       .update(users)
-      .set({ pinHash: hashPin(newPin) })
-      .where(eq(users.id, adminUser.id));
+      .set({ pinHash })
+      .where(eq(users.id, adminUserId));
 
     return NextResponse.json({ success: true });
   }
@@ -71,12 +84,14 @@ export async function PATCH(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (!adminUser.pinHash || !verifyPin(currentPin, adminUser.pinHash)) {
+    if (!adminUser.pinHash || !(await verifyPin(currentPin, adminUser.pinHash))) {
       return NextResponse.json(
         { error: "PINが正しくありません" },
         { status: 401 },
       );
     }
+
+    await upgradeLegacyPinHashIfNeeded(adminUser.pinHash, currentPin);
     return NextResponse.json({ success: true });
   }
 
@@ -94,17 +109,18 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (!adminUser.pinHash || !verifyPin(currentPin, adminUser.pinHash)) {
+    if (!adminUser.pinHash || !(await verifyPin(currentPin, adminUser.pinHash))) {
       return NextResponse.json(
         { error: "現在のPINが正しくありません" },
         { status: 401 },
       );
     }
 
+    const pinHash = await hashPin(newPin);
     await db
       .update(users)
-      .set({ pinHash: hashPin(newPin) })
-      .where(eq(users.id, adminUser.id));
+      .set({ pinHash })
+      .where(eq(users.id, adminUserId));
 
     return NextResponse.json({ success: true });
   }
@@ -120,7 +136,7 @@ export async function PATCH(request: NextRequest) {
     await db
       .update(users)
       .set({ email: newEmail })
-      .where(eq(users.id, adminUser.id));
+      .where(eq(users.id, adminUserId));
 
     return NextResponse.json({ success: true });
   }
@@ -147,7 +163,7 @@ export async function PATCH(request: NextRequest) {
     await db
       .update(users)
       .set({ userId: newUserId })
-      .where(eq(users.id, adminUser.id));
+      .where(eq(users.id, adminUserId));
 
     return NextResponse.json({ success: true });
   }

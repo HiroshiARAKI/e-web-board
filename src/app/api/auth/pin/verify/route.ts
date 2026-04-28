@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, authSessions, pinAttempts, settings } from "@/db/schema";
-import { eq, and, gt, isNotNull } from "drizzle-orm";
+import { authSessions, pinAttempts, users } from "@/db/schema";
+import { eq, and, gt } from "drizzle-orm";
 import {
+  hashPin,
+  needsPinRehash,
   verifyPin,
   generateSessionToken,
   MAX_PIN_ATTEMPTS,
@@ -15,18 +17,52 @@ import {
   SESSION_MAX_AGE,
   DEFAULT_AUTH_EXPIRE_DAYS,
   AUTH_EXPIRE_DAYS_KEY,
+  buildAuthCookieOptions,
   isFullAuthValid,
-  LAST_USER_COOKIE,
 } from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  clearLegacyLastUserCookie,
+  getDeviceAuthGrantByToken,
+  setDeviceAuthCookie,
+} from "@/lib/device-auth";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
+import {
+  buildRateLimitKey,
+  resolveRateLimitClientIp,
+} from "@/lib/rate-limit";
 
 /** POST /api/auth/pin/verify — verify PIN and issue session */
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const clientIp = resolveRateLimitClientIp(request);
 
-  // Check IP block
+  const body = await request.json();
+  const { pin } = body as { pin?: string };
+
+  if (!pin || !/^\d{6}$/.test(pin)) {
+    return NextResponse.json(
+      { error: "PINは6桁の数字で入力してください" },
+      { status: 400 },
+    );
+  }
+
+  const deviceToken = request.cookies.get(DEVICE_AUTH_COOKIE)?.value;
+  const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
+  const adminUser = deviceAuthGrant?.user ?? null;
+
+  console.log("[pin/verify] Device auth lookup", {
+    hasDeviceAuthGrant: !!deviceAuthGrant,
+    userId: adminUser?.userId ?? null,
+    hasPIN: !!adminUser?.pinHash,
+  });
+
+  const rateLimitKey = buildRateLimitKey({
+    flow: "pin",
+    clientIp,
+    subject: adminUser?.userId ?? "no-device-auth",
+  });
+
   const blockThreshold = new Date(
     Date.now() - IP_BLOCK_DURATION_MS,
   ).toISOString();
@@ -35,7 +71,7 @@ export async function POST(request: NextRequest) {
     .from(pinAttempts)
     .where(
       and(
-        eq(pinAttempts.ipAddress, ip),
+        eq(pinAttempts.ipAddress, rateLimitKey),
         gt(pinAttempts.attemptedAt, blockThreshold),
       ),
     );
@@ -51,74 +87,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const body = await request.json();
-  const { pin } = body as { pin?: string };
-
-  if (!pin || !/^\d{6}$/.test(pin)) {
-    return NextResponse.json(
-      { error: "PINは6桁の数字で入力してください" },
-      { status: 400 },
-    );
-  }
-
-  // Resolve target user — same logic as pin/page.tsx:
-  //   Cookie user found + has PIN → that user
-  //   Cookie user found + no PIN → error (should not reach verify)
-  //   Cookie user not found → first user with PIN
-  const cookieStore = request.cookies;
-  const lastUserId = cookieStore.get(LAST_USER_COOKIE)?.value;
-  let adminUser = lastUserId
-    ? await db.query.users.findFirst({ where: eq(users.userId, lastUserId) })
-    : null;
-
-  console.log("[pin/verify] User resolution", {
-    lastUserId,
-    cookieUserFound: !!adminUser,
-    cookieUserHasPIN: !!adminUser?.pinHash,
-  });
-
-  if (adminUser) {
-    if (!adminUser.pinHash) {
-      // Cookie user has no PIN — they shouldn't be using PIN verify
-      console.log("[pin/verify] Cookie user has no PIN → error");
-      return NextResponse.json(
-        { error: "PINが設定されていません。メールアドレスでログインしてください。", requiresFullAuth: true },
-        { status: 403 },
-      );
-    }
-  } else {
-    // No cookie or cookie user not found — fall back to first user with a PIN
-    adminUser = await db.query.users.findFirst({ where: isNotNull(users.pinHash) });
-    console.log("[pin/verify] Fallback user with PIN", {
-      found: !!adminUser,
-      userId: adminUser?.userId ?? null,
-    });
-  }
-  if (!adminUser?.pinHash) {
-    return NextResponse.json(
-      { error: "PINが設定されていません" },
-      { status: 400 },
-    );
-  }
-
-  // Check full-auth validity
-  const expireSetting = await db.query.settings.findFirst({
-    where: eq(settings.key, AUTH_EXPIRE_DAYS_KEY),
-  });
-  const expireDays = expireSetting?.value
-    ? parseInt(expireSetting.value, 10)
-    : DEFAULT_AUTH_EXPIRE_DAYS;
-
-  if (!isFullAuthValid(adminUser.lastFullAuthAt, expireDays)) {
+  if (!deviceAuthGrant || !adminUser) {
     return NextResponse.json(
       { error: "メールアドレスとパスワードによる認証が必要です", requiresFullAuth: true },
       { status: 403 },
     );
   }
 
-  if (!verifyPin(pin, adminUser.pinHash)) {
+  if (!adminUser.pinHash) {
+    return NextResponse.json(
+      { error: "PINが設定されていません。メールアドレスでログインしてください。", requiresFullAuth: true },
+      { status: 403 },
+    );
+  }
+
+  // Check full-auth validity
+  const expireSetting = await getOwnerSetting(
+    resolveOwnerUserId(adminUser),
+    AUTH_EXPIRE_DAYS_KEY,
+  );
+  const expireDays = expireSetting
+    ? parseInt(expireSetting, 10)
+    : DEFAULT_AUTH_EXPIRE_DAYS;
+
+  if (!isFullAuthValid(deviceAuthGrant.lastFullAuthAt, expireDays)) {
+    return NextResponse.json(
+      { error: "メールアドレスとパスワードによる認証が必要です", requiresFullAuth: true },
+      { status: 403 },
+    );
+  }
+
+  if (!(await verifyPin(pin, adminUser.pinHash))) {
     // Record failed attempt
-    await db.insert(pinAttempts).values({ ipAddress: ip });
+    await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
 
     const remaining = MAX_PIN_ATTEMPTS - (recentAttempts.length + 1);
     console.log("[pin/verify] PIN incorrect for", adminUser.userId, { remaining });
@@ -131,8 +132,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Success — clear previous attempts for this IP
-  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, ip));
+  if (needsPinRehash(adminUser.pinHash)) {
+    await db
+      .update(users)
+      .set({ pinHash: await hashPin(pin) })
+      .where(eq(users.id, adminUser.id));
+  }
+
+  // Success — clear attempts for the verified subject bucket.
+  await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, rateLimitKey));
 
   console.log("[pin/verify] PIN verified OK for", adminUser.userId);
 
@@ -147,18 +155,10 @@ export async function POST(request: NextRequest) {
   });
 
   const res = NextResponse.json({ success: true });
-  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
-  // Keep LAST_USER_COOKIE up-to-date so next logout shows the correct PIN screen
-  res.cookies.set(LAST_USER_COOKIE, adminUser.userId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-  });
+  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SESSION_MAX_AGE));
+  if (deviceToken) {
+    setDeviceAuthCookie(res, deviceToken);
+  }
+  clearLegacyLastUserCookie(res);
   return res;
 }

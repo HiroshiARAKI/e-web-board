@@ -4,6 +4,73 @@
 
 ---
 
+## [1.4.0] - 2026-04-28
+
+### 新機能
+
+- **PostgreSQL への移行対応** (#92)
+  - 永続 DB を SQLite から PostgreSQL へ移行
+  - Docker / migration / ドキュメントを PostgreSQL 前提に更新
+
+- **S3 互換メディアストレージ対応** (#93)
+  - ローカル保存に加えて S3 互換ストレージを選択可能
+  - RustFS などの外部ストレージと `/uploads/...` の互換 URL を維持
+
+- **Owner / Shared の所有スコープを導入** (#101)
+  - ボード、メディア、設定、メッセージを Owner 単位で分離
+  - Shared ユーザー管理と public read endpoint を追加
+
+- **Owner サインアップにメール認証フローを追加** (#105)
+  - `/signup` → メールリンク → パスワード登録 → `/pin/setup` の 2 段階フローを追加
+  - 仮登録 token と再送フローを導入
+
+- **ボードの公開設定と表示認証を追加** (#106)
+  - ボードに `public` / `private` を追加し、既定値を `private` に変更
+  - private ボードでは表示 URL / 公開 API / SSE で認証を要求
+
+- **Owner 退会フローを追加** (#120)
+  - 設定画面に Dangerous settings と退会導線を追加
+  - メールリンクで退会を確定し、Owner 配下の不揮発データを削除
+
+### セキュリティ・認証改善
+
+- **PIN 要求条件を端末単位の認証キャッシュに変更** (#108)
+  - `device-auth` grant ベースでフル認証有効期限を判定
+  - 他ユーザーの認証状態に引きずられない PIN 導線へ変更
+
+- **PIN リセット導線の未認証乗っ取りを防止** (#109)
+  - reset URL と個人情報の未認証露出を抑止
+  - `APP_PUBLIC_ORIGIN` を基準に PIN 初期化リンクを生成
+
+- **ログイン試行制限の IP 判定を trusted proxy 前提に修正** (#110)
+  - `TRUST_PROXY_HEADERS` 有効時のみ proxy header を信用
+  - client + subject 単位の rate-limit bucket へ変更
+
+- **ダッシュボード変更 API にサーバー側認可を追加** (#111)
+  - settings / global media / network などの管理 API を admin 限定化
+
+- **PIN ハッシュを scrypt に移行** (#112)
+  - 固定 SHA-256 からメモリハード KDF へ移行
+  - 既存 PIN は成功認証時に段階的に再ハッシュ
+
+- **`/api/network` を管理者限定に変更** (#113)
+
+- **production では認証 Cookie に Secure を付与** (#114)
+
+- **Owner signup の登録 URL 生成と token 露出を harden** (#116)
+  - signup URL を `APP_PUBLIC_ORIGIN` 基準に統一
+  - preview URL の返却をローカル開発時に限定
+
+### 不具合修正
+
+- **画像スライドショーの初回停止を修正** (#123)
+  - キャッシュ済み画像でも loaded 判定されるよう修正
+  - 画像エラー時にもスライドショー全体が停止しないよう改善
+
+### その他
+
+- システムドキュメントを `docs/` 配下へ再編成 (#88)
+
 ## [1.3.0] - 2026-04-18
 
 ### 新機能

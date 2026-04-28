@@ -45,3 +45,6 @@ PLANNED*
 # vercel
 .vercel/
 tsconfig.tsbuildinfo
+
+# rustfs
+rustfs-*/

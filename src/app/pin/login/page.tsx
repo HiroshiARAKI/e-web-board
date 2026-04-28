@@ -3,40 +3,93 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { users, authSessions } from "@/db/schema";
+import { authSessions } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
-import { AUTH_SESSION_COOKIE } from "@/lib/auth";
+import {
+  AUTH_SESSION_COOKIE,
+  DEFAULT_AUTH_EXPIRE_DAYS,
+  AUTH_EXPIRE_DAYS_KEY,
+  isFullAuthValid,
+} from "@/lib/auth";
+import {
+  DEVICE_AUTH_COOKIE,
+  getDeviceAuthGrantByToken,
+} from "@/lib/device-auth";
+import { getOwnerSetting } from "@/lib/owner-settings";
+import { resolveOwnerUserId } from "@/lib/ownership";
+import { sanitizeRedirectTarget } from "@/lib/utils";
 import LoginClient from "./LoginClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirectTo?: string | string[] }>;
+}) {
   console.log("[/pin/login] START");
+  const params = await searchParams;
+  const redirectTo = sanitizeRedirectTarget(
+    typeof params.redirectTo === "string" ? params.redirectTo : null,
+  );
 
   // If admin user not configured, redirect to setup
   const adminUser = await db.query.users.findFirst();
   if (!adminUser) {
-    console.log("[/pin/login] No users → /pin/setup");
-    redirect("/pin/setup");
+    console.log("[/pin/login] No users → /signup");
+    redirect("/signup");
   }
 
   // If already authenticated, redirect to dashboard
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_AUTH_COOKIE)?.value;
+  const deviceAuthGrant = await getDeviceAuthGrantByToken(deviceToken);
   if (sessionCookie) {
     const sessionRow = await db.query.authSessions.findFirst({
       where: and(
         eq(authSessions.sessionToken, sessionCookie),
         gt(authSessions.expiresAt, new Date().toISOString()),
       ),
+      with: { user: true },
     });
     if (sessionRow) {
-      console.log("[/pin/login] Already authenticated → /boards");
-      redirect("/boards");
+      const sameUser = deviceAuthGrant?.user.id === sessionRow.user.id;
+      const expireSetting = sameUser
+        ? await getOwnerSetting(
+            resolveOwnerUserId(sessionRow.user),
+            AUTH_EXPIRE_DAYS_KEY,
+          )
+        : null;
+      const expireDays = expireSetting
+        ? parseInt(expireSetting, 10)
+        : DEFAULT_AUTH_EXPIRE_DAYS;
+      const deviceAuthLastFullAuthAt = sameUser
+        ? deviceAuthGrant.lastFullAuthAt
+        : null;
+      const fullAuthValid = isFullAuthValid(
+        deviceAuthLastFullAuthAt,
+        expireDays,
+      );
+
+      console.log("[/pin/login] Existing session full-auth check", {
+        sessionUserId: sessionRow.user.userId,
+        deviceAuthUserId: deviceAuthGrant?.user.userId ?? null,
+        deviceAuthLastFullAuthAt,
+        expireDays,
+        fullAuthValid,
+      });
+
+      if (fullAuthValid) {
+        console.log("[/pin/login] Already authenticated → target");
+        redirect(redirectTo || "/boards");
+      }
+
+      console.log("[/pin/login] Session exists but device full-auth is not valid");
     }
     console.log("[/pin/login] Session cookie present but invalid/expired");
   }
 
   console.log("[/pin/login] Rendering LoginClient");
-  return <LoginClient />;
+  return <LoginClient redirectTo={redirectTo} />;
 }

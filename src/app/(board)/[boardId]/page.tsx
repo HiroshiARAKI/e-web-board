@@ -1,10 +1,12 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc, and, or, isNull, gt } from "drizzle-orm";
+import { getSessionUser } from "@/lib/auth";
 import { getTemplate } from "@/lib/templates";
+import { normalizeConfig } from "@/lib/utils";
 import LiveBoard from "@/components/board/LiveBoard";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,26 @@ export default async function BoardPage({
     notFound();
   }
 
-  const template = getTemplate(board.templateId);
+  console.log("[board/page] Access", {
+    boardId,
+    visibility: board.visibility,
+    isActive: board.isActive,
+  });
+
+  if (board.visibility === "private") {
+    const session = await getSessionUser();
+    console.log("[board/page] Private board auth", {
+      boardId,
+      hasSession: !!session,
+    });
+    if (!session) {
+      redirect(`/pin?redirectTo=${encodeURIComponent(`/${boardId}`)}`);
+    }
+  }
+
+  const normalizedBoard = normalizeConfig(board);
+
+  const template = getTemplate(normalizedBoard.templateId);
   if (!template) {
     notFound();
   }
@@ -48,7 +69,7 @@ export default async function BoardPage({
 
   return (
     <LiveBoard
-      board={board}
+      board={normalizedBoard}
       mediaItems={media}
       messages={activeMessages}
       TemplateComponent={template.component}

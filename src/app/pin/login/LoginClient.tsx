@@ -8,7 +8,7 @@ import Link from "next/link";
 import { KeyRound } from "lucide-react";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
-export default function LoginClient() {
+export default function LoginClient({ redirectTo }: { redirectTo?: string | null }) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -41,16 +41,19 @@ export default function LoginClient() {
           return;
         }
 
-        // Full auth succeeded — redirect directly to dashboard
-        router.push("/boards");
+        router.push(redirectTo || "/boards");
       } catch {
         setError("通信エラーが発生しました");
         setPassword("");
         setSubmitting(false);
       }
     },
-    [router, identifier, password, submitting, blocked],
+    [router, redirectTo, identifier, password, submitting, blocked],
   );
+
+  const pinLoginHref = redirectTo
+    ? `/pin?redirectTo=${encodeURIComponent(redirectTo)}`
+    : "/pin";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -64,7 +67,7 @@ export default function LoginClient() {
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <KeyRound className="size-8 text-gray-400" />
-            <h2 className="text-lg font-bold text-gray-900">管理者ログイン</h2>
+            <h2 className="text-lg font-bold text-gray-900">アカウントログイン</h2>
             <p className="text-center text-sm text-gray-500">
               メールアドレスまたはユーザーIDとパスワードを入力してください
             </p>
@@ -124,7 +127,7 @@ export default function LoginClient() {
 
           <div className="mt-6 text-center">
             <Link
-              href="/pin"
+              href={pinLoginHref}
               className="text-sm text-gray-500 hover:text-blue-600"
             >
               PINでログインする

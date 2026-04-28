@@ -3,16 +3,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { boards } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+import { getSessionUser } from "@/lib/auth";
 import { createBoardSchema } from "@/lib/validators";
+import { resolveOwnerUserId } from "@/lib/ownership";
 import { templates } from "@/lib/templates";
 
 export async function GET() {
-  const allBoards = await db.select().from(boards).orderBy(desc(boards.createdAt));
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
+  const allBoards = await db
+    .select()
+    .from(boards)
+    .where(eq(boards.ownerUserId, resolveOwnerUserId(session.user)))
+    .orderBy(desc(boards.createdAt));
   return NextResponse.json(allBoards);
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getSessionUser();
+  if (!session) {
+    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -28,7 +44,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { name, templateId, config } = result.data;
+  const { name, templateId, visibility, config } = result.data;
 
   // Apply default config from template if no config provided
   const template = templates[templateId as keyof typeof templates];
@@ -37,7 +53,9 @@ export async function POST(request: NextRequest) {
   const [inserted] = await db
     .insert(boards)
     .values({
+      ownerUserId: resolveOwnerUserId(session.user),
       name,
+      visibility,
       templateId,
       config: JSON.stringify(mergedConfig),
     })
