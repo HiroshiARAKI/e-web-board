@@ -21,7 +21,7 @@ import type { WeatherPrefecture } from "@/lib/weather-areas";
 import { PinInput } from "@/components/auth/PinInput";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useTheme, type Theme } from "@/components/dashboard/ThemeProvider";
-import { SUPPORTED_LOCALES, type SupportedLocale } from "@/lib/i18n";
+import { getLocaleDefinition, SUPPORTED_LOCALES, type SupportedLocale } from "@/lib/i18n";
 import { QRCodeSVG } from "qrcode.react";
 
 interface UploadedFile {
@@ -110,6 +110,7 @@ export function SettingsClient({
   const [newUserId, setNewUserId] = useState("");
   const [userIdChanging, setUserIdChanging] = useState(false);
   const [userIdChangeResult, setUserIdChangeResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const currentLocaleDefinition = getLocaleDefinition(locale);
 
   const fetchMedia = useCallback(async () => {
     if (role !== "admin") {
@@ -614,12 +615,14 @@ export function SettingsClient({
         </p>
         <Select value={locale} onValueChange={(value) => handleLocaleChange(value as SupportedLocale)}>
           <SelectTrigger className="w-full max-w-sm">
-            <SelectValue />
+            <SelectValue>
+              {currentLocaleDefinition.flag} {currentLocaleDefinition.label}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {SUPPORTED_LOCALES.map((item) => (
               <SelectItem key={item.code} value={item.code}>
-                {item.flag} {item.territory}
+                {item.flag} {item.label}
               </SelectItem>
             ))}
           </SelectContent>
