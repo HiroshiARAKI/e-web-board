@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, LoaderCircle } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 type DeletingAccountClientProps = {
@@ -14,6 +15,7 @@ type DeletingAccountClientProps = {
 
 export default function DeletingAccountClient({ token }: DeletingAccountClientProps) {
   const router = useRouter();
+  const { t } = useLocale();
   const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,16 +35,16 @@ export default function DeletingAccountClient({ token }: DeletingAccountClientPr
         const data = await response.json();
 
         if (!response.ok) {
-          setError(data.error ?? "アカウント削除に失敗しました");
+          setError(data.error ?? t("accountDeletion.deleteFailed"));
           return;
         }
 
         router.replace("/deleted-account");
       } catch {
-        setError("通信エラーが発生しました");
+        setError(t("error.network"));
       }
     })();
-  }, [router, token]);
+  }, [router, t, token]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-red-50 to-slate-100 p-4">
@@ -56,30 +58,29 @@ export default function DeletingAccountClient({ token }: DeletingAccountClientPr
           {error ? (
             <div className="flex flex-col items-center gap-3 text-center">
               <AlertTriangle className="size-9 text-red-600" />
-              <h2 className="text-lg font-bold text-gray-900">アカウントを削除できませんでした</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t("accountDeletion.failedTitle")}</h2>
               <p className="text-sm text-gray-500">{error}</p>
               <div className="flex flex-wrap justify-center gap-3 pt-2">
                 <Link
                   href="/signup"
                   className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
                 >
-                  サインアップへ
+                  {t("accountDeletion.toSignup")}
                 </Link>
                 <Link
                   href="/pin"
                   className="rounded-lg border px-4 py-2 text-sm font-semibold text-gray-700"
                 >
-                  ログインへ
+                  {t("accountDeletion.toLogin")}
                 </Link>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 text-center">
               <LoaderCircle className="size-9 animate-spin text-red-600" />
-              <h2 className="text-lg font-bold text-gray-900">アカウントを削除しています</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t("accountDeletion.deletingTitle")}</h2>
               <p className="text-sm leading-6 text-gray-500">
-                Ownerアカウント、Shared ユーザー、ボード、メディア、設定、Preferences を削除しています。
-                完了後、自動で完了画面へ移動します。
+                {t("accountDeletion.deletingMessage")}
               </p>
             </div>
           )}

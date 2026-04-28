@@ -290,11 +290,11 @@ export function SettingsClient({
         setPinStep("new");
       } else {
         const data = await res.json();
-        setPinChangeResult({ ok: false, msg: data.error ?? "PINが正しくありません" });
+        setPinChangeResult({ ok: false, msg: data.error ?? t("settings.pinIncorrect") });
         setCurrentPin("");
       }
     } catch {
-      setPinChangeResult({ ok: false, msg: "検証に失敗しました" });
+      setPinChangeResult({ ok: false, msg: t("settings.verifyFailed") });
       setCurrentPin("");
     } finally {
       setPinChanging(false);
@@ -303,7 +303,7 @@ export function SettingsClient({
 
   async function handlePinChange(completedPin: string) {
     if (completedPin !== newPin) {
-      setPinChangeResult({ ok: false, msg: "新しいPINが一致しません" });
+      setPinChangeResult({ ok: false, msg: t("auth.pinReset.mismatch") });
       setConfirmPin("");
       setPinStep("confirm");
       return;
@@ -318,10 +318,10 @@ export function SettingsClient({
       });
       const data = await res.json();
       if (res.ok) {
-        setPinChangeResult({ ok: true, msg: "PINを変更しました" });
+        setPinChangeResult({ ok: true, msg: t("settings.pinChanged") });
         resetPinForm();
       } else {
-        setPinChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+        setPinChangeResult({ ok: false, msg: data.error ?? t("settings.changeFailed") });
         // If current PIN was wrong, go back to step 1
         if (res.status === 401) {
           setCurrentPin("");
@@ -331,7 +331,7 @@ export function SettingsClient({
         }
       }
     } catch {
-      setPinChangeResult({ ok: false, msg: "変更に失敗しました" });
+      setPinChangeResult({ ok: false, msg: t("settings.changeFailed") });
     } finally {
       setPinChanging(false);
     }
@@ -352,7 +352,7 @@ export function SettingsClient({
     }
     // confirm step
     if (completedPin !== setupPin) {
-      setSetupPinResult({ ok: false, msg: "PINが一致しません" });
+      setSetupPinResult({ ok: false, msg: t("auth.pinSetup.mismatch") });
       setSetupConfirmPin("");
       return;
     }
@@ -366,16 +366,16 @@ export function SettingsClient({
       });
       const data = await res.json();
       if (res.ok) {
-        setSetupPinResult({ ok: true, msg: "PINを設定しました" });
+        setSetupPinResult({ ok: true, msg: t("settings.pinSet") });
         setPinConfigured(true);
         setSetupPin("");
         setSetupConfirmPin("");
         setSetupPinStep("new");
       } else {
-        setSetupPinResult({ ok: false, msg: data.error ?? "設定に失敗しました" });
+        setSetupPinResult({ ok: false, msg: data.error ?? t("settings.setupFailed") });
       }
     } catch {
-      setSetupPinResult({ ok: false, msg: "設定に失敗しました" });
+      setSetupPinResult({ ok: false, msg: t("settings.setupFailed") });
     } finally {
       setSetupPinSaving(false);
     }
@@ -401,12 +401,12 @@ export function SettingsClient({
       if (res.ok) {
         setStoredEmail(newEmail);
         setNewEmail("");
-        setEmailSaved({ ok: true, msg: "メールアドレスを変更しました" });
+        setEmailSaved({ ok: true, msg: t("settings.emailChanged") });
       } else {
-        setEmailSaved({ ok: false, msg: data.error ?? "変更に失敗しました" });
+        setEmailSaved({ ok: false, msg: data.error ?? t("settings.changeFailed") });
       }
     } catch {
-      setEmailSaved({ ok: false, msg: "変更に失敗しました" });
+      setEmailSaved({ ok: false, msg: t("settings.changeFailed") });
     } finally {
       setEmailSaving(false);
     }
@@ -419,11 +419,11 @@ export function SettingsClient({
 
   async function handlePasswordChange() {
     if (newPassword !== confirmNewPassword) {
-      setPasswordChangeResult({ ok: false, msg: "新しいパスワードが一致しません" });
+      setPasswordChangeResult({ ok: false, msg: t("settings.passwordMismatch") });
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordChangeResult({ ok: false, msg: "パスワードは8文字以上で入力してください" });
+      setPasswordChangeResult({ ok: false, msg: t("auth.signupPassword.tooShort") });
       return;
     }
     setPasswordChanging(true);
@@ -436,15 +436,15 @@ export function SettingsClient({
       });
       const data = await res.json();
       if (res.ok) {
-        setPasswordChangeResult({ ok: true, msg: "パスワードを変更しました" });
+        setPasswordChangeResult({ ok: true, msg: t("settings.passwordChanged") });
         setCurrentPassword("");
         setNewPassword("");
         setConfirmNewPassword("");
       } else {
-        setPasswordChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+        setPasswordChangeResult({ ok: false, msg: data.error ?? t("settings.changeFailed") });
       }
     } catch {
-      setPasswordChangeResult({ ok: false, msg: "通信エラーが発生しました" });
+      setPasswordChangeResult({ ok: false, msg: t("error.network") });
     } finally {
       setPasswordChanging(false);
     }
@@ -461,12 +461,12 @@ export function SettingsClient({
       });
       if (res.ok) {
         setAuthExpireDays(days);
-        setAuthExpirySaved({ ok: true, msg: "保存しました" });
+        setAuthExpirySaved({ ok: true, msg: t("common.saved") });
       } else {
-        setAuthExpirySaved({ ok: false, msg: "保存に失敗しました" });
+        setAuthExpirySaved({ ok: false, msg: t("settings.saveFailed") });
       }
     } catch {
-      setAuthExpirySaved({ ok: false, msg: "通信エラーが発生しました" });
+      setAuthExpirySaved({ ok: false, msg: t("error.network") });
     } finally {
       setAuthExpirySaving(false);
     }
@@ -484,20 +484,20 @@ export function SettingsClient({
       });
       const data = await res.json();
       if (res.ok) {
-        setUserIdChangeResult({ ok: true, msg: "ユーザーIDを変更しました" });
+        setUserIdChangeResult({ ok: true, msg: t("settings.userIdChanged") });
         setNewUserId("");
       } else {
-        setUserIdChangeResult({ ok: false, msg: data.error ?? "変更に失敗しました" });
+        setUserIdChangeResult({ ok: false, msg: data.error ?? t("settings.changeFailed") });
       }
     } catch {
-      setUserIdChangeResult({ ok: false, msg: "通信エラーが発生しました" });
+      setUserIdChangeResult({ ok: false, msg: t("error.network") });
     } finally {
       setUserIdChanging(false);
     }
   }
 
   async function handleDeleteAllMedia() {
-    if (!confirm("すべてのメディアファイルを削除します。この操作は取り消せません。\n本当に実行しますか？")) {
+    if (!confirm(t("settings.deleteAllMediaConfirm"))) {
       return;
     }
     setDeleting(true);
@@ -506,13 +506,13 @@ export function SettingsClient({
       const res = await fetch("/api/media", { method: "DELETE" });
       if (res.ok) {
         const data = await res.json();
-        setDeleteResult(`${data.deleted} 件のメディアを削除しました`);
+        setDeleteResult(t("settings.deleteAllMediaSuccess", { count: data.deleted }));
         await fetchMedia();
       } else {
-        setDeleteResult("削除に失敗しました");
+        setDeleteResult(t("settings.deleteAllMediaFailed"));
       }
     } catch {
-      setDeleteResult("削除に失敗しました");
+      setDeleteResult(t("settings.deleteAllMediaFailed"));
     } finally {
       setDeleting(false);
     }
@@ -521,11 +521,11 @@ export function SettingsClient({
   async function handleDeleteFile(file: UploadedFile) {
     const boardNames = file.boards
       .map((b) => b.boardName ?? b.boardId)
-      .join("、");
+      .join(", ");
     const msg =
       file.boards.length > 0
-        ? `このファイルはボード「${boardNames}」で使用されています。\n削除するとボードからも除外されます。\n\n削除しますか？`
-        : `このファイルを削除しますか？\n（どのボードにも紐付けられていません）`;
+        ? t("settings.fileDeleteInUseConfirm", { names: boardNames })
+        : t("settings.fileDeleteUnusedConfirm");
     if (!confirm(msg)) return;
 
     setDeletingFile(file.filename);
@@ -550,7 +550,7 @@ export function SettingsClient({
   );
 
   if (loading) {
-    return <div className="text-sm text-muted-foreground">読み込み中...</div>;
+    return <div className="text-sm text-muted-foreground">{t("common.loading")}</div>;
   }
 
   return (
@@ -558,10 +558,10 @@ export function SettingsClient({
       {/* Version Info */}
       {versionInfo && (
         <div className="rounded-lg border p-6">
-          <h2 className="mb-4 text-lg font-semibold">バージョン情報</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("settings.versionTitle")}</h2>
           <div className="space-y-2">
             <p className="text-sm">
-              現在のバージョン:{" "}
+              {t("settings.currentVersion")}{" "}
               <a
                 href={versionInfo.releaseUrl}
                 target="_blank"
@@ -573,7 +573,7 @@ export function SettingsClient({
             </p>
             {versionInfo.hasUpdate && versionInfo.latest && (
               <p className="text-sm text-amber-600">
-                新しいバージョンがリリースされています:{" "}
+                {t("settings.updateAvailable")}{" "}
                 <a
                   href={versionInfo.latestUrl ?? versionInfo.releaseUrl}
                   target="_blank"
@@ -591,9 +591,9 @@ export function SettingsClient({
       {/* Dashboard QR Code */}
       {dashboardUrl && (
         <div className="rounded-lg border p-6">
-          <h2 className="mb-4 text-lg font-semibold">管理画面 QRコード</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("settings.dashboardQrTitle")}</h2>
           <p className="mb-4 text-sm text-muted-foreground">
-            スマートフォンでこのQRコードを読み取ると、管理画面にアクセスできます。
+            {t("settings.dashboardQrDescription")}
           </p>
           <div className="flex flex-col items-center gap-3">
             <div className="rounded-lg bg-white p-3">
@@ -665,16 +665,16 @@ export function SettingsClient({
 
       {/* Account Settings */}
       <div className="rounded-lg border p-6">
-        <h2 className="mb-4 text-lg font-semibold">アカウント設定</h2>
+        <h2 className="mb-4 text-lg font-semibold">{t("settings.accountTitle")}</h2>
         <div>
-          <h3 className="mb-2 text-sm font-medium">ユーザーID変更</h3>
+          <h3 className="mb-2 text-sm font-medium">{t("settings.userIdTitle")}</h3>
           <p className="mb-4 text-sm text-muted-foreground">
-            現在のユーザーID: <span className="font-mono">{currentUserId}</span>
+            {t("settings.currentUserId")} <span className="font-mono">{currentUserId}</span>
           </p>
           <div className="flex items-center gap-3">
             <Input
               type="text"
-              placeholder="新しいユーザーID"
+              placeholder={t("settings.newUserIdPlaceholder")}
               value={newUserId}
               onChange={(e) => { setNewUserId(e.target.value); setUserIdChangeResult(null); }}
               className="max-w-sm"
@@ -683,7 +683,7 @@ export function SettingsClient({
               onClick={handleUserIdChange}
               disabled={userIdChanging || !newUserId.trim() || newUserId.trim() === currentUserId}
             >
-              {userIdChanging ? "変更中..." : "変更"}
+              {userIdChanging ? t("common.loading") : t("common.change")}
             </Button>
           </div>
           {userIdChangeResult && (
@@ -696,22 +696,22 @@ export function SettingsClient({
 
       {/* Weather Area Selection */}
       {role === "admin" && <div className="rounded-lg border p-6">
-        <h2 className="mb-4 text-lg font-semibold">天気予報の地域設定</h2>
+        <h2 className="mb-4 text-lg font-semibold">{t("settings.weatherAreaTitle")}</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          フォトクロックテンプレートの天気表示で使用する地域を設定します。
+          {t("settings.weatherAreaDescription")}
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Prefecture selector */}
           <div className="space-y-1.5">
-            <Label htmlFor="setting-pref">都道府県</Label>
+            <Label htmlFor="setting-pref">{t("settings.prefectureLabel")}</Label>
             <Select
               value={selectedPref?.name ?? ""}
               onValueChange={handlePrefChange}
             >
               <SelectTrigger id="setting-pref" className="w-full">
-                <SelectValue placeholder="都道府県を選択">
-                  {selectedPref?.name ?? "都道府県を選択"}
+                <SelectValue placeholder={t("settings.prefecturePlaceholder")}>
+                  {selectedPref?.name ?? t("settings.prefecturePlaceholder")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -726,15 +726,15 @@ export function SettingsClient({
 
           {/* City selector */}
           <div className="space-y-1.5">
-            <Label htmlFor="setting-city">地域</Label>
+            <Label htmlFor="setting-city">{t("settings.cityLabel")}</Label>
             <Select
               value={cityId}
               onValueChange={handleCityChange}
               disabled={!selectedPref}
             >
               <SelectTrigger id="setting-city" className="w-full">
-                <SelectValue placeholder="地域を選択">
-                  {currentCity?.name ?? "地域を選択"}
+                <SelectValue placeholder={t("settings.cityPlaceholder")}>
+                  {currentCity?.name ?? t("settings.cityPlaceholder")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -750,27 +750,25 @@ export function SettingsClient({
 
         <div className="mt-4 flex items-center gap-3">
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "保存中..." : "保存"}
+            {saving ? t("boardEdit.saving") : t("settings.saveButton")}
           </Button>
           {saved && (
-            <span className="text-sm text-green-600">保存しました</span>
+            <span className="text-sm text-green-600">{t("common.saved")}</span>
           )}
         </div>
 
         {currentCity && (
           <p className="mt-3 text-sm text-muted-foreground">
-            現在の設定: {selectedPref?.name} {currentCity.name}（コード:{" "}
-            {cityId}）
+            {t("settings.weatherCurrent", { pref: selectedPref?.name ?? "", city: currentCity.name, code: cityId })}
           </p>
         )}
       </div>}
 
       {/* Image Resize Settings */}
       {role === "admin" && <div className="rounded-lg border p-6">
-        <h2 className="mb-4 text-lg font-semibold">画像リサイズ設定</h2>
+        <h2 className="mb-4 text-lg font-semibold">{t("settings.imageResizeTitle")}</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          アップロード時に画像の長辺を指定ピクセル数以下にリサイズします。
-          サムネイル（600px）も自動生成されます。
+          {t("settings.imageResizeDescription")}
         </p>
 
         <div className="space-y-4">
@@ -780,12 +778,12 @@ export function SettingsClient({
               checked={resizeEnabled}
               onCheckedChange={setResizeEnabled}
             />
-            <Label htmlFor="resize-enabled">リサイズを有効にする</Label>
+            <Label htmlFor="resize-enabled">{t("settings.resizeEnabled")}</Label>
           </div>
 
           {resizeEnabled && (
             <div className="space-y-1.5">
-              <Label htmlFor="max-long-edge">長辺の最大ピクセル数</Label>
+              <Label htmlFor="max-long-edge">{t("settings.maxLongEdge")}</Label>
               <div className="flex items-center gap-2">
                 <Input
                   id="max-long-edge"
@@ -802,7 +800,7 @@ export function SettingsClient({
                 <span className="text-sm text-muted-foreground">px</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                デフォルト: 3840px（4K相当）
+                {t("settings.defaultLongEdge")}
               </p>
             </div>
           )}
@@ -812,10 +810,10 @@ export function SettingsClient({
               onClick={handleImageSettingSave}
               disabled={imageSaving}
             >
-              {imageSaving ? "保存中..." : "保存"}
+              {imageSaving ? t("boardEdit.saving") : t("settings.saveButton")}
             </Button>
             {imageSaved && (
-              <span className="text-sm text-green-600">保存しました</span>
+              <span className="text-sm text-green-600">{t("common.saved")}</span>
             )}
           </div>
         </div>
@@ -824,18 +822,18 @@ export function SettingsClient({
       {/* Security / PIN Settings */}
       {pinConfigured ? (
         <div className="rounded-lg border p-6">
-          <h2 className="mb-4 text-lg font-semibold">セキュリティ</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("settings.securityTitle")}</h2>
 
           {/* PIN Change */}
           <div className="mb-6">
-            <h3 className="mb-2 text-sm font-medium">PIN変更</h3>
+            <h3 className="mb-2 text-sm font-medium">{t("settings.pinChangeTitle")}</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              管理画面ログイン用の6桁PINを変更します。
+              {t("settings.pinChangeDescription")}
             </p>
 
             {pinStep === "current" && (
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">現在のPINを入力</Label>
+                <Label className="text-sm text-muted-foreground">{t("settings.currentPinLabel")}</Label>
                 <PinInput
                   value={currentPin}
                   onChange={(v) => { setCurrentPin(v); setPinChangeResult(null); }}
@@ -848,7 +846,7 @@ export function SettingsClient({
 
             {pinStep === "new" && (
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">新しいPINを入力</Label>
+                <Label className="text-sm text-muted-foreground">{t("settings.newPinLabel")}</Label>
                 <PinInput
                   value={newPin}
                   onChange={setNewPin}
@@ -859,7 +857,7 @@ export function SettingsClient({
 
             {pinStep === "confirm" && (
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">新しいPINを再入力</Label>
+                <Label className="text-sm text-muted-foreground">{t("settings.confirmPinLabel")}</Label>
                 <PinInput
                   value={confirmPin}
                   onChange={setConfirmPin}
@@ -873,7 +871,7 @@ export function SettingsClient({
             <div className="mt-3 flex items-center gap-3">
               {pinStep !== "current" && (
                 <Button variant="outline" size="sm" onClick={resetPinForm} disabled={pinChanging}>
-                  リセット
+                  {t("common.reset")}
                 </Button>
               )}
               {pinChangeResult && (
@@ -886,19 +884,19 @@ export function SettingsClient({
 
           {/* Email Change */}
           <div className="border-t pt-4">
-            <h3 className="mb-2 text-sm font-medium">リカバリーメールアドレス</h3>
+            <h3 className="mb-2 text-sm font-medium">{t("settings.recoveryEmailTitle")}</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              PINを忘れた場合のリセットに使用するメールアドレスです。
+              {t("settings.recoveryEmailDescription")}
             </p>
             {storedEmail && (
               <p className="mb-3 text-sm">
-                現在の設定: <span className="font-mono">{storedEmail}</span>
+                {t("common.currentSetting")}: <span className="font-mono">{storedEmail}</span>
               </p>
             )}
             <div className="flex items-center gap-3">
               <Input
                 type="email"
-                placeholder="新しいメールアドレス"
+                placeholder={t("settings.newEmailPlaceholder")}
                 value={newEmail}
                 onChange={(e) => {
                   setNewEmail(e.target.value);
@@ -910,7 +908,7 @@ export function SettingsClient({
                 onClick={handleEmailChange}
                 disabled={emailSaving || !newEmail || !newEmail.includes("@")}
               >
-                {emailSaving ? "保存中..." : "変更"}
+                {emailSaving ? t("boardEdit.saving") : t("common.change")}
               </Button>
             </div>
             {emailSaved && (
@@ -922,34 +920,34 @@ export function SettingsClient({
 
           {/* Password Change */}
           <div className="border-t pt-4">
-            <h3 className="mb-2 text-sm font-medium">パスワード変更</h3>
+            <h3 className="mb-2 text-sm font-medium">{t("settings.passwordTitle")}</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              管理者ログイン用のパスワードを変更します。
+              {t("settings.passwordDescription")}
             </p>
             <div className="space-y-3 max-w-sm">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">現在のパスワード</label>
+                <label className="mb-1 block text-xs text-muted-foreground">{t("settings.currentPasswordLabel")}</label>
                 <Input
                   type="password"
-                  placeholder="現在のパスワード"
+                  placeholder={t("settings.currentPasswordPlaceholder")}
                   value={currentPassword}
                   onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeResult(null); }}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（8文字以上）</label>
+                <label className="mb-1 block text-xs text-muted-foreground">{t("settings.newPasswordLabel")}</label>
                 <Input
                   type="password"
-                  placeholder="新しいパスワード"
+                  placeholder={t("settings.newPasswordPlaceholder")}
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeResult(null); }}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（確認）</label>
+                <label className="mb-1 block text-xs text-muted-foreground">{t("settings.confirmPasswordLabel")}</label>
                 <Input
                   type="password"
-                  placeholder="もう一度入力"
+                  placeholder={t("settings.confirmPasswordPlaceholder")}
                   value={confirmNewPassword}
                   onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeResult(null); }}
                 />
@@ -959,7 +957,7 @@ export function SettingsClient({
                   onClick={handlePasswordChange}
                   disabled={passwordChanging || !currentPassword || !newPassword || !confirmNewPassword}
                 >
-                  {passwordChanging ? "変更中..." : "パスワードを変更"}
+                  {passwordChanging ? t("common.loading") : t("settings.passwordChangeButton")}
                 </Button>
               </div>
               {passwordChangeResult && (
@@ -972,13 +970,13 @@ export function SettingsClient({
 
           {/* Auth Expiry / Login Cache Period - admin only */}
           {role === "admin" && <div className="border-t pt-4">
-            <h3 className="mb-2 text-sm font-medium">ログイン認証キャッシュ期間</h3>
+            <h3 className="mb-2 text-sm font-medium">{t("settings.authCacheTitle")}</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              メールアドレス+パスワードによるログインの有効期間です。期間を過ぎると、次回PINログイン前にメールアドレスでの再認証が必要になります。
+              {t("settings.authCacheDescription")}
             </p>
             {fullAuthExpiry && (
               <p className="mb-3 text-sm text-muted-foreground">
-                現在の有効期限:{" "}
+                {t("settings.currentExpiry")}:{" "}
                 <span className="font-medium">
                     {formatDate(fullAuthExpiry, {
                     year: "numeric", month: "long", day: "numeric",
@@ -988,11 +986,11 @@ export function SettingsClient({
             )}
             <div className="flex flex-wrap gap-2 mb-4">
               {[
-                { label: "30日", days: 30 },
-                { label: "60日", days: 60 },
-                { label: "90日", days: 90 },
-                { label: "180日", days: 180 },
-                { label: "1年", days: 365 },
+                { label: t("settings.authExpiryDays", { days: 30 }), days: 30 },
+                { label: t("settings.authExpiryDays", { days: 60 }), days: 60 },
+                { label: t("settings.authExpiryDays", { days: 90 }), days: 90 },
+                { label: t("settings.authExpiryDays", { days: 180 }), days: 180 },
+                { label: t("settings.authExpiryYear"), days: 365 },
               ].map((opt) => {
                 const expiry = new Date(Date.now() + opt.days * 86_400_000);
                 return (
@@ -1014,8 +1012,10 @@ export function SettingsClient({
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              現在の設定: {authExpireDays}日間
-              {authExpireDays === 30 && "（デフォルト）"}
+              {t("common.currentSetting")}: {t("settings.authExpiryCurrent", {
+                days: authExpireDays,
+                defaultSuffix: authExpireDays === 30 ? t("settings.defaultSuffix") : "",
+              })}
             </p>
             {authExpirySaved && (
               <span className={`mt-2 block text-sm ${authExpirySaved.ok ? "text-green-600" : "text-red-600"}`}>
@@ -1033,18 +1033,18 @@ export function SettingsClient({
         </div>
       ) : (
         <div className="rounded-lg border p-6">
-          <h2 className="mb-4 text-lg font-semibold">セキュリティ</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("settings.securityTitle")}</h2>
 
           {/* PIN Setup (for users without a PIN) */}
           <div className="mb-6">
-            <h3 className="mb-2 text-sm font-medium">PIN設定</h3>
+            <h3 className="mb-2 text-sm font-medium">{t("settings.pinConfigTitle")}</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              PINを設定すると、次回からPINだけでログインできます。
+              {t("settings.pinConfigDescription")}
             </p>
 
             {setupPinStep === "new" && (
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">6桁のPINを入力</Label>
+                <Label className="text-sm text-muted-foreground">{t("settings.pinEnterLabel")}</Label>
                 <PinInput
                   value={setupPin}
                   onChange={(v) => { setSetupPin(v); setSetupPinResult(null); }}
@@ -1056,7 +1056,7 @@ export function SettingsClient({
 
             {setupPinStep === "confirm" && (
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">もう一度入力して確認</Label>
+                <Label className="text-sm text-muted-foreground">{t("settings.pinConfirmLabel")}</Label>
                 <PinInput
                   value={setupConfirmPin}
                   onChange={setSetupConfirmPin}
@@ -1070,7 +1070,7 @@ export function SettingsClient({
             <div className="mt-3 flex items-center gap-3">
               {setupPinStep === "confirm" && (
                 <Button variant="outline" size="sm" onClick={resetSetupPinForm} disabled={setupPinSaving}>
-                  リセット
+                  {t("common.reset")}
                 </Button>
               )}
               {setupPinResult && (
@@ -1083,19 +1083,19 @@ export function SettingsClient({
 
           {/* Email Change */}
           <div className="border-t pt-4">
-            <h3 className="mb-2 text-sm font-medium">リカバリーメールアドレス</h3>
+            <h3 className="mb-2 text-sm font-medium">{t("settings.recoveryEmailTitle")}</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              PINを忘れた場合のリセットに使用するメールアドレスです。
+              {t("settings.recoveryEmailDescription")}
             </p>
             {storedEmail && (
               <p className="mb-3 text-sm">
-                現在の設定: <span className="font-mono">{storedEmail}</span>
+                {t("common.currentSetting")}: <span className="font-mono">{storedEmail}</span>
               </p>
             )}
             <div className="flex items-center gap-3">
               <Input
                 type="email"
-                placeholder="新しいメールアドレス"
+                placeholder={t("settings.newEmailPlaceholder")}
                 value={newEmail}
                 onChange={(e) => {
                   setNewEmail(e.target.value);
@@ -1107,7 +1107,7 @@ export function SettingsClient({
                 onClick={handleEmailChange}
                 disabled={emailSaving || !newEmail || !newEmail.includes("@")}
               >
-                {emailSaving ? "保存中..." : "変更"}
+                {emailSaving ? t("boardEdit.saving") : t("common.change")}
               </Button>
             </div>
             {emailSaved && (
@@ -1119,34 +1119,34 @@ export function SettingsClient({
 
           {/* Password Change */}
           <div className="border-t pt-4">
-            <h3 className="mb-2 text-sm font-medium">パスワード変更</h3>
+            <h3 className="mb-2 text-sm font-medium">{t("settings.passwordTitle")}</h3>
             <p className="mb-4 text-sm text-muted-foreground">
-              ログイン用のパスワードを変更します。
+              {t("settings.passwordDescription")}
             </p>
             <div className="space-y-3 max-w-sm">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">現在のパスワード</label>
+                <label className="mb-1 block text-xs text-muted-foreground">{t("settings.currentPasswordLabel")}</label>
                 <Input
                   type="password"
-                  placeholder="現在のパスワード"
+                  placeholder={t("settings.currentPasswordPlaceholder")}
                   value={currentPassword}
                   onChange={(e) => { setCurrentPassword(e.target.value); setPasswordChangeResult(null); }}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（8文字以上）</label>
+                <label className="mb-1 block text-xs text-muted-foreground">{t("settings.newPasswordLabel")}</label>
                 <Input
                   type="password"
-                  placeholder="新しいパスワード"
+                  placeholder={t("settings.newPasswordPlaceholder")}
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeResult(null); }}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">新しいパスワード（確認）</label>
+                <label className="mb-1 block text-xs text-muted-foreground">{t("settings.confirmPasswordLabel")}</label>
                 <Input
                   type="password"
-                  placeholder="もう一度入力"
+                  placeholder={t("settings.confirmPasswordPlaceholder")}
                   value={confirmNewPassword}
                   onChange={(e) => { setConfirmNewPassword(e.target.value); setPasswordChangeResult(null); }}
                 />
@@ -1156,7 +1156,7 @@ export function SettingsClient({
                   onClick={handlePasswordChange}
                   disabled={passwordChanging || !currentPassword || !newPassword || !confirmNewPassword}
                 >
-                  {passwordChanging ? "変更中..." : "パスワードを変更"}
+                  {passwordChanging ? t("common.loading") : t("settings.passwordChangeButton")}
                 </Button>
               </div>
               {passwordChangeResult && (
@@ -1178,16 +1178,16 @@ export function SettingsClient({
 
       {/* Media Management - admin only */}
       {role === "admin" && <div className="rounded-lg border border-red-200 p-6">
-        <h2 className="mb-4 text-lg font-semibold">メディア管理</h2>
+        <h2 className="mb-4 text-lg font-semibold">{t("settings.mediaManagementTitle")}</h2>
 
         {/* Individual media list */}
         <div className="mb-6">
-          <h3 className="mb-2 text-sm font-medium">アップロード済みメディア</h3>
+          <h3 className="mb-2 text-sm font-medium">{t("settings.uploadedMediaTitle")}</h3>
           {mediaLoading ? (
-            <p className="text-sm text-muted-foreground">読み込み中...</p>
+            <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
           ) : mediaList.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              メディアはありません。
+              {t("settings.mediaEmpty")}
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1215,21 +1215,21 @@ export function SettingsClient({
                   {/* Info + delete button */}
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="truncate text-xs text-muted-foreground">
-                      {file.type === "image" ? "画像" : "動画"} ・{" "}
+                      {file.type === "image" ? t("common.image") : t("common.video")} ・{" "}
                       {file.size < 1024 * 1024
                         ? `${Math.round(file.size / 1024)} KB`
                         : `${(file.size / 1024 / 1024).toFixed(1)} MB`}
                     </span>
                     {file.boards.length > 0 ? (
                       <span className="truncate text-xs">
-                        ボード:{" "}
+                        {t("settings.mediaBoardsLabel")}:{" "}
                         {file.boards
                           .map((b) => b.boardName ?? b.boardId)
                           .join(", ")}
                       </span>
                     ) : (
                       <span className="truncate text-xs text-amber-600">
-                        未使用（どのボードにも紐付けなし）
+                        {t("settings.mediaUnused")}
                       </span>
                     )}
                     <Button
@@ -1239,7 +1239,7 @@ export function SettingsClient({
                       disabled={deletingFile === file.filename}
                       onClick={() => handleDeleteFile(file)}
                     >
-                      {deletingFile === file.filename ? "削除中..." : "削除"}
+                      {deletingFile === file.filename ? t("settings.deleting") : t("common.delete")}
                     </Button>
                   </div>
                 </div>
@@ -1251,8 +1251,7 @@ export function SettingsClient({
         {/* Bulk delete */}
         <div className="border-t pt-4">
           <p className="mb-4 text-sm text-muted-foreground">
-            アップロード済みのすべてのメディアファイル（画像・動画）を一括で削除します。
-            全ボードからメディアが削除されます。
+            {t("settings.deleteAllMediaDescription")}
           </p>
           <div className="flex items-center gap-3">
             <Button
@@ -1260,7 +1259,7 @@ export function SettingsClient({
               onClick={handleDeleteAllMedia}
               disabled={deleting}
             >
-              {deleting ? "削除中..." : "すべてのメディアを削除"}
+              {deleting ? t("settings.deleting") : t("settings.deleteAllMediaButton")}
             </Button>
             {deleteResult && (
               <span className="text-sm text-muted-foreground">
@@ -1273,17 +1272,17 @@ export function SettingsClient({
 
       {isOwner && (
         <div className="rounded-lg border border-red-300 bg-red-50/60 p-6">
-          <p className="text-sm font-medium text-red-700">Dangerous settings</p>
-          <h2 className="mt-2 text-lg font-semibold text-red-950">Ownerアカウントの退会</h2>
+          <p className="text-sm font-medium text-red-700">{t("settings.dangerZoneLabel")}</p>
+          <h2 className="mt-2 text-lg font-semibold text-red-950">{t("settings.ownerDeletionTitle")}</h2>
           <p className="mt-3 text-sm leading-6 text-red-900/80">
-            普段使わない設定です。メールで送られる退会リンクを開くと、Owner配下の Shared ユーザー、ボード、メディア、設定、Preferences が削除されます。
+            {t("settings.ownerDeletionDescription")}
           </p>
           <div className="mt-4">
             <Link
               href="/delete-account"
               className="inline-flex rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
             >
-              退会設定を開く
+              {t("settings.ownerDeletionButton")}
             </Link>
           </div>
         </div>

@@ -206,7 +206,7 @@ export function UserManagement() {
                 id="cu-userId"
                 value={createUserId}
                 onChange={(e) => setCreateUserId(e.target.value)}
-                placeholder="例: john_doe"
+                placeholder="john_doe"
                 pattern="[a-zA-Z0-9_\-]{3,32}"
                 title={t("users.userIdHint")}
                 required

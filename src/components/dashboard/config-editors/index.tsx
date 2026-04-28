@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { SimpleBoardConfigEditor } from "./SimpleBoardConfigEditor";
 import { PhotoClockConfigEditor } from "./PhotoClockConfigEditor";
 import { RetroBoardConfigEditor } from "./RetroBoardConfigEditor";
@@ -28,11 +29,12 @@ export function TemplateConfigEditor({
 }: {
   templateId: string;
 } & ConfigEditorProps) {
+  const { t } = useLocale();
   const Editor = editors[templateId];
   if (!Editor) {
     return (
       <p className="text-sm text-muted-foreground">
-        このテンプレートにはビジュアルエディタがありません
+        {t("configEditor.notAvailable")}
       </p>
     );
   }

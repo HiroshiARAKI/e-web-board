@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Keinage",
-  description: "カスタマイズ可能なデジタルサイネージ Web アプリ",
+  description: "Customizable digital signage web app",
 };
 
 export default async function RootLayout({

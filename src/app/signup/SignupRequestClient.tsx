@@ -5,10 +5,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MailPlus } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 export default function SignupRequestClient() {
   const router = useRouter();
+  const { t } = useLocale();
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -33,13 +35,13 @@ export default function SignupRequestClient() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "仮登録に失敗しました");
+        setError(data.error || t("auth.signupRequest.failed"));
         return;
       }
 
       router.push("/signingup");
     } catch {
-      setError("通信エラーが発生しました");
+      setError(t("error.network"));
     } finally {
       setSubmitting(false);
     }
@@ -56,18 +58,14 @@ export default function SignupRequestClient() {
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <MailPlus className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">Ownerアカウントの仮登録</h2>
-            <p className="text-center text-sm text-gray-500">
-              ユーザーID、メールアドレス、電話番号を入力してください。
-              <br />
-              登録用リンクをメールで送信します。
-            </p>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.signupRequest.title")}</h2>
+            <p className="text-center text-sm text-gray-500">{t("auth.signupRequest.subtitle")}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="userId" className="mb-1.5 block text-sm font-medium text-gray-700">
-                ユーザーID
+                {t("common.userId")}
               </label>
               <input
                 id="userId"
@@ -78,17 +76,17 @@ export default function SignupRequestClient() {
                 required
                 autoFocus
                 pattern="[a-zA-Z0-9_\-]{3,32}"
-                title="3〜32文字の英数字・アンダースコア・ハイフン"
+                title={t("users.userIdHint")}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
               <p className="mt-1 text-xs text-gray-400">
-                英数字・ _ ・ - のみ（3〜32文字）。ログイン時に使用できます。
+                {t("auth.signupRequest.userIdHint")}
               </p>
             </div>
 
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
-                メールアドレス
+                {t("common.email")}
               </label>
               <input
                 id="email"
@@ -103,7 +101,7 @@ export default function SignupRequestClient() {
 
             <div>
               <label htmlFor="phoneNumber" className="mb-1.5 block text-sm font-medium text-gray-700">
-                電話番号
+                {t("auth.signupRequest.phoneLabel")}
               </label>
               <input
                 id="phoneNumber"
@@ -115,7 +113,7 @@ export default function SignupRequestClient() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
               <p className="mt-1 text-xs text-gray-400">
-                同じ電話番号では複数のOwner登録はできません。
+                {t("auth.signupRequest.phoneHint")}
               </p>
             </div>
 
@@ -126,7 +124,7 @@ export default function SignupRequestClient() {
               disabled={submitting}
               className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
             >
-              {submitting ? "送信中..." : "登録用メールを送信"}
+              {submitting ? t("auth.signupRequest.submitting") : t("auth.signupRequest.submit")}
             </button>
           </form>
         </div>

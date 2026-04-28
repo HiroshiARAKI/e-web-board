@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface PasscodeFormProps {
   boardId: string;
@@ -11,6 +12,7 @@ interface PasscodeFormProps {
 }
 
 export default function PasscodeForm({ boardId, error }: PasscodeFormProps) {
+  const { t } = useLocale();
   const [passcode, setPasscode] = useState("");
   const router = useRouter();
 
@@ -25,10 +27,10 @@ export default function PasscodeForm({ boardId, error }: PasscodeFormProps) {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lg">
         <h1 className="mb-2 text-center text-xl font-bold text-gray-900">
-          呼び出し画面
+          {t("call.passcodeTitle")}
         </h1>
         <p className="mb-6 text-center text-sm text-gray-500">
-          6桁のパスコードを入力してください
+          {t("call.passcodeSubtitle")}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -56,7 +58,7 @@ export default function PasscodeForm({ boardId, error }: PasscodeFormProps) {
             disabled={passcode.length !== 6}
             className="w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            確認
+            {t("call.passcodeSubmit")}
           </button>
         </form>
       </div>

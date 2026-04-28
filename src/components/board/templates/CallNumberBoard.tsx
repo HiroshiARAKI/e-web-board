@@ -9,6 +9,9 @@ import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps } from "@/types";
 
 /** Default config for the Call Number Board template */
+const LEGACY_WAITING_LABEL = "\u304a\u5f85\u3061\u306e\u756a\u53f7";
+const LEGACY_CALLED_LABEL = "\u304a\u547c\u3073\u51fa\u3057\u4e2d";
+
 export const callNumberDefaultConfig = {
   showClock: true,
   backgroundColor: "#1a1a2e",
@@ -16,8 +19,8 @@ export const callNumberDefaultConfig = {
   calledTextColor: "#00ff88",
   highlightColor: "#ff6b35",
   layout: "horizontal" as "horizontal" | "vertical",
-  waitingLabel: "お待ちの番号",
-  calledLabel: "お呼び出し中",
+  waitingLabel: "",
+  calledLabel: "",
   passcode: "",
   calledExpireMinutes: 5,
   numberFontSize: 60,
@@ -87,10 +90,10 @@ export default function CallNumberBoard({
   const isHorizontal = config.layout === "horizontal";
   const baseFontSize = config.numberFontSize ?? 60;
   const highlightFontSize = Math.round(baseFontSize * 1.3);
-  const waitingLabel = config.waitingLabel === callNumberDefaultConfig.waitingLabel
+  const waitingLabel = !config.waitingLabel || config.waitingLabel === LEGACY_WAITING_LABEL
     ? t("board.call.waitingLabel")
     : config.waitingLabel;
-  const calledLabel = config.calledLabel === callNumberDefaultConfig.calledLabel
+  const calledLabel = !config.calledLabel || config.calledLabel === LEGACY_CALLED_LABEL
     ? t("board.call.calledLabel")
     : config.calledLabel;
 

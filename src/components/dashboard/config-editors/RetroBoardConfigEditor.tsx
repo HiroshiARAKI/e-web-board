@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -43,6 +44,7 @@ export function RetroBoardConfigEditor({
   onChange,
 }: RetroBoardConfigEditorProps) {
   useLoadAllGoogleFonts();
+  const { t } = useLocale();
 
   const displayColor = (config.displayColor as string) ?? "green";
   const rows = (config.rows as number) ?? 5;
@@ -53,9 +55,9 @@ export function RetroBoardConfigEditor({
   const fontFamily = (config.fontFamily as string) ?? "";
 
   const colorLabels: Record<string, string> = {
-    green: "グリーン",
-    orange: "オレンジ",
-    white: "ホワイト",
+    green: t("configEditor.green"),
+    orange: t("configEditor.orange"),
+    white: t("configEditor.white"),
   };
 
   function update(key: string, value: unknown) {
@@ -65,28 +67,28 @@ export function RetroBoardConfigEditor({
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-displayColor">表示カラー</Label>
+        <Label htmlFor="cfg-displayColor">{t("configEditor.displayColor")}</Label>
         <Select value={displayColor} onValueChange={(v) => update("displayColor", v)}>
           <SelectTrigger id="cfg-displayColor" className="w-full max-w-48">
-            <SelectValue placeholder="カラーを選択">{colorLabels[displayColor] ?? displayColor}</SelectValue>
+            <SelectValue placeholder={t("configEditor.selectColor")}>{colorLabels[displayColor] ?? displayColor}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="green">
               <span className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded-full" style={{ backgroundColor: "#39ff14" }} />
-                グリーン
+                {t("configEditor.green")}
               </span>
             </SelectItem>
             <SelectItem value="orange">
               <span className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded-full" style={{ backgroundColor: "#ff8c00" }} />
-                オレンジ
+                {t("configEditor.orange")}
               </span>
             </SelectItem>
             <SelectItem value="white">
               <span className="flex items-center gap-2">
                 <span className="inline-block size-3 rounded-full border" style={{ backgroundColor: "#f0f0f0" }} />
-                ホワイト
+                {t("configEditor.white")}
               </span>
             </SelectItem>
           </SelectContent>
@@ -94,7 +96,7 @@ export function RetroBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-rows">表示行数</Label>
+        <Label htmlFor="cfg-rows">{t("configEditor.rows")}</Label>
         <Input
           id="cfg-rows"
           type="number"
@@ -109,7 +111,7 @@ export function RetroBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-flipSpeed">フリップ速度（秒/文字）</Label>
+        <Label htmlFor="cfg-flipSpeed">{t("configEditor.flipSpeed")}</Label>
         <Input
           id="cfg-flipSpeed"
           type="number"
@@ -125,7 +127,7 @@ export function RetroBoardConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-switchInterval">切替間隔（秒）</Label>
+        <Label htmlFor="cfg-switchInterval">{t("configEditor.switchInterval")}</Label>
         <Input
           id="cfg-switchInterval"
           type="number"
@@ -145,7 +147,7 @@ export function RetroBoardConfigEditor({
           checked={showClock}
           onCheckedChange={(v) => update("showClock", v)}
         />
-        <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
+        <Label htmlFor="cfg-showClock">{t("configEditor.showClock")}</Label>
       </div>
 
       <div className="flex flex-wrap items-start gap-3">
@@ -154,23 +156,23 @@ export function RetroBoardConfigEditor({
           checked={showWeather}
           onCheckedChange={(v) => update("showWeather", v)}
         />
-        <Label htmlFor="cfg-showWeather">天気予報を表示</Label>
+        <Label htmlFor="cfg-showWeather">{t("configEditor.showWeather")}</Label>
       </div>
       {showWeather && (
         <p className="text-xs text-muted-foreground">
-          表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+          {t("configEditor.weatherHint")}
         </p>
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-font">フォント</Label>
+        <Label htmlFor="cfg-font">{t("configEditor.font")}</Label>
         <Select
           value={fontFamily}
           onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
         >
           <SelectTrigger id="cfg-font" className="w-full max-w-64">
-            <SelectValue placeholder="フォントを選択">
-              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
+            <SelectValue placeholder={t("configEditor.fontPlaceholder")}>
+              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? t("common.default")}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
