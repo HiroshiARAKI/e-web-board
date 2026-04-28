@@ -101,12 +101,12 @@
         <div class="template-text">
           <h3>シンプルな電子掲示板</h3>
           <p>
-            メイン領域で画像や動画をスライドショー形式で表示し、下部にテキストメッセージをティッカー（横スクロール）で流すデザインです。
+            メイン領域で画像や動画をスライドショー形式で表示し、テキストメッセージをティッカー（横スクロール）で流すデザインです。
             店舗のプロモーション表示や施設案内に最適です。
           </p>
         </div>
         <div class="template-image">
-          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/e-web-board-simple.png" alt="シンプル掲示板のスクリーンショット" loading="lazy">
+          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/keinage-simple-guide.png" alt="シンプル掲示板のスクリーンショット" loading="lazy">
         </div>
       </div>
 
@@ -119,7 +119,7 @@
           </p>
         </div>
         <div class="template-image">
-          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/e-web-board-retro.png" alt="レトロ掲示板のスクリーンショット" loading="lazy">
+          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/keinage-retro.png" alt="レトロ掲示板のスクリーンショット" loading="lazy">
         </div>
       </div>
 
@@ -132,20 +132,19 @@
           </p>
         </div>
         <div class="template-image">
-          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/e-web-board-clock.png" alt="フォトクロック掲示板のスクリーンショット" loading="lazy">
+          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/keinage-photoclock.png" alt="フォトクロック掲示板のスクリーンショット" loading="lazy">
         </div>
       </div>
 
       <div class="template-item template-item-reverse">
         <div class="template-text">
-          <h3>メッセージ掲示板</h3>
+          <h3>呼び出しテンプレート</h3>
           <p>
-            外部システムから API 経由で受信したメッセージをリアルタイムに表示するデザインです。
-            病院の待合室での呼び出しや、飲食店の番号呼び出しなどに活用できます。
+            スマホなどから、呼び出し番号の追加と呼び出しを行えるテンプレートです。
           </p>
         </div>
         <div class="template-image">
-          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/e-web-board-messages.png" alt="メッセージ掲示板のスクリーンショット" loading="lazy">
+          <img src="https://raw.githubusercontent.com/HiroshiARAKI/Keinage/main/screenshots/keinage-ordercall.png" alt="呼び出しテンプレートのスクリーンショット" loading="lazy">
         </div>
       </div>
     </div>
@@ -198,25 +197,6 @@ cd keinage</code></pre>
             <p><code>http://localhost:3000</code> にアクセスして、管理者 PIN（6桁）を登録したらボードを作成しましょう。</p>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- API -->
-  <section class="section">
-    <div class="container">
-      <h2 class="section-title">外部連携 API</h2>
-      <p class="section-description">REST API を通じて、外部システムからボードにメッセージを送信できます。</p>
-
-      <div class="api-example">
-        <h3>メッセージの送信</h3>
-        <pre><code>curl -X POST http://localhost:3000/api/messages \
-  -H "Content-Type: application/json" \
-  -d '{
-    "boardId": "your-board-id",
-    "content": "〇〇様、3番窓口へお越しください",
-    "priority": 1
-  }'</code></pre>
       </div>
     </div>
   </section>
