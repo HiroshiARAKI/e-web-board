@@ -41,6 +41,10 @@ Keinage は Next.js App Router をベースに、表示画面、管理画面、A
 - パッケージマネージャ: pnpm
 - 配布形態: `output: "standalone"` による単体実行イメージ
 
+### 2.2 i18n
+言語ごとの文字列は[i18n-messages.ts](../src/lib/i18n-messages.ts) で管理されています。
+文字列の追加・削除・更新はこのファイル周辺を編集します。
+
 ## 3. ディレクトリ方針
 
 主要ディレクトリの責務は以下です。
