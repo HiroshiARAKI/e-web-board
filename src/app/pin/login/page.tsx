@@ -18,6 +18,7 @@ import {
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
 import { sanitizeRedirectTarget } from "@/lib/utils";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
 import LoginClient from "./LoginClient";
 
 export const dynamic = "force-dynamic";
@@ -118,6 +119,7 @@ export default async function LoginPage({
     <LoginClient
       redirectTo={redirectTo}
       showPinLoginLink={showPinLoginLink}
+      googleAuthEnabled={isGoogleAuthEnabled()}
     />
   );
 }

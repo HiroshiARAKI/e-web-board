@@ -1,6 +1,6 @@
 # Keinage Design
 
-最終更新: 2026-04-26
+最終更新: 2026-04-29
 
 ## 1. ドキュメントの位置づけ
 
@@ -30,6 +30,7 @@ Keinage は Next.js App Router をベースに、表示画面、管理画面、A
     Drizzle ORM    S3-compatible       weather.tsukumijima.net
                      GitHub Releases API
                      SMTP
+                     Google OAuth
 ```
 
 ### 2.1 実行モード
@@ -52,7 +53,7 @@ Keinage は Next.js App Router をベースに、表示画面、管理画面、A
 | パス | 役割 |
 | --- | --- |
 | `src/app/(board)` | 表示画面の App Router ルート |
-| `src/app/(dashboard)` | PIN/パスワード認証後の管理画面 |
+| `src/app/(dashboard)` | PIN/フル認証後の管理画面 |
 | `src/app/api` | Route Handler 群 |
 | `src/app/call` | 呼び出し番号テンプレート向け運用画面 |
 | `src/app/uploads/[...path]` | 動的アップロードファイル配信 |
@@ -80,9 +81,12 @@ Keinage は Next.js App Router をベースに、表示画面、管理画面、A
 | テーブル | 役割 |
 | --- | --- |
 | `users` | ログイン主体。`userId`, `email`, `passwordHash`, `pinHash`, `role` を保持 |
+| `auth_accounts` | 認証方式と外部アカウントの紐付け。`provider`, `providerAccountId`, `email` を保持 |
+| `google_oauth_flows` | Google OAuth 開始時の短命フロー状態。opaque state、PKCE verifier、nonce、mode を保持 |
 | `auth_sessions` | 認証済みセッション |
 | `pin_reset_tokens` | PIN リセット用トークン |
 | `signup_requests` | Owner 仮登録と登録用トークン |
+| `shared_signup_requests` | Shared ユーザー招待と登録用トークン |
 | `pin_attempts` | 失敗試行回数の IP ベース記録 |
 
 ### 4.3 設計上の特徴
@@ -98,11 +102,14 @@ Keinage は Next.js App Router をベースに、表示画面、管理画面、A
 Keinage の認証は次の 2 段構成です。
 
 1. メールアドレスまたはユーザーID + パスワードによるフル認証
-2. 有効期限内に限り利用できる PIN による軽量再認証
+2. Google アカウントによるフル認証
+3. 有効期限内に限り利用できる PIN による軽量再認証
+
+認証方式は `auth_accounts.provider` で管理します。現時点ではユーザーは作成時の認証方式に固定され、Google ユーザーは `passwordHash` を持たず、パスワード変更 API も利用できません。Google の安定 ID は `auth_accounts.providerAccountId` に保存します。
 
 ### 5.2 Owner サインアップ設計
 
-Owner 登録は次の 3 段階で進めます。
+Owner のメールアドレス + パスワード登録は次の 3 段階で進めます。
 
 1. `/signup` で `signup_requests` に仮登録を作成する
 2. `/signingup` で登録用 URL の送達待ち状態を扱う
@@ -114,23 +121,41 @@ Owner 登録は次の 3 段階で進めます。
 - 再送時は同じ仮登録レコードに新しいトークンを再発行し、古いリンクを失効させる
 - `/signingup` は `signup-request-id` Cookie がある場合だけ表示し、直リンク利用を防ぐ
 - 登録リンクは `APP_PUBLIC_ORIGIN` を基準に生成し、未認証の direct-link フォールバックはローカル開発用の明示フラグ付きの場合にだけ許可する
+- `APP_PUBLIC_ORIGIN` はブラウザでアクセスできる origin に限定し、`0.0.0.0` や `::` のような bind address は許可しない
 
-### 5.3 セッション管理
+Google Owner 登録は `src/app/api/auth/google/start/route.ts` と `src/app/api/auth/google/callback/route.ts` で扱います。OAuth `state` はランダムな不透明値だけを URL に載せ、`mode`、`redirectTo`、Shared 招待トークン、PKCE `code_verifier`、OIDC `nonce` は `google_oauth_flows` に保存します。callback では state Cookie と state パラメータの一致に加え、DB 上の未使用・期限内 flow を確認します。
+
+Google OAuth は Authorization Code + PKCE (`S256`) で開始します。token exchange では保存済み `code_verifier` を送信し、token response の ID token payload から issuer、audience、有効期限、nonce を検証します。Google の userinfo から検証済みメールアドレスと `sub` を取得し、`sub` は `auth_accounts(provider='google', providerAccountId=<sub>)` として保存します。Owner の `userId` はメールアドレスのローカルパートから生成し、重複時は suffix を付与します。
+
+### 5.3 Shared ユーザー招待設計
+
+Shared ユーザーは admin が `/users` から招待します。
+
+1. `POST /api/users` が `shared_signup_requests` に招待レコードを作成する
+2. `APP_PUBLIC_ORIGIN` を基準に `/signup/shared?token=<token>` を生成する
+3. SMTP が設定されていれば招待メールを送信する
+4. SMTP 未設定かつローカルプレビューが有効な場合は `previewUrl` を返す
+5. `/signup/shared` でメールアドレス + パスワードまたは Google アカウントを選択してユーザーを作成する
+
+Shared Google 登録では、Google から取得したメールアドレスが招待レコードのメールアドレスと完全一致する必要があります。これにより、招待 URL の転送だけで別 Google アカウントが Shared ユーザーになることを防ぎます。
+
+### 5.4 セッション管理
 
 - Cookie 名: `auth-session`
-- 補助 Cookie: `last-user-id`
+- 端末認証 Cookie: `device-auth`
+- Google OAuth state Cookie: `google-oauth-state`。値は opaque state のみで、payload は `google_oauth_flows` に保存します。
 - 仮登録 Cookie: `signup-request-id`
 - セッション本体は `auth_sessions` に保存します。
 - フル認証の最終成功時刻は `users.lastFullAuthAt` に保存します。
 
 PIN ハッシュはパスワードと同様にメモリハード KDF で保存します。旧形式の高速ハッシュが残っている場合は、PIN 検証成功時に新形式へ順次再ハッシュします。
 
-`last-user-id` を別 Cookie で持つことで、PIN 入力画面が「どのユーザーの PIN を検証するか」を決定できます。
+`device-auth` に紐づく `device_auth_grants` を持つことで、PIN 入力画面が「どのユーザーの PIN を検証するか」と「PIN ログイン前にフル認証期限が切れていないか」を決定できます。
 
-### 5.4 レート制限
+### 5.5 レート制限
 
 - 失敗試行は `pin_attempts` に記録します。
-- パスワード認証と PIN 認証で同じ試行回数制限を共有します。
+- メールアドレス + パスワード認証と PIN 認証で同じ試行回数制限を共有します。
 - 単純なインメモリ制御ではなく DB 記録にしているため、同一 PostgreSQL を使う単一インスタンス運用では再起動後も履歴を参照できます。
 
 ## 6. ボードテンプレート設計

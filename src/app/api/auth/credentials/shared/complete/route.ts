@@ -1,14 +1,12 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { authAccounts, authSessions, signupRequests, users } from "@/db/schema";
+import { authAccounts, authSessions, sharedSignupRequests, users } from "@/db/schema";
 import {
   AUTH_SESSION_COOKIE,
   buildAuthCookieOptions,
-  buildExpiredAuthCookieOptions,
   hashPassword,
 } from "@/lib/auth";
 import {
@@ -18,11 +16,10 @@ import {
   storeDeviceFullAuth,
 } from "@/lib/device-auth";
 import { generateSessionToken } from "@/lib/pin";
-import { SIGNUP_REQUEST_COOKIE } from "@/lib/signup";
 
 const SETUP_SESSION_MAX_AGE = 60 * 15;
 
-/** POST /api/auth/credentials/complete — create the owner after email verification */
+/** POST /api/auth/credentials/shared/complete — create shared user from invite */
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { token, password } = body as {
@@ -31,7 +28,7 @@ export async function POST(request: NextRequest) {
   };
 
   if (!token) {
-    return NextResponse.json({ error: "登録トークンが必要です" }, { status: 400 });
+    return NextResponse.json({ error: "招待トークンが必要です" }, { status: 400 });
   }
   if (!password || password.length < 8) {
     return NextResponse.json(
@@ -41,17 +38,17 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date().toISOString();
-  const signupRequest = await db.query.signupRequests.findFirst({
+  const signupRequest = await db.query.sharedSignupRequests.findFirst({
     where: and(
-      eq(signupRequests.token, token),
-      isNull(signupRequests.completedAt),
-      gt(signupRequests.expiresAt, now),
+      eq(sharedSignupRequests.token, token),
+      isNull(sharedSignupRequests.completedAt),
+      gt(sharedSignupRequests.expiresAt, now),
     ),
   });
 
   if (!signupRequest) {
     return NextResponse.json(
-      { error: "無効または期限切れの登録リンクです" },
+      { error: "無効または期限切れの招待リンクです" },
       { status: 400 },
     );
   }
@@ -60,13 +57,12 @@ export async function POST(request: NextRequest) {
     where: or(
       eq(users.userId, signupRequest.userId),
       eq(users.email, signupRequest.email),
-      eq(users.phoneNumber, signupRequest.phoneNumber),
     ),
   });
 
   if (existingUser) {
     return NextResponse.json(
-      { error: "この登録情報は既に使用されています。最初からやり直してください" },
+      { error: "この招待情報は既に使用されています。管理者に再招待を依頼してください" },
       { status: 409 },
     );
   }
@@ -77,10 +73,10 @@ export async function POST(request: NextRequest) {
     .values({
       userId: signupRequest.userId,
       email: signupRequest.email,
-      phoneNumber: signupRequest.phoneNumber,
       passwordHash,
-      attribute: "owner",
-      role: "admin",
+      attribute: "shared",
+      ownerUserId: signupRequest.ownerUserId,
+      role: signupRequest.role,
       lastFullAuthAt: now,
     })
     .returning();
@@ -93,9 +89,9 @@ export async function POST(request: NextRequest) {
   });
 
   await db
-    .update(signupRequests)
+    .update(sharedSignupRequests)
     .set({ completedAt: now })
-    .where(eq(signupRequests.id, signupRequest.id));
+    .where(eq(sharedSignupRequests.id, signupRequest.id));
 
   const sessionToken = generateSessionToken();
   const expiresAt = new Date(Date.now() + SETUP_SESSION_MAX_AGE * 1000).toISOString();
@@ -105,9 +101,8 @@ export async function POST(request: NextRequest) {
     expiresAt,
   });
 
-  const cookieStore = await cookies();
   const { deviceToken } = await storeDeviceFullAuth({
-    deviceToken: cookieStore.get(DEVICE_AUTH_COOKIE)?.value,
+    deviceToken: request.cookies.get(DEVICE_AUTH_COOKIE)?.value,
     userId: createdUser.id,
     authenticatedAt: now,
   });
@@ -115,9 +110,5 @@ export async function POST(request: NextRequest) {
   res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SETUP_SESSION_MAX_AGE));
   setDeviceAuthCookie(res, deviceToken);
   clearLegacyLastUserCookie(res);
-  if (cookieStore.get(SIGNUP_REQUEST_COOKIE)) {
-    res.cookies.set(SIGNUP_REQUEST_COOKIE, "", buildExpiredAuthCookieOptions());
-  }
-
   return res;
 }

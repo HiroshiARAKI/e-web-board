@@ -2,12 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { sharedSignupRequests, users } from "@/db/schema";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
-import { hashPassword } from "@/lib/auth";
-import { randomUUID } from "crypto";
 import { resolveOwnerUserId } from "@/lib/ownership";
+import { isSmtpConfigured, sendSharedSignupEmail } from "@/lib/mail";
+import {
+  buildPublicAppUrl,
+  isUnauthenticatedSignupPreviewEnabled,
+} from "@/lib/public-origin";
+import {
+  computeSignupExpiry,
+  generateSignupToken,
+  isValidSignupEmail,
+  isValidSignupUserId,
+  normalizeSignupEmail,
+} from "@/lib/signup";
 
 /** GET /api/users — list all users (admin only) */
 export async function GET() {
@@ -49,7 +59,7 @@ export async function GET() {
   return NextResponse.json(scopedUsers);
 }
 
-/** POST /api/users — create a new user (admin only) */
+/** POST /api/users — invite a new shared user (admin only) */
 export async function POST(request: NextRequest) {
   const session = await getSessionUser();
   if (!session) {
@@ -60,28 +70,30 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { userId, email, password, role } = body as {
+  const { userId, email, role } = body as {
     userId?: string;
     email?: string;
-    password?: string;
     role?: string;
   };
 
-  if (!userId || !email || !password) {
+  const normalizedUserId = userId?.trim() ?? "";
+  const normalizedEmail = email ? normalizeSignupEmail(email) : "";
+
+  if (!normalizedUserId || !normalizedEmail) {
     return NextResponse.json(
-      { error: "ユーザーID・メールアドレス・パスワードは必須です" },
+      { error: "ユーザーID・メールアドレスは必須です" },
       { status: 400 },
     );
   }
-  if (!/^[a-zA-Z0-9_\-]{3,32}$/.test(userId)) {
+  if (!isValidSignupUserId(normalizedUserId)) {
     return NextResponse.json(
       { error: "ユーザーIDは3〜32文字の英数字・_・-のみ使用できます" },
       { status: 400 },
     );
   }
-  if (password.length < 8) {
+  if (!isValidSignupEmail(normalizedEmail)) {
     return NextResponse.json(
-      { error: "パスワードは8文字以上で入力してください" },
+      { error: "有効なメールアドレスを入力してください" },
       { status: 400 },
     );
   }
@@ -89,42 +101,87 @@ export async function POST(request: NextRequest) {
 
   // Check uniqueness
   const existing = await db.query.users.findFirst({
-    where: eq(users.userId, userId),
+    where: or(eq(users.userId, normalizedUserId), eq(users.email, normalizedEmail)),
   });
-  if (existing) {
+  if (existing?.userId === normalizedUserId) {
     return NextResponse.json(
       { error: "このユーザーIDはすでに使用されています" },
       { status: 409 },
     );
   }
-  const existingEmail = await db.query.users.findFirst({
-    where: eq(users.email, email),
-  });
-  if (existingEmail) {
+  if (existing?.email === normalizedEmail) {
     return NextResponse.json(
       { error: "このメールアドレスはすでに使用されています" },
       { status: 409 },
     );
   }
 
-  const passwordHash = await hashPassword(password);
-  const id = randomUUID();
-
-  await db.insert(users).values({
-    id,
-    userId,
-    email,
-    passwordHash,
-    attribute: "shared",
-    ownerUserId: resolveOwnerUserId(session.user),
-    role: normalizedRole,
+  const ownerUserId = resolveOwnerUserId(session.user);
+  const now = new Date().toISOString();
+  const pendingInvite = await db.query.sharedSignupRequests.findFirst({
+    where: and(
+      isNull(sharedSignupRequests.completedAt),
+      gt(sharedSignupRequests.expiresAt, now),
+      or(
+        eq(sharedSignupRequests.userId, normalizedUserId),
+        eq(sharedSignupRequests.email, normalizedEmail),
+      ),
+    ),
   });
+  if (pendingInvite) {
+    return NextResponse.json(
+      { error: "同じユーザーIDまたはメールアドレスの招待が既に発行されています" },
+      { status: 409 },
+    );
+  }
+
+  const smtpConfigured = isSmtpConfigured();
+  const previewEnabled = isUnauthenticatedSignupPreviewEnabled();
+  if (!smtpConfigured && !previewEnabled) {
+    return NextResponse.json(
+      { error: "この環境では招待リンクを発行できません。SMTP を設定してください" },
+      { status: 503 },
+    );
+  }
+
+  const token = generateSignupToken();
+  const signupUrl = buildPublicAppUrl(`/signup/shared?token=${encodeURIComponent(token)}`);
+  if (!signupUrl) {
+    return NextResponse.json(
+      { error: "APP_PUBLIC_ORIGIN が未設定、または不正です" },
+      { status: 503 },
+    );
+  }
+
+  const [signupRequest] = await db.insert(sharedSignupRequests).values({
+    ownerUserId,
+    userId: normalizedUserId,
+    email: normalizedEmail,
+    role: normalizedRole,
+    token,
+    expiresAt: computeSignupExpiry(),
+  }).returning();
+
+  const mailSent = smtpConfigured
+    ? await sendSharedSignupEmail(normalizedEmail, signupUrl)
+    : false;
+
+  if (!mailSent && smtpConfigured) {
+    await db
+      .delete(sharedSignupRequests)
+      .where(eq(sharedSignupRequests.id, signupRequest.id));
+    return NextResponse.json(
+      { error: "招待メールの送信に失敗しました。時間を置いて再度お試しください" },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
-    id,
-    userId,
-    email,
-    attribute: "shared",
+    id: signupRequest.id,
+    userId: normalizedUserId,
+    email: normalizedEmail,
+    invited: true,
     role: normalizedRole,
+    previewUrl: previewEnabled ? signupUrl : null,
   }, { status: 201 });
 }

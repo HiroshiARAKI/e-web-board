@@ -6,15 +6,18 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { KeyRound } from "lucide-react";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 export default function LoginClient({
   redirectTo,
   showPinLoginLink,
+  googleAuthEnabled,
 }: {
   redirectTo?: string | null;
   showPinLoginLink: boolean;
+  googleAuthEnabled: boolean;
 }) {
   const router = useRouter();
   const { t } = useLocale();
@@ -62,6 +65,9 @@ export default function LoginClient({
   const pinLoginHref = redirectTo
     ? `/pin?redirectTo=${encodeURIComponent(redirectTo)}`
     : "/pin";
+  const googleLoginHref = redirectTo
+    ? `/api/auth/google/start?mode=login&redirectTo=${encodeURIComponent(redirectTo)}`
+    : "/api/auth/google/start?mode=login";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -132,6 +138,19 @@ export default function LoginClient({
               {submitting ? t("auth.login.submitting") : t("auth.login.submit")}
             </button>
           </form>
+
+          {googleAuthEnabled && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span className="h-px flex-1 bg-gray-200" />
+                <span>{t("common.or")}</span>
+                <span className="h-px flex-1 bg-gray-200" />
+              </div>
+              <GoogleAuthButton href={googleLoginHref}>
+                {t("auth.google.login")}
+              </GoogleAuthButton>
+            </div>
+          )}
 
           {showPinLoginLink && (
             <div className="mt-6 text-center">

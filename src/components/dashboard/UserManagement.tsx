@@ -42,10 +42,11 @@ export function UserManagement() {
   const [showCreate, setShowCreate] = useState(false);
   const [createUserId, setCreateUserId] = useState("");
   const [createEmail, setCreateEmail] = useState("");
-  const [createPassword, setCreatePassword] = useState("");
   const [createRole, setCreateRole] = useState<"admin" | "general">("general");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [invitePreviewUrl, setInvitePreviewUrl] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -96,20 +97,20 @@ export function UserManagement() {
         body: JSON.stringify({
           userId: createUserId.trim(),
           email: createEmail.trim(),
-          password: createPassword,
           role: createRole,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         setCreateError(data.error ?? t("users.createError"));
+        setInviteSuccess(null);
         return;
       }
-      setShowCreate(false);
       setCreateUserId("");
       setCreateEmail("");
-      setCreatePassword("");
       setCreateRole("general");
+      setInviteSuccess(t("users.inviteSuccess"));
+      setInvitePreviewUrl(data.previewUrl ?? null);
       await fetchUsers();
     } finally {
       setCreating(false);
@@ -120,7 +121,7 @@ export function UserManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">{t("users.list")}</h2>
-        <Button size="sm" onClick={() => { setShowCreate(true); setCreateError(null); }}>
+        <Button size="sm" onClick={() => { setShowCreate(true); setCreateError(null); setInviteSuccess(null); setInvitePreviewUrl(null); }}>
           <UserPlus className="mr-1.5 size-4" />
           {t("users.add")}
         </Button>
@@ -224,18 +225,6 @@ export function UserManagement() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cu-password">{t("common.password")}</Label>
-              <Input
-                id="cu-password"
-                type="password"
-                value={createPassword}
-                onChange={(e) => setCreatePassword(e.target.value)}
-                placeholder={t("users.passwordHint")}
-                minLength={8}
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="cu-role">{t("common.role")}</Label>
               <Select value={createRole} onValueChange={(v) => setCreateRole(v as "admin" | "general")}>
                 <SelectTrigger id="cu-role">
@@ -250,12 +239,27 @@ export function UserManagement() {
             {createError && (
               <p className="text-sm text-red-600">{createError}</p>
             )}
+            {inviteSuccess && (
+              <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                <p className="font-medium">{inviteSuccess}</p>
+                {invitePreviewUrl && (
+                  <a
+                    href={invitePreviewUrl}
+                    className="mt-1 block break-all text-blue-600 hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {invitePreviewUrl}
+                  </a>
+                )}
+              </div>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
                 {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={creating}>
-                {creating ? t("users.createSubmitting") : t("common.create")}
+                {creating ? t("users.createSubmitting") : t("users.inviteSubmit")}
               </Button>
             </div>
           </form>
