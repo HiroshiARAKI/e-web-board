@@ -1,6 +1,6 @@
 # Keinage API Reference
 
-最終更新: 2026-04-26
+最終更新: 2026-04-29
 
 ## 1. このドキュメントの範囲
 
@@ -20,10 +20,11 @@
 | `auth-session` | 認証済みセッション識別 |
 | `device-auth` | 端末単位の完全認証キャッシュ識別 |
 | `signup-request-id` | `/signingup` で仮登録状態を識別 |
+| `google-oauth-state` | Google OAuth callback の state 検証 |
 
 補足:
 
-- `auth-session`、`device-auth`、`signup-request-id` は `NODE_ENV=production` のとき `Secure` 属性付きで発行されます。
+- `auth-session`、`device-auth`、`signup-request-id`、`google-oauth-state` は `NODE_ENV=production` のとき `Secure` 属性付きで発行されます。
 - ローカル開発では HTTP 動作を維持するため `Secure` を付与しません。
 
 ### 2.2 認証の考え方
@@ -58,6 +59,10 @@ API は大きく 3 種類に分かれます。
 | `POST` | `/api/auth/credentials/setup` | Owner 仮登録を作成し、登録用 URL を発行 | 不要 |
 | `POST` | `/api/auth/credentials/setup/resend` | 仮登録中の Owner 登録 URL を再送 / 再発行 | `signup-request-id` Cookie |
 | `POST` | `/api/auth/credentials/complete` | 登録トークンで Owner を作成し、一時セッションを発行 | 不要 |
+| `POST` | `/api/auth/credentials/shared/complete` | Shared 招待トークンで Shared ユーザーを作成し、一時セッションを発行 | 不要 |
+| `GET` | `/api/auth/google/start` | Google ログインを開始し、Google 認可画面へ redirect | 不要 |
+| `POST` | `/api/auth/google/start` | Google ログイン / Owner 登録 / Shared 登録を開始 | 不要 |
+| `GET` | `/api/auth/google/callback` | Google OAuth callback を完了し、ユーザー作成またはログインを行う | 不要 |
 | `POST` | `/api/auth/pin/setup` | 一時セットアップセッションに対して初期 PIN を設定 | 一時セットアップセッション |
 
 #### `POST /api/auth/credentials/setup`
@@ -117,6 +122,86 @@ Owner 登録の仮受付を行います。
 - 成功時に Owner ユーザーを作成し、15 分有効の一時 `auth-session` Cookie を設定します。
 - 後続の `/api/auth/pin/setup` で PIN 設定を完了します。
 
+#### `POST /api/auth/credentials/shared/complete`
+
+Shared 招待リンクで開いた `/signup/shared?token=<token>` から呼び出します。
+
+リクエスト例:
+
+```json
+{
+  "token": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "password": "changeme123"
+}
+```
+
+仕様:
+
+- `shared_signup_requests` の未完了かつ期限内トークンだけを受け付けます。
+- 成功時に Shared ユーザーを作成し、15 分有効の一時 `auth-session` Cookie を設定します。
+- 後続の `/api/auth/pin/setup` で PIN 設定を完了します。
+
+#### `POST /api/auth/google/start`
+
+Google OAuth を開始します。利用には `GOOGLE_OAUTH_ENABLED=true`、`GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET`、`APP_PUBLIC_ORIGIN` が必要です。
+
+リクエスト例:
+
+```json
+{
+  "mode": "owner-signup"
+}
+```
+
+```json
+{
+  "mode": "shared-signup",
+  "token": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+}
+```
+
+```json
+{
+  "mode": "login",
+  "redirectTo": "/boards"
+}
+```
+
+レスポンス例:
+
+```json
+{
+  "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
+}
+```
+
+仕様:
+
+- `mode` は `login`、`owner-signup`、`shared-signup` のいずれかです。
+- `shared-signup` では有効な Shared 招待トークンが必要です。
+- 成功時に `google-oauth-state` Cookie を設定します。
+
+#### `GET /api/auth/google/start`
+
+Google ログイン専用の開始 endpoint です。`/pin/login` のリンクから利用します。
+
+クエリ:
+
+- `redirectTo`: ログイン成功後のアプリ内パス。省略時は `/boards`。
+
+#### `GET /api/auth/google/callback`
+
+Google 認可画面から戻る callback です。
+
+仕様:
+
+- `state` と `google-oauth-state` Cookie が一致する場合だけ処理します。
+- Google userinfo の `email_verified=false` は拒否します。
+- `login` では既存の Google 認証ユーザーだけログインできます。
+- `owner-signup` では Google メールアドレスと Google subject が未使用の場合だけ Owner ユーザーを作成します。アプリ内 `userId` は Google メールアドレスから自動生成します。
+- `shared-signup` では Google メールアドレスが招待先メールアドレスと一致する場合だけ Shared ユーザーを作成します。
+- 成功時は一時 `auth-session` と `device-auth` を設定し、PIN 未設定の場合は `/pin/setup` へ redirect します。
+
 #### `POST /api/auth/pin/setup`
 
 リクエスト例:
@@ -134,6 +219,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 | Method | Path | 説明 | 認証 |
 | --- | --- | --- | --- |
 | `POST` | `/api/auth/credentials/login` | メールアドレスまたはユーザーID + パスワードでログイン | 不要 |
+| `GET` | `/api/auth/google/start` | Google アカウントでログイン開始 | 不要 |
 | `POST` | `/api/auth/pin/verify` | PIN でクイックログイン | 不要 |
 | `POST` | `/api/auth/pin/logout` | セッション削除 | 任意 |
 | `GET` | `/api/auth/pin/status` | 現在の対象ユーザー、PIN 設定状態、期限情報を取得 | 不要 |
@@ -152,6 +238,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 仕様:
 
 - `identifier` はメールアドレスまたは `userId`
+- Google 認証ユーザーはこの endpoint ではログインできません。
 - 成功時に `auth-session` と `device-auth` Cookie を設定
 - 失敗回数は `client + identifier` bucket ベースで制限
 
@@ -248,7 +335,7 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 | Method | Path | 説明 | 認証 |
 | --- | --- | --- | --- |
 | `GET` | `/api/users` | ユーザー一覧取得 | `admin` |
-| `POST` | `/api/users` | ユーザー作成 | `admin` |
+| `POST` | `/api/users` | Shared ユーザー招待作成 | `admin` |
 | `PATCH` | `/api/users/[id]` | ロール変更 | `admin` |
 | `DELETE` | `/api/users/[id]` | ユーザー削除 | `admin` |
 | `PATCH` | `/api/users/me` | 自分のテーマ変更 | 必要 |
@@ -261,8 +348,27 @@ PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位
 {
   "userId": "staff01",
   "email": "staff01@example.com",
-  "password": "password123",
   "role": "general"
+}
+```
+
+仕様:
+
+- 即時に `users` レコードは作成せず、`shared_signup_requests` に 10 分有効の招待を作成します。
+- 招待 URL は `APP_PUBLIC_ORIGIN` を基準に `/signup/shared?token=<token>` として生成します。
+- SMTP が設定されていれば招待メールを送信します。
+- SMTP 未設定時は `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` かつ localhost 開発環境でのみ `previewUrl` を返します。それ以外では `503` を返します。
+
+レスポンス例:
+
+```json
+{
+  "id": "invite-row-id",
+  "userId": "staff01",
+  "email": "staff01@example.com",
+  "invited": true,
+  "role": "general",
+  "previewUrl": "http://localhost:3000/signup/shared?token=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 }
 ```
 

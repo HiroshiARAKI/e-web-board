@@ -117,12 +117,12 @@ environment:
 
 この状態で app は自動的にローカル `uploads/` ではなく RustFS に保存します。Docker Compose 内の app は `S3_INTERNAL_ENDPOINT` を優先して使うため、`127.0.0.1` ではなく `rustfs:9000` へ接続されます。`S3_ACCESS_KEY_ID` と `S3_SECRET_ACCESS_KEY` は、rustfs 側の `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` と同じ値を使ってください。
 
-ブラウザで http://localhost:3000 にアクセスし、初回は管理者アカウント
-（ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
+ブラウザで http://localhost:3000 にアクセスし、初回は Owner 管理者アカウントを登録してください。
+メールアドレス + パスワード、または Google アカウントで登録できます。登録後はそのまま 6 桁 PIN を設定します。
 
 #### SMTP 設定 (任意)
 
-Owner 登録リンクと PIN リセットリンクをメール送信したい場合は、公開 URL と SMTP を設定してください。
+Owner 登録リンク、Shared ユーザー招待リンク、PIN リセットリンクをメール送信したい場合は、公開 URL と SMTP を設定してください。
 
 ```yaml
 environment:
@@ -136,6 +136,24 @@ environment:
 
 > **Note:** SMTP 未設定時、未認証の Owner signup / PIN reset メールフローは既定で無効です。
 > ローカル開発で signup 直リンクのプレビューを使う場合だけ、`.env` に `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定し、`APP_PUBLIC_ORIGIN` を `http://localhost:3000` のような localhost origin にしてください。
+
+#### Google OAuth 設定 (任意)
+
+Google アカウントによる Owner 登録、Shared ユーザー登録、ログインを有効にする場合は、Google Cloud Console の OAuth クライアントに次の Redirect URI を登録してください。
+
+```text
+${APP_PUBLIC_ORIGIN}/api/auth/google/callback
+```
+
+Docker Compose では `.env` に次を設定します。
+
+```bash
+GOOGLE_OAUTH_ENABLED=true
+GOOGLE_OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_OAUTH_CLIENT_SECRET=your-client-secret
+```
+
+Google 認証で作成したユーザーは Google 認証専用、メールアドレス + パスワードで作成したユーザーはパスワード認証専用です。作成後に認証方式は変更できません。
 
 ```bash
 # 停止
@@ -163,14 +181,14 @@ pnpm dev           # 開発サーバー起動
 
 ローカル開発でも S3 互換のあるストレージサービスを使う場合は `.env` に `S3_*` 設定を追加してください。`pnpm dev` では `S3_ENDPOINT=http://127.0.0.1:9000`、Docker Compose では `S3_INTERNAL_ENDPOINT=http://rustfs:9000` を使い分けます。`.env.example` には rustfs を例にした具体値を入れています。
 
-http://localhost:3000 にアクセスし、初回は管理者アカウント
-（ユーザーID・メールアドレス・パスワード）を登録し、そのまま 6 桁 PIN を設定してください。
+http://localhost:3000 にアクセスし、初回は Owner 管理者アカウントを登録してください。
+メールアドレス + パスワード、または Google アカウントで登録できます。登録後はそのまま 6 桁 PIN を設定します。
 
-SMTP を使う場合は `.env` に `APP_PUBLIC_ORIGIN` と `SMTP_*` を追記してください。ローカル開発でのみ signup 直リンクプレビューを許可したい場合は、追加で `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定します。
+SMTP を使う場合は `.env` に `APP_PUBLIC_ORIGIN` と `SMTP_*` を追記してください。ローカル開発でのみ signup 直リンクプレビューを許可したい場合は、追加で `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定します。Google OAuth を使う場合は `GOOGLE_OAUTH_ENABLED=true` と `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` も設定します。
 
 ```bash
 cp .env.example .env
-# .env を編集して S3 / APP_PUBLIC_ORIGIN / SMTP 情報を入力
+# .env を編集して S3 / APP_PUBLIC_ORIGIN / SMTP / Google OAuth 情報を入力
 ```
 
 ---
