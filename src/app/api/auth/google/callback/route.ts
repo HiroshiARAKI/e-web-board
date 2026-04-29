@@ -15,16 +15,17 @@ import {
   createSignedInResponse,
 } from "@/lib/google-auth";
 import { DEVICE_AUTH_COOKIE } from "@/lib/device-auth";
+import { buildPublicAppUrl } from "@/lib/public-origin";
 
 const SETUP_SESSION_MAX_AGE = 60 * 15;
 const GOOGLE_USER_ID_FALLBACK = "google-user";
 
 function absoluteUrl(request: NextRequest, pathname: string) {
-  return new URL(pathname, request.nextUrl.origin).toString();
+  return buildPublicAppUrl(pathname) ?? new URL(pathname, request.nextUrl.origin).toString();
 }
 
 function errorRedirect(request: NextRequest, pathname: string, message: string) {
-  const url = new URL(pathname, request.nextUrl.origin);
+  const url = new URL(absoluteUrl(request, pathname));
   url.searchParams.set("error", message);
   const response = NextResponse.redirect(url);
   response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE, "", buildExpiredAuthCookieOptions());

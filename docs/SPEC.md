@@ -78,6 +78,7 @@ Owner アカウントの登録は `/signup` から開始します。メールア
 6. PIN 設定後にセッションを発行し、そのままダッシュボードへ入る
 
 Google 登録ではパスワードは保存されません。以後のフル認証は `/pin/login` の Google ボタンで行います。
+Google OAuth の Redirect URI は `APP_PUBLIC_ORIGIN` を基準に生成します。`APP_PUBLIC_ORIGIN` はブラウザで開く origin と同じ値にし、ローカル開発では `http://localhost:3000` を使います。`0.0.0.0` のような bind address は state Cookie が callback に送られないため使用できません。
 
 ### 3.2 Shared ユーザー招待
 

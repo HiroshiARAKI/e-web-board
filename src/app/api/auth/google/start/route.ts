@@ -13,6 +13,7 @@ import {
   type GoogleAuthMode,
 } from "@/lib/google-auth";
 import { buildAuthCookieOptions } from "@/lib/auth";
+import { getPublicAppOrigin } from "@/lib/public-origin";
 
 function isAllowedRedirectTo(value: string | null): value is string {
   return !!value && value.startsWith("/") && !value.startsWith("//");
@@ -69,6 +70,16 @@ async function createAuthResponse(input: {
   return response;
 }
 
+function canonicalOriginRedirect(request: NextRequest) {
+  const origin = getPublicAppOrigin();
+  if (!origin || request.nextUrl.origin === origin) {
+    return null;
+  }
+
+  const url = new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, `${origin}/`);
+  return NextResponse.redirect(url);
+}
+
 /** GET /api/auth/google/start?mode=login — start Google login */
 export async function GET(request: NextRequest) {
   if (!isGoogleAuthEnabled()) {
@@ -76,6 +87,10 @@ export async function GET(request: NextRequest) {
       { error: "Google認証は有効化されていません" },
       { status: 503 },
     );
+  }
+  const canonicalRedirect = canonicalOriginRedirect(request);
+  if (canonicalRedirect) {
+    return canonicalRedirect;
   }
 
   const modeParam = request.nextUrl.searchParams.get("mode");

@@ -23,9 +23,8 @@ export default function SharedSignupClient({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [googleError, setGoogleError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const googleSignupHref = `/api/auth/google/start?mode=shared-signup&token=${encodeURIComponent(token)}`;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -59,31 +58,6 @@ export default function SharedSignupClient({
       setError(t("error.network"));
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleGoogleSignup() {
-    setGoogleError("");
-    setGoogleSubmitting(true);
-
-    try {
-      const res = await fetch("/api/auth/google/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "shared-signup", token }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setGoogleError(data.error || t("auth.google.failed"));
-        return;
-      }
-
-      window.location.href = data.authorizationUrl;
-    } catch {
-      setGoogleError(t("error.network"));
-    } finally {
-      setGoogleSubmitting(false);
     }
   }
 
@@ -155,13 +129,9 @@ export default function SharedSignupClient({
                 <span>{t("common.or")}</span>
                 <span className="h-px flex-1 bg-gray-200" />
               </div>
-              <GoogleAuthButton
-                onClick={handleGoogleSignup}
-                disabled={googleSubmitting}
-              >
-                {googleSubmitting ? t("auth.google.starting") : t("auth.google.signup")}
+              <GoogleAuthButton href={googleSignupHref}>
+                {t("auth.google.signup")}
               </GoogleAuthButton>
-              {googleError && <p className="text-center text-sm text-red-600">{googleError}</p>}
             </div>
           )}
         </div>
