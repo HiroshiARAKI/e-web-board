@@ -102,7 +102,7 @@ Keinage は Next.js App Router をベースに、表示画面、管理画面、A
 Keinage の認証は次の 2 段構成です。
 
 1. メールアドレスまたはユーザーID + パスワードによるフル認証
-2. Google アカウントによるフル認証
+2. Google アカウントによるRS256-based OIDC認証
 3. 有効期限内に限り利用できる PIN による軽量再認証
 
 認証方式は `auth_accounts.provider` で管理します。現時点ではユーザーは作成時の認証方式に固定され、Google ユーザーは `passwordHash` を持たず、パスワード変更 API も利用できません。Google の安定 ID は `auth_accounts.providerAccountId` に保存します。
