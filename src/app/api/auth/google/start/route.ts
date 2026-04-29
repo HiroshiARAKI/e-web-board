@@ -3,13 +3,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { sharedSignupRequests } from "@/db/schema";
+import { googleOAuthFlows, sharedSignupRequests } from "@/db/schema";
 import {
   GOOGLE_OAUTH_STATE_COOKIE,
   GOOGLE_OAUTH_STATE_MAX_AGE,
   buildGoogleAuthorizationUrl,
-  createGoogleState,
-  encodeGoogleState,
+  createGoogleOAuthFlowContext,
   isGoogleAuthEnabled,
   type GoogleAuthMode,
 } from "@/lib/google-auth";
@@ -19,19 +18,40 @@ function isAllowedRedirectTo(value: string | null): value is string {
   return !!value && value.startsWith("/") && !value.startsWith("//");
 }
 
-function createAuthorization(payload: Parameters<typeof createGoogleState>[0]) {
-  const googleState = createGoogleState(payload);
-  const state = encodeGoogleState(googleState);
-  const authorizationUrl = buildGoogleAuthorizationUrl(state);
+async function createAuthorization(input: {
+  mode: GoogleAuthMode;
+  redirectTo?: string | null;
+  sharedSignupToken?: string | null;
+}) {
+  const flow = createGoogleOAuthFlowContext(input);
+  const authorizationUrl = buildGoogleAuthorizationUrl({
+    state: flow.state,
+    codeChallenge: flow.codeChallenge,
+    nonce: flow.nonce,
+  });
   if (!authorizationUrl) {
     return null;
   }
 
-  return { state, authorizationUrl };
+  await db.insert(googleOAuthFlows).values({
+    state: flow.state,
+    mode: flow.mode,
+    redirectTo: flow.redirectTo,
+    sharedSignupToken: flow.sharedSignupToken,
+    codeVerifier: flow.codeVerifier,
+    nonce: flow.nonce,
+    expiresAt: flow.expiresAt,
+  });
+
+  return { state: flow.state, authorizationUrl };
 }
 
-function createAuthResponse(payload: Parameters<typeof createGoogleState>[0]) {
-  const authorization = createAuthorization(payload);
+async function createAuthResponse(input: {
+  mode: GoogleAuthMode;
+  redirectTo?: string | null;
+  sharedSignupToken?: string | null;
+}) {
+  const authorization = await createAuthorization(input);
   if (!authorization) {
     return NextResponse.json(
       { error: "Google認証の設定が不完全です" },
@@ -60,7 +80,7 @@ export async function GET(request: NextRequest) {
 
   const redirectToParam = request.nextUrl.searchParams.get("redirectTo");
   const redirectTo = isAllowedRedirectTo(redirectToParam) ? redirectToParam : "/boards";
-  const authorization = createAuthorization({ mode: "login", redirectTo });
+  const authorization = await createAuthorization({ mode: "login", redirectTo });
   if (!authorization) {
     return NextResponse.json(
       { error: "Google認証の設定が不完全です" },

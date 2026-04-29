@@ -1,6 +1,6 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { authSessions } from "@/db/schema";
@@ -25,13 +25,15 @@ export const CREDENTIALS_AUTH_PROVIDER = "credentials";
 
 export type GoogleAuthMode = "login" | "owner-signup" | "shared-signup";
 
-export interface GoogleStatePayload {
-  nonce: string;
+export interface GoogleOAuthFlowContext {
   mode: GoogleAuthMode;
-  redirectTo?: string;
-  userId?: string;
-  phoneNumber?: string;
-  sharedSignupToken?: string;
+  redirectTo: string | null;
+  sharedSignupToken: string | null;
+  state: string;
+  codeVerifier: string;
+  codeChallenge: string;
+  nonce: string;
+  expiresAt: string;
 }
 
 export interface GoogleUserInfo {
@@ -40,10 +42,6 @@ export interface GoogleUserInfo {
   email_verified?: boolean;
   name?: string;
   picture?: string;
-}
-
-function base64UrlEncode(input: string): string {
-  return Buffer.from(input, "utf8").toString("base64url");
 }
 
 function base64UrlDecode(input: string): string | null {
@@ -67,36 +65,38 @@ export function buildGoogleRedirectUri(): string | null {
   return buildPublicAppUrl("/api/auth/google/callback");
 }
 
-export function createGoogleState(
-  input: Omit<GoogleStatePayload, "nonce">,
-): GoogleStatePayload {
+function randomOAuthValue(byteLength = 32): string {
+  return randomBytes(byteLength).toString("base64url");
+}
+
+function computeCodeChallenge(codeVerifier: string): string {
+  return createHash("sha256").update(codeVerifier).digest("base64url");
+}
+
+export function createGoogleOAuthFlowContext(input: {
+  mode: GoogleAuthMode;
+  redirectTo?: string | null;
+  sharedSignupToken?: string | null;
+}): GoogleOAuthFlowContext {
+  const codeVerifier = randomOAuthValue(64);
+
   return {
-    ...input,
-    nonce: randomBytes(16).toString("hex"),
+    mode: input.mode,
+    redirectTo: input.redirectTo ?? null,
+    sharedSignupToken: input.sharedSignupToken ?? null,
+    state: randomOAuthValue(32),
+    codeVerifier,
+    codeChallenge: computeCodeChallenge(codeVerifier),
+    nonce: randomOAuthValue(32),
+    expiresAt: new Date(Date.now() + GOOGLE_OAUTH_STATE_MAX_AGE * 1000).toISOString(),
   };
 }
 
-export function encodeGoogleState(payload: GoogleStatePayload): string {
-  return base64UrlEncode(JSON.stringify(payload));
-}
-
-export function decodeGoogleState(value: string): GoogleStatePayload | null {
-  const decoded = base64UrlDecode(value);
-  if (!decoded) return null;
-
-  try {
-    const parsed = JSON.parse(decoded) as Partial<GoogleStatePayload>;
-    if (!parsed.nonce || !parsed.mode) return null;
-    if (!["login", "owner-signup", "shared-signup"].includes(parsed.mode)) {
-      return null;
-    }
-    return parsed as GoogleStatePayload;
-  } catch {
-    return null;
-  }
-}
-
-export function buildGoogleAuthorizationUrl(state: string): string | null {
+export function buildGoogleAuthorizationUrl(input: {
+  state: string;
+  codeChallenge: string;
+  nonce: string;
+}): string | null {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const redirectUri = buildGoogleRedirectUri();
   if (!clientId || !redirectUri) return null;
@@ -106,12 +106,57 @@ export function buildGoogleAuthorizationUrl(state: string): string | null {
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", "openid email profile");
-  url.searchParams.set("state", state);
+  url.searchParams.set("state", input.state);
+  url.searchParams.set("nonce", input.nonce);
+  url.searchParams.set("code_challenge", input.codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("prompt", "select_account");
   return url.toString();
 }
 
-export async function fetchGoogleUserInfo(code: string): Promise<GoogleUserInfo | null> {
+function decodeJwtPayload<T>(jwt: string): T | null {
+  const [, payload] = jwt.split(".");
+  if (!payload) return null;
+  const decoded = base64UrlDecode(payload);
+  if (!decoded) return null;
+
+  try {
+    return JSON.parse(decoded) as T;
+  } catch {
+    return null;
+  }
+}
+
+function isValidGoogleIdTokenPayload(input: {
+  idToken?: string;
+  expectedNonce: string;
+  clientId: string;
+}) {
+  if (!input.idToken) return false;
+
+  const payload = decodeJwtPayload<{
+    aud?: string;
+    exp?: number;
+    iss?: string;
+    nonce?: string;
+  }>(input.idToken);
+  if (!payload) return false;
+
+  const validIssuer = payload.iss === "https://accounts.google.com" ||
+    payload.iss === "accounts.google.com";
+  const validAudience = payload.aud === input.clientId;
+  const validExpiry = typeof payload.exp === "number" &&
+    payload.exp * 1000 > Date.now();
+  const validNonce = payload.nonce === input.expectedNonce;
+
+  return validIssuer && validAudience && validExpiry && validNonce;
+}
+
+export async function fetchGoogleUserInfo(input: {
+  code: string;
+  codeVerifier: string;
+  expectedNonce: string;
+}): Promise<GoogleUserInfo | null> {
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
   const redirectUri = buildGoogleRedirectUri();
@@ -121,11 +166,12 @@ export async function fetchGoogleUserInfo(code: string): Promise<GoogleUserInfo 
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      code,
+      code: input.code,
       client_id: clientId,
       client_secret: clientSecret,
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
+      code_verifier: input.codeVerifier,
     }),
   });
 
@@ -134,8 +180,19 @@ export async function fetchGoogleUserInfo(code: string): Promise<GoogleUserInfo 
     return null;
   }
 
-  const tokenData = await tokenResponse.json() as { access_token?: string };
+  const tokenData = await tokenResponse.json() as {
+    access_token?: string;
+    id_token?: string;
+  };
   if (!tokenData.access_token) return null;
+  if (!isValidGoogleIdTokenPayload({
+    idToken: tokenData.id_token,
+    expectedNonce: input.expectedNonce,
+    clientId,
+  })) {
+    console.error("[google-auth] id token validation failed");
+    return null;
+  }
 
   const userInfoResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
     headers: { Authorization: `Bearer ${tokenData.access_token}` },

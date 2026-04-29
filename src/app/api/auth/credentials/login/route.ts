@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (user.authProvider !== "credentials" || !user.passwordHash) {
+  if (!user.passwordHash) {
     return NextResponse.json(
       { error: "このユーザーはGoogleアカウントでログインしてください" },
       { status: 401 },

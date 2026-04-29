@@ -50,7 +50,7 @@ export async function PATCH(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
   }
-  if (user.authProvider !== "credentials" || !user.passwordHash) {
+  if (!user.passwordHash) {
     return NextResponse.json(
       { error: "Googleアカウント認証のユーザーはパスワードを変更できません" },
       { status: 400 },

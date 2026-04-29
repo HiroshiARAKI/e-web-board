@@ -1,6 +1,6 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -178,10 +178,6 @@ export const users = pgTable("users", {
   /** Phone number for owner sign-up uniqueness checks */
   phoneNumber: text("phone_number").unique(),
   passwordHash: text("password_hash"),
-  /** "credentials" or "google"; users cannot switch providers after creation. */
-  authProvider: text("auth_provider").notNull().default("credentials"),
-  /** Stable Google account subject for Google-authenticated users. */
-  googleSub: text("google_sub").unique(),
   /** 6-digit PIN hash (nullable until PIN is configured) */
   pinHash: text("pin_hash"),
   /** Owner of an isolated workspace, or a shared member under an owner */
@@ -205,6 +201,42 @@ export const users = pgTable("users", {
     .notNull()
     .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
+});
+
+export const authAccounts = pgTable(
+  "auth_accounts",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
+    email: text("email").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(isoNow),
+  },
+  (table) => ({
+    providerAccountUnique: uniqueIndex("auth_accounts_provider_account_unique")
+      .on(table.provider, table.providerAccountId),
+  }),
+);
+
+export const googleOAuthFlows = pgTable("google_oauth_flows", {
+  state: text("state").primaryKey(),
+  mode: text("mode").notNull(),
+  redirectTo: text("redirect_to"),
+  sharedSignupToken: text("shared_signup_token"),
+  codeVerifier: text("code_verifier").notNull(),
+  nonce: text("nonce").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  consumedAt: text("consumed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
 });
 
 export const authSessions = pgTable("auth_sessions", {
@@ -242,9 +274,17 @@ export const deviceAuthGrants = pgTable("device_auth_grants", {
 // ── Relations ────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
+  authAccounts: many(authAccounts),
   sessions: many(authSessions),
   deviceAuthGrants: many(deviceAuthGrants),
   pinResetTokens: many(pinResetTokens),
+}));
+
+export const authAccountsRelations = relations(authAccounts, ({ one }) => ({
+  user: one(users, {
+    fields: [authAccounts.userId],
+    references: [users.id],
+  }),
 }));
 
 export const pinResetTokensRelations = relations(pinResetTokens, ({ one }) => ({

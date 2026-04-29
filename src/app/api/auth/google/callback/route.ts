@@ -4,14 +4,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { sharedSignupRequests, users } from "@/db/schema";
+import { authAccounts, googleOAuthFlows, sharedSignupRequests, users } from "@/db/schema";
 import {
   buildExpiredAuthCookieOptions,
 } from "@/lib/auth";
 import {
   GOOGLE_AUTH_PROVIDER,
   GOOGLE_OAUTH_STATE_COOKIE,
-  decodeGoogleState,
   fetchGoogleUserInfo,
   createSignedInResponse,
 } from "@/lib/google-auth";
@@ -73,43 +72,56 @@ export async function GET(request: NextRequest) {
     return errorRedirect(request, "/pin/login", "invalid-google-state");
   }
 
-  const statePayload = decodeGoogleState(state);
-  if (!statePayload) {
+  const now = new Date().toISOString();
+  const flow = await db.query.googleOAuthFlows.findFirst({
+    where: and(
+      eq(googleOAuthFlows.state, state),
+      isNull(googleOAuthFlows.consumedAt),
+      gt(googleOAuthFlows.expiresAt, now),
+    ),
+  });
+  if (!flow) {
     return errorRedirect(request, "/pin/login", "invalid-google-state");
   }
 
-  const googleUser = await fetchGoogleUserInfo(code);
+  await db
+    .update(googleOAuthFlows)
+    .set({ consumedAt: now })
+    .where(eq(googleOAuthFlows.state, state));
+
+  const googleUser = await fetchGoogleUserInfo({
+    code,
+    codeVerifier: flow.codeVerifier,
+    expectedNonce: flow.nonce,
+  });
   if (!googleUser || googleUser.email_verified === false) {
     return errorRedirect(request, "/pin/login", "google-email-unverified");
   }
 
   const deviceToken = request.cookies.get(DEVICE_AUTH_COOKIE)?.value;
-  const now = new Date().toISOString();
 
-  if (statePayload.mode === "login") {
-    const user = await db.query.users.findFirst({
-      where: or(
-        eq(users.googleSub, googleUser.sub),
-        and(
-          eq(users.email, googleUser.email),
-          eq(users.authProvider, GOOGLE_AUTH_PROVIDER),
-        ),
+  if (flow.mode === "login") {
+    const account = await db.query.authAccounts.findFirst({
+      where: and(
+        eq(authAccounts.provider, GOOGLE_AUTH_PROVIDER),
+        eq(authAccounts.providerAccountId, googleUser.sub),
       ),
+      with: { user: true },
     });
 
-    if (!user || user.authProvider !== GOOGLE_AUTH_PROVIDER) {
+    if (!account?.user) {
       return errorRedirect(request, "/pin/login", "google-user-not-found");
     }
 
+    const user = account.user;
     await db
       .update(users)
       .set({
-        googleSub: user.googleSub ?? googleUser.sub,
         lastFullAuthAt: now,
       })
       .where(eq(users.id, user.id));
 
-    const redirectPath = user.pinHash ? (statePayload.redirectTo ?? "/boards") : "/pin/setup";
+    const redirectPath = user.pinHash ? (flow.redirectTo ?? "/boards") : "/pin/setup";
     const response = await createSignedInResponse({
       requestDeviceToken: deviceToken,
       userId: user.id,
@@ -120,14 +132,17 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  if (statePayload.mode === "owner-signup") {
-    const existingUser = await db.query.users.findFirst({
-      where: or(
-        eq(users.email, googleUser.email),
-        eq(users.googleSub, googleUser.sub),
+  if (flow.mode === "owner-signup") {
+    const existingAccount = await db.query.authAccounts.findFirst({
+      where: and(
+        eq(authAccounts.provider, GOOGLE_AUTH_PROVIDER),
+        eq(authAccounts.providerAccountId, googleUser.sub),
       ),
     });
-    if (existingUser) {
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.email, googleUser.email),
+    });
+    if (existingAccount || existingUser) {
       return errorRedirect(request, "/signup", "user-already-exists");
     }
 
@@ -139,13 +154,18 @@ export async function GET(request: NextRequest) {
         email: googleUser.email,
         phoneNumber: null,
         passwordHash: null,
-        authProvider: GOOGLE_AUTH_PROVIDER,
-        googleSub: googleUser.sub,
         attribute: "owner",
         role: "admin",
         lastFullAuthAt: now,
       })
       .returning();
+
+    await db.insert(authAccounts).values({
+      userId: createdUser.id,
+      provider: GOOGLE_AUTH_PROVIDER,
+      providerAccountId: googleUser.sub,
+      email: googleUser.email,
+    });
 
     const response = await createSignedInResponse({
       requestDeviceToken: deviceToken,
@@ -157,14 +177,14 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  if (statePayload.mode === "shared-signup") {
-    if (!statePayload.sharedSignupToken) {
+  if (flow.mode === "shared-signup") {
+    if (!flow.sharedSignupToken) {
       return errorRedirect(request, "/signup/shared", "invalid-signup-state");
     }
 
     const signupRequest = await db.query.sharedSignupRequests.findFirst({
       where: and(
-        eq(sharedSignupRequests.token, statePayload.sharedSignupToken),
+        eq(sharedSignupRequests.token, flow.sharedSignupToken),
         isNull(sharedSignupRequests.completedAt),
         gt(sharedSignupRequests.expiresAt, now),
       ),
@@ -176,14 +196,19 @@ export async function GET(request: NextRequest) {
       return errorRedirect(request, "/signup/shared", "google-email-mismatch");
     }
 
+    const existingAccount = await db.query.authAccounts.findFirst({
+      where: and(
+        eq(authAccounts.provider, GOOGLE_AUTH_PROVIDER),
+        eq(authAccounts.providerAccountId, googleUser.sub),
+      ),
+    });
     const existingUser = await db.query.users.findFirst({
       where: or(
         eq(users.userId, signupRequest.userId),
         eq(users.email, signupRequest.email),
-        eq(users.googleSub, googleUser.sub),
       ),
     });
-    if (existingUser) {
+    if (existingAccount || existingUser) {
       return errorRedirect(request, "/signup/shared", "user-already-exists");
     }
 
@@ -193,14 +218,19 @@ export async function GET(request: NextRequest) {
         userId: signupRequest.userId,
         email: signupRequest.email,
         passwordHash: null,
-        authProvider: GOOGLE_AUTH_PROVIDER,
-        googleSub: googleUser.sub,
         attribute: "shared",
         ownerUserId: signupRequest.ownerUserId,
         role: signupRequest.role,
         lastFullAuthAt: now,
       })
       .returning();
+
+    await db.insert(authAccounts).values({
+      userId: createdUser.id,
+      provider: GOOGLE_AUTH_PROVIDER,
+      providerAccountId: googleUser.sub,
+      email: signupRequest.email,
+    });
 
     await db
       .update(sharedSignupRequests)

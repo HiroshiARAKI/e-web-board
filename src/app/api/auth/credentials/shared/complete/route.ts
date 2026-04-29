@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { authSessions, sharedSignupRequests, users } from "@/db/schema";
+import { authAccounts, authSessions, sharedSignupRequests, users } from "@/db/schema";
 import {
   AUTH_SESSION_COOKIE,
   buildAuthCookieOptions,
@@ -74,13 +74,19 @@ export async function POST(request: NextRequest) {
       userId: signupRequest.userId,
       email: signupRequest.email,
       passwordHash,
-      authProvider: "credentials",
       attribute: "shared",
       ownerUserId: signupRequest.ownerUserId,
       role: signupRequest.role,
       lastFullAuthAt: now,
     })
     .returning();
+
+  await db.insert(authAccounts).values({
+    userId: createdUser.id,
+    provider: "credentials",
+    providerAccountId: signupRequest.email,
+    email: signupRequest.email,
+  });
 
   await db
     .update(sharedSignupRequests)
