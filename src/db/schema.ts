@@ -127,6 +127,28 @@ export const signupRequests = pgTable("signup_requests", {
     .$onUpdate(() => new Date().toISOString()),
 });
 
+export const sharedSignupRequests = pgTable("shared_signup_requests", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("general"),
+  token: text("token").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
+});
+
 export const accountDeletionRequests = pgTable("account_deletion_requests", {
   id: text("id")
     .primaryKey()
@@ -155,7 +177,11 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   /** Phone number for owner sign-up uniqueness checks */
   phoneNumber: text("phone_number").unique(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("password_hash"),
+  /** "credentials" or "google"; users cannot switch providers after creation. */
+  authProvider: text("auth_provider").notNull().default("credentials"),
+  /** Stable Google account subject for Google-authenticated users. */
+  googleSub: text("google_sub").unique(),
   /** 6-digit PIN hash (nullable until PIN is configured) */
   pinHash: text("pin_hash"),
   /** Owner of an isolated workspace, or a shared member under an owner */

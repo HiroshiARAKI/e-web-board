@@ -97,6 +97,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (user.authProvider !== "credentials" || !user.passwordHash) {
+    return NextResponse.json(
+      { error: "このユーザーはGoogleアカウントでログインしてください" },
+      { status: 401 },
+    );
+  }
+
   const valid = await verifyPassword(password, user.passwordHash);
   console.log("[credentials/login] Password verify result", {
     userId: user.userId,
