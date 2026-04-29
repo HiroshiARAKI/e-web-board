@@ -194,7 +194,7 @@ Google OAuth を redirect で開始する endpoint です。`/pin/login` と `/s
 - `redirectTo`: ログイン成功後のアプリ内パス。省略時は `/boards`。
 - `token`: `mode=shared-signup` のときの Shared 招待トークン。
 
-リクエスト origin が `APP_PUBLIC_ORIGIN` と異なる場合は、state Cookie を正しい host に設定するため、同じ path/query を `APP_PUBLIC_ORIGIN` 側へ redirect してから Google 認可 URL へ進みます。
+リクエストの `Host` が `APP_PUBLIC_ORIGIN` の host と異なる場合は、state Cookie を正しい host に設定するため、同じ path/query を `APP_PUBLIC_ORIGIN` 側へ redirect してから Google 認可 URL へ進みます。
 
 #### `GET /api/auth/google/callback`
 

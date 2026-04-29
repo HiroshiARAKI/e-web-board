@@ -72,7 +72,13 @@ async function createAuthResponse(input: {
 
 function canonicalOriginRedirect(request: NextRequest) {
   const origin = getPublicAppOrigin();
-  if (!origin || request.nextUrl.origin === origin) {
+  if (!origin) {
+    return null;
+  }
+
+  const publicHost = new URL(origin).host.toLowerCase();
+  const requestHost = request.headers.get("host")?.trim().toLowerCase();
+  if (!requestHost || requestHost === publicHost) {
     return null;
   }
 
