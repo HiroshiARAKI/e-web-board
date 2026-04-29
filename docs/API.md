@@ -60,7 +60,7 @@ API は大きく 3 種類に分かれます。
 | `POST` | `/api/auth/credentials/setup/resend` | 仮登録中の Owner 登録 URL を再送 / 再発行 | `signup-request-id` Cookie |
 | `POST` | `/api/auth/credentials/complete` | 登録トークンで Owner を作成し、一時セッションを発行 | 不要 |
 | `POST` | `/api/auth/credentials/shared/complete` | Shared 招待トークンで Shared ユーザーを作成し、一時セッションを発行 | 不要 |
-| `GET` | `/api/auth/google/start` | Google ログインを開始し、Google 認可画面へ redirect | 不要 |
+| `GET` | `/api/auth/google/start` | Google ログイン / Owner 登録 / Shared 登録を開始し、Google 認可画面へ redirect | 不要 |
 | `POST` | `/api/auth/google/start` | Google ログイン / Owner 登録 / Shared 登録を開始 | 不要 |
 | `GET` | `/api/auth/google/callback` | Google OAuth callback を完了し、ユーザー作成またはログインを行う | 不要 |
 | `POST` | `/api/auth/pin/setup` | 一時セットアップセッションに対して初期 PIN を設定 | 一時セットアップセッション |
@@ -186,11 +186,13 @@ Google OAuth を Authorization Code + PKCE で開始します。利用には `GO
 
 #### `GET /api/auth/google/start`
 
-Google ログイン専用の開始 endpoint です。`/pin/login` のリンクから利用します。
+Google OAuth を redirect で開始する endpoint です。`/pin/login` と `/signup` のリンクから利用します。
 
 クエリ:
 
+- `mode`: `login`、`owner-signup`、`shared-signup` のいずれか。省略時は `login`。
 - `redirectTo`: ログイン成功後のアプリ内パス。省略時は `/boards`。
+- `token`: `mode=shared-signup` のときの Shared 招待トークン。
 
 #### `GET /api/auth/google/callback`
 

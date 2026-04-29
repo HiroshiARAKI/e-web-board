@@ -20,9 +20,7 @@ export default function SignupRequestClient({
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState("");
-  const [googleError, setGoogleError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -51,33 +49,6 @@ export default function SignupRequestClient({
       setError(t("error.network"));
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleGoogleSignup() {
-    setGoogleError("");
-    setGoogleSubmitting(true);
-
-    try {
-      const res = await fetch("/api/auth/google/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "owner-signup",
-        }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        setGoogleError(data.error || t("auth.google.failed"));
-        return;
-      }
-
-      window.location.href = data.authorizationUrl;
-    } catch {
-      setGoogleError(t("error.network"));
-    } finally {
-      setGoogleSubmitting(false);
     }
   }
 
@@ -169,13 +140,9 @@ export default function SignupRequestClient({
                 <span>{t("common.or")}</span>
                 <span className="h-px flex-1 bg-gray-200" />
               </div>
-              <GoogleAuthButton
-                onClick={handleGoogleSignup}
-                disabled={googleSubmitting}
-              >
-                {googleSubmitting ? t("auth.google.starting") : t("auth.google.signup")}
+              <GoogleAuthButton href="/api/auth/google/start?mode=owner-signup">
+                {t("auth.google.signup")}
               </GoogleAuthButton>
-              {googleError && <p className="text-center text-sm text-red-600">{googleError}</p>}
             </div>
           )}
         </div>

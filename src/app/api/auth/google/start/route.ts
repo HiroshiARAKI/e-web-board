@@ -78,9 +78,42 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const modeParam = request.nextUrl.searchParams.get("mode");
+  const mode: GoogleAuthMode = modeParam === "owner-signup" ||
+    modeParam === "shared-signup" ||
+    modeParam === "login"
+    ? modeParam
+    : "login";
+
   const redirectToParam = request.nextUrl.searchParams.get("redirectTo");
   const redirectTo = isAllowedRedirectTo(redirectToParam) ? redirectToParam : "/boards";
-  const authorization = await createAuthorization({ mode: "login", redirectTo });
+  let sharedSignupToken: string | null = null;
+
+  if (mode === "shared-signup") {
+    sharedSignupToken = request.nextUrl.searchParams.get("token");
+    const now = new Date().toISOString();
+    const signupRequest = sharedSignupToken
+      ? await db.query.sharedSignupRequests.findFirst({
+          where: and(
+            eq(sharedSignupRequests.token, sharedSignupToken),
+            isNull(sharedSignupRequests.completedAt),
+            gt(sharedSignupRequests.expiresAt, now),
+          ),
+        })
+      : null;
+    if (!signupRequest) {
+      return NextResponse.json(
+        { error: "無効または期限切れの招待リンクです" },
+        { status: 400 },
+      );
+    }
+  }
+
+  const authorization = await createAuthorization({
+    mode,
+    redirectTo: mode === "login" ? redirectTo : null,
+    sharedSignupToken,
+  });
   if (!authorization) {
     return NextResponse.json(
       { error: "Google認証の設定が不完全です" },

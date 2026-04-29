@@ -108,12 +108,26 @@ export async function GET(request: NextRequest) {
       ),
       with: { user: true },
     });
+    let user = account?.user ?? null;
 
-    if (!account?.user) {
-      return errorRedirect(request, "/pin/login", "google-user-not-found");
+    if (!user) {
+      const existingGoogleOnlyUser = await db.query.users.findFirst({
+        where: eq(users.email, googleUser.email),
+      });
+
+      if (!existingGoogleOnlyUser || existingGoogleOnlyUser.passwordHash) {
+        return errorRedirect(request, "/pin/login", "google-user-not-found");
+      }
+
+      await db.insert(authAccounts).values({
+        userId: existingGoogleOnlyUser.id,
+        provider: GOOGLE_AUTH_PROVIDER,
+        providerAccountId: googleUser.sub,
+        email: googleUser.email,
+      });
+      user = existingGoogleOnlyUser;
     }
 
-    const user = account.user;
     await db
       .update(users)
       .set({
