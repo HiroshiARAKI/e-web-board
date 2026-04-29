@@ -1,6 +1,7 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { createHash, randomBytes } from "crypto";
+import { createHash, createPublicKey, randomBytes, verify } from "crypto";
+import type { JsonWebKey } from "crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { authSessions } from "@/db/schema";
@@ -22,6 +23,8 @@ export const GOOGLE_OAUTH_STATE_COOKIE = "google-oauth-state";
 export const GOOGLE_OAUTH_STATE_MAX_AGE = 60 * 10;
 export const GOOGLE_AUTH_PROVIDER = "google";
 export const CREDENTIALS_AUTH_PROVIDER = "credentials";
+const GOOGLE_JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const GOOGLE_JWKS_DEFAULT_MAX_AGE_MS = 60 * 60 * 1000;
 
 export type GoogleAuthMode = "login" | "owner-signup" | "shared-signup";
 
@@ -44,12 +47,39 @@ export interface GoogleUserInfo {
   picture?: string;
 }
 
-function base64UrlDecode(input: string): string | null {
+interface GoogleIdTokenHeader {
+  alg?: string;
+  kid?: string;
+}
+
+interface GoogleIdTokenPayload {
+  aud?: string;
+  exp?: number;
+  iss?: string;
+  nonce?: string;
+}
+
+type GoogleJwk = JsonWebKey & {
+  kid?: string;
+  alg?: string;
+  use?: string;
+};
+
+let googleJwksCache: {
+  expiresAt: number;
+  keys: GoogleJwk[];
+} | null = null;
+
+function base64UrlToBuffer(input: string): Buffer | null {
   try {
-    return Buffer.from(input, "base64url").toString("utf8");
+    return Buffer.from(input, "base64url");
   } catch {
     return null;
   }
+}
+
+function base64UrlDecode(input: string): string | null {
+  return base64UrlToBuffer(input)?.toString("utf8") ?? null;
 }
 
 export function isGoogleAuthEnabled(): boolean {
@@ -114,10 +144,8 @@ export function buildGoogleAuthorizationUrl(input: {
   return url.toString();
 }
 
-function decodeJwtPayload<T>(jwt: string): T | null {
-  const [, payload] = jwt.split(".");
-  if (!payload) return null;
-  const decoded = base64UrlDecode(payload);
+function decodeJwtSegment<T>(segment: string): T | null {
+  const decoded = base64UrlDecode(segment);
   if (!decoded) return null;
 
   try {
@@ -127,29 +155,120 @@ function decodeJwtPayload<T>(jwt: string): T | null {
   }
 }
 
-function isValidGoogleIdTokenPayload(input: {
+function parseJwt(idToken: string) {
+  const [encodedHeader, encodedPayload, encodedSignature, extra] = idToken.split(".");
+  if (!encodedHeader || !encodedPayload || !encodedSignature || extra !== undefined) {
+    return null;
+  }
+
+  const header = decodeJwtSegment<GoogleIdTokenHeader>(encodedHeader);
+  const payload = decodeJwtSegment<GoogleIdTokenPayload>(encodedPayload);
+  const signature = base64UrlToBuffer(encodedSignature);
+  if (!header || !payload || !signature) {
+    return null;
+  }
+
+  return {
+    encodedHeader,
+    encodedPayload,
+    header,
+    payload,
+    signature,
+  };
+}
+
+function parseCacheMaxAge(cacheControl: string | null) {
+  const maxAge = cacheControl
+    ?.split(",")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("max-age="))
+    ?.slice("max-age=".length);
+  const seconds = maxAge ? Number.parseInt(maxAge, 10) : Number.NaN;
+  return Number.isFinite(seconds) && seconds > 0
+    ? seconds * 1000
+    : GOOGLE_JWKS_DEFAULT_MAX_AGE_MS;
+}
+
+async function fetchGoogleJwks(): Promise<GoogleJwk[] | null> {
+  if (googleJwksCache && googleJwksCache.expiresAt > Date.now()) {
+    return googleJwksCache.keys;
+  }
+
+  const response = await fetch(GOOGLE_JWKS_URL);
+  if (!response.ok) {
+    console.error("[google-auth] jwks fetch failed", await response.text());
+    return googleJwksCache?.keys ?? null;
+  }
+
+  const jwks = await response.json() as { keys?: GoogleJwk[] };
+  if (!Array.isArray(jwks.keys)) {
+    return null;
+  }
+
+  googleJwksCache = {
+    keys: jwks.keys,
+    expiresAt: Date.now() + parseCacheMaxAge(response.headers.get("cache-control")),
+  };
+  return googleJwksCache.keys;
+}
+
+async function verifyGoogleIdTokenSignature(input: {
+  encodedHeader: string;
+  encodedPayload: string;
+  header: GoogleIdTokenHeader;
+  signature: Buffer;
+}) {
+  if (input.header.alg !== "RS256" || !input.header.kid) {
+    return false;
+  }
+
+  const keys = await fetchGoogleJwks();
+  const jwk = keys?.find((key) =>
+    key.kid === input.header.kid &&
+    key.kty === "RSA" &&
+    (!key.alg || key.alg === "RS256") &&
+    (!key.use || key.use === "sig")
+  );
+  if (!jwk) {
+    return false;
+  }
+
+  try {
+    const publicKey = createPublicKey({ key: jwk, format: "jwk" });
+    return verify(
+      "RSA-SHA256",
+      Buffer.from(`${input.encodedHeader}.${input.encodedPayload}`),
+      publicKey,
+      input.signature,
+    );
+  } catch (error) {
+    console.error("[google-auth] id token signature verification failed", error);
+    return false;
+  }
+}
+
+async function isValidGoogleIdToken(input: {
   idToken?: string;
   expectedNonce: string;
   clientId: string;
 }) {
   if (!input.idToken) return false;
 
-  const payload = decodeJwtPayload<{
-    aud?: string;
-    exp?: number;
-    iss?: string;
-    nonce?: string;
-  }>(input.idToken);
-  if (!payload) return false;
+  const parsed = parseJwt(input.idToken);
+  if (!parsed) return false;
 
-  const validIssuer = payload.iss === "https://accounts.google.com" ||
-    payload.iss === "accounts.google.com";
-  const validAudience = payload.aud === input.clientId;
-  const validExpiry = typeof payload.exp === "number" &&
-    payload.exp * 1000 > Date.now();
-  const validNonce = payload.nonce === input.expectedNonce;
+  const validIssuer = parsed.payload.iss === "https://accounts.google.com" ||
+    parsed.payload.iss === "accounts.google.com";
+  const validAudience = parsed.payload.aud === input.clientId;
+  const validExpiry = typeof parsed.payload.exp === "number" &&
+    parsed.payload.exp * 1000 > Date.now();
+  const validNonce = parsed.payload.nonce === input.expectedNonce;
 
-  return validIssuer && validAudience && validExpiry && validNonce;
+  if (!validIssuer || !validAudience || !validExpiry || !validNonce) {
+    return false;
+  }
+
+  return verifyGoogleIdTokenSignature(parsed);
 }
 
 export async function fetchGoogleUserInfo(input: {
@@ -185,7 +304,7 @@ export async function fetchGoogleUserInfo(input: {
     id_token?: string;
   };
   if (!tokenData.access_token) return null;
-  if (!isValidGoogleIdTokenPayload({
+  if (!await isValidGoogleIdToken({
     idToken: tokenData.id_token,
     expectedNonce: input.expectedNonce,
     clientId,
