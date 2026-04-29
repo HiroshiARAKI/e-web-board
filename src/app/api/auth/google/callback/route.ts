@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     codeVerifier: flow.codeVerifier,
     expectedNonce: flow.nonce,
   });
-  if (!googleUser || googleUser.email_verified === false) {
+  if (!googleUser || googleUser.email_verified !== true) {
     return errorRedirect(request, "/pin/login", "google-email-unverified");
   }
 

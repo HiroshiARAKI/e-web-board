@@ -137,7 +137,7 @@ environment:
 > **Note:** SMTP 未設定時、未認証の Owner signup / PIN reset メールフローは既定で無効です。
 > ローカル開発で signup 直リンクのプレビューを使う場合だけ、`.env` に `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定し、`APP_PUBLIC_ORIGIN` を `http://localhost:3000` のような localhost origin にしてください。
 
-#### Google OAuth 設定 (任意)
+#### Google OAuth/OIDC 設定 (任意)
 
 Google アカウントによる Owner 登録、Shared ユーザー登録、ログインを有効にする場合は、Google Cloud Console の OAuth クライアントに次の Redirect URI を登録してください。
 
@@ -154,6 +154,8 @@ GOOGLE_OAUTH_ENABLED=true
 GOOGLE_OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_OAUTH_CLIENT_SECRET=your-client-secret
 ```
+
+内部実装は Google を OIDC Provider preset として扱い、`https://accounts.google.com/.well-known/openid-configuration` の Discovery から authorization / token / userinfo / JWKS endpoint を取得します。環境変数名は既存設定との互換性のため `GOOGLE_OAUTH_*` のままです。
 
 Google 認証で作成したユーザーは Google 認証専用、メールアドレス + パスワードで作成したユーザーはパスワード認証専用です。作成後に認証方式は変更できません。
 
@@ -186,7 +188,7 @@ pnpm dev           # 開発サーバー起動
 http://localhost:3000 にアクセスし、初回は Owner 管理者アカウントを登録してください。
 メールアドレス + パスワード、または Google アカウントで登録できます。登録後はそのまま 6 桁 PIN を設定します。
 
-SMTP を使う場合は `.env` に `APP_PUBLIC_ORIGIN` と `SMTP_*` を追記してください。ローカル開発でのみ signup 直リンクプレビューを許可したい場合は、追加で `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定します。Google OAuth を使う場合は `GOOGLE_OAUTH_ENABLED=true` と `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` も設定します。
+SMTP を使う場合は `.env` に `APP_PUBLIC_ORIGIN` と `SMTP_*` を追記してください。ローカル開発でのみ signup 直リンクプレビューを許可したい場合は、追加で `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` を設定します。Google OAuth/OIDC を使う場合は `GOOGLE_OAUTH_ENABLED=true` と `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` も設定します。
 
 ```bash
 cp .env.example .env

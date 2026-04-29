@@ -25,7 +25,7 @@ async function createAuthorization(input: {
   sharedSignupToken?: string | null;
 }) {
   const flow = createGoogleOAuthFlowContext(input);
-  const authorizationUrl = buildGoogleAuthorizationUrl({
+  const authorizationUrl = await buildGoogleAuthorizationUrl({
     state: flow.state,
     codeChallenge: flow.codeChallenge,
     nonce: flow.nonce,
