@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound } from "lucide-react";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
@@ -22,6 +23,7 @@ export default function SharedSignupClient({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [googleError, setGoogleError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
@@ -61,7 +63,7 @@ export default function SharedSignupClient({
   }
 
   async function handleGoogleSignup() {
-    setError("");
+    setGoogleError("");
     setGoogleSubmitting(true);
 
     try {
@@ -73,13 +75,13 @@ export default function SharedSignupClient({
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || t("auth.signupPassword.failed"));
+        setGoogleError(data.error || t("auth.google.failed"));
         return;
       }
 
       window.location.href = data.authorizationUrl;
     } catch {
-      setError(t("error.network"));
+      setGoogleError(t("error.network"));
     } finally {
       setGoogleSubmitting(false);
     }
@@ -96,9 +98,9 @@ export default function SharedSignupClient({
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <KeyRound className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">Sharedアカウント登録</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.sharedSignup.title")}</h2>
             <p className="text-center text-sm text-gray-500">
-              {email} のアカウント登録方法を選択してください。
+              {t("auth.sharedSignup.subtitle", { email })}
             </p>
           </div>
 
@@ -150,17 +152,16 @@ export default function SharedSignupClient({
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span className="h-px flex-1 bg-gray-200" />
-                <span>or</span>
+                <span>{t("common.or")}</span>
                 <span className="h-px flex-1 bg-gray-200" />
               </div>
-              <button
-                type="button"
+              <GoogleAuthButton
                 onClick={handleGoogleSignup}
                 disabled={googleSubmitting}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
               >
-                {googleSubmitting ? "Googleで確認中..." : "Googleアカウントで登録"}
-              </button>
+                {googleSubmitting ? t("auth.google.starting") : t("auth.google.signup")}
+              </GoogleAuthButton>
+              {googleError && <p className="text-center text-sm text-red-600">{googleError}</p>}
             </div>
           )}
         </div>

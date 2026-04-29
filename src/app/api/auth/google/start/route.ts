@@ -1,9 +1,9 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { sharedSignupRequests, users } from "@/db/schema";
+import { sharedSignupRequests } from "@/db/schema";
 import {
   GOOGLE_OAUTH_STATE_COOKIE,
   GOOGLE_OAUTH_STATE_MAX_AGE,
@@ -14,10 +14,6 @@ import {
   type GoogleAuthMode,
 } from "@/lib/google-auth";
 import { buildAuthCookieOptions } from "@/lib/auth";
-import {
-  isValidSignupUserId,
-  normalizePhoneNumber,
-} from "@/lib/signup";
 
 function isAllowedRedirectTo(value: string | null): value is string {
   return !!value && value.startsWith("/") && !value.startsWith("//");
@@ -99,35 +95,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (mode === "owner-signup") {
-    const userId = typeof body.userId === "string" ? body.userId.trim() : "";
-    const phoneNumber = typeof body.phoneNumber === "string"
-      ? normalizePhoneNumber(body.phoneNumber)
-      : null;
-
-    if (!isValidSignupUserId(userId)) {
-      return NextResponse.json(
-        { error: "ユーザーIDは3〜32文字の英数字・アンダースコア・ハイフンで入力してください" },
-        { status: 400 },
-      );
-    }
-    if (!phoneNumber) {
-      return NextResponse.json(
-        { error: "電話番号を正しく入力してください" },
-        { status: 400 },
-      );
-    }
-
-    const existingUser = await db.query.users.findFirst({
-      where: or(eq(users.userId, userId), eq(users.phoneNumber, phoneNumber)),
-    });
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "同じユーザーID・電話番号では登録できません" },
-        { status: 409 },
-      );
-    }
-
-    return createAuthResponse({ mode, userId, phoneNumber });
+    return createAuthResponse({ mode });
   }
 
   if (mode === "shared-signup") {

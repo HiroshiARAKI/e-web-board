@@ -1,6 +1,7 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { sharedSignupRequests, users } from "@/db/schema";
@@ -17,6 +18,7 @@ import {
 import { DEVICE_AUTH_COOKIE } from "@/lib/device-auth";
 
 const SETUP_SESSION_MAX_AGE = 60 * 15;
+const GOOGLE_USER_ID_FALLBACK = "google-user";
 
 function absoluteUrl(request: NextRequest, pathname: string) {
   return new URL(pathname, request.nextUrl.origin).toString();
@@ -28,6 +30,33 @@ function errorRedirect(request: NextRequest, pathname: string, message: string) 
   const response = NextResponse.redirect(url);
   response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE, "", buildExpiredAuthCookieOptions());
   return response;
+}
+
+function createGoogleUserIdBase(email: string) {
+  const localPart = email.split("@")[0] ?? "";
+  const normalized = localPart
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const base = normalized.length >= 3 ? normalized : GOOGLE_USER_ID_FALLBACK;
+  return base.slice(0, 32).replace(/-+$/g, "") || GOOGLE_USER_ID_FALLBACK;
+}
+
+async function buildUniqueGoogleUserId(email: string) {
+  const base = createGoogleUserIdBase(email);
+
+  for (let index = 0; index < 100; index += 1) {
+    const suffix = index === 0 ? "" : `-${index + 1}`;
+    const candidate = `${base.slice(0, 32 - suffix.length)}${suffix}`;
+    const existing = await db.query.users.findFirst({
+      where: eq(users.userId, candidate),
+    });
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `${base.slice(0, 23)}-${randomUUID().slice(0, 8)}`;
 }
 
 /** GET /api/auth/google/callback — complete Google OAuth */
@@ -92,15 +121,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (statePayload.mode === "owner-signup") {
-    if (!statePayload.userId || !statePayload.phoneNumber) {
-      return errorRedirect(request, "/signup", "invalid-signup-state");
-    }
-
     const existingUser = await db.query.users.findFirst({
       where: or(
-        eq(users.userId, statePayload.userId),
         eq(users.email, googleUser.email),
-        eq(users.phoneNumber, statePayload.phoneNumber),
         eq(users.googleSub, googleUser.sub),
       ),
     });
@@ -108,12 +131,13 @@ export async function GET(request: NextRequest) {
       return errorRedirect(request, "/signup", "user-already-exists");
     }
 
+    const userId = await buildUniqueGoogleUserId(googleUser.email);
     const [createdUser] = await db
       .insert(users)
       .values({
-        userId: statePayload.userId,
+        userId,
         email: googleUser.email,
-        phoneNumber: statePayload.phoneNumber,
+        phoneNumber: null,
         passwordHash: null,
         authProvider: GOOGLE_AUTH_PROVIDER,
         googleSub: googleUser.sub,

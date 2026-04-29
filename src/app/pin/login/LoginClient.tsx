@@ -6,6 +6,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { KeyRound } from "lucide-react";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
@@ -142,15 +143,12 @@ export default function LoginClient({
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span className="h-px flex-1 bg-gray-200" />
-                <span>or</span>
+                <span>{t("common.or")}</span>
                 <span className="h-px flex-1 bg-gray-200" />
               </div>
-              <Link
-                href={googleLoginHref}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50"
-              >
-                Googleアカウントでログイン
-              </Link>
+              <GoogleAuthButton href={googleLoginHref}>
+                {t("auth.google.login")}
+              </GoogleAuthButton>
             </div>
           )}
 

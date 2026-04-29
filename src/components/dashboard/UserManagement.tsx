@@ -109,7 +109,7 @@ export function UserManagement() {
       setCreateUserId("");
       setCreateEmail("");
       setCreateRole("general");
-      setInviteSuccess("招待メールを送信しました");
+      setInviteSuccess(t("users.inviteSuccess"));
       setInvitePreviewUrl(data.previewUrl ?? null);
       await fetchUsers();
     } finally {
@@ -259,7 +259,7 @@ export function UserManagement() {
                 {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={creating}>
-                {creating ? t("users.createSubmitting") : "招待を送信"}
+                {creating ? t("users.createSubmitting") : t("users.inviteSubmit")}
               </Button>
             </div>
           </form>
