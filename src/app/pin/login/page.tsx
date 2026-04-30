@@ -18,6 +18,7 @@ import {
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
 import { sanitizeRedirectTarget } from "@/lib/utils";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
 import LoginClient from "./LoginClient";
 
 export const dynamic = "force-dynamic";
@@ -25,13 +26,17 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirectTo?: string | string[] }>;
+  searchParams: Promise<{
+    redirectTo?: string | string[];
+    notice?: string | string[];
+  }>;
 }) {
   console.log("[/pin/login] START");
   const params = await searchParams;
   const redirectTo = sanitizeRedirectTarget(
     typeof params.redirectTo === "string" ? params.redirectTo : null,
   );
+  const notice = typeof params.notice === "string" ? params.notice : null;
 
   // If admin user not configured, redirect to setup
   const adminUser = await db.query.users.findFirst();
@@ -117,7 +122,9 @@ export default async function LoginPage({
   return (
     <LoginClient
       redirectTo={redirectTo}
+      notice={notice === "signup-existing" ? "signup-existing" : null}
       showPinLoginLink={showPinLoginLink}
+      googleAuthEnabled={isGoogleAuthEnabled()}
     />
   );
 }

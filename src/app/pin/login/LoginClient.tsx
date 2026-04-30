@@ -6,16 +6,24 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { KeyRound } from "lucide-react";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
+import { isSupportedLocale } from "@/lib/i18n";
 
 export default function LoginClient({
   redirectTo,
+  notice,
   showPinLoginLink,
+  googleAuthEnabled,
 }: {
   redirectTo?: string | null;
+  notice?: "signup-existing" | null;
   showPinLoginLink: boolean;
+  googleAuthEnabled: boolean;
 }) {
   const router = useRouter();
+  const { t, setLocale } = useLocale();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,25 +49,32 @@ export default function LoginClient({
 
         if (!res.ok) {
           if (data.blocked) setBlocked(true);
-          setError(data.error || "認証に失敗しました");
+          setError(data.error || t("error.authFailed"));
           setPassword("");
           setSubmitting(false);
           return;
         }
 
+        if (isSupportedLocale(data.locale)) {
+          setLocale(data.locale);
+        }
+
         router.push(redirectTo || "/boards");
       } catch {
-        setError("通信エラーが発生しました");
+        setError(t("error.network"));
         setPassword("");
         setSubmitting(false);
       }
     },
-    [router, redirectTo, identifier, password, submitting, blocked],
+    [router, redirectTo, identifier, password, submitting, blocked, t, setLocale],
   );
 
   const pinLoginHref = redirectTo
     ? `/pin?redirectTo=${encodeURIComponent(redirectTo)}`
     : "/pin";
+  const googleLoginHref = redirectTo
+    ? `/api/auth/google/start?mode=login&redirectTo=${encodeURIComponent(redirectTo)}`
+    : "/api/auth/google/start?mode=login";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -73,11 +88,17 @@ export default function LoginClient({
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <KeyRound className="size-8 text-gray-400" />
-            <h2 className="text-lg font-bold text-gray-900">アカウントログイン</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.login.title")}</h2>
             <p className="text-center text-sm text-gray-500">
-              メールアドレスまたはユーザーIDとパスワードを入力してください
+              {t("auth.login.subtitle")}
             </p>
           </div>
+
+          {notice === "signup-existing" && (
+            <p className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-center text-sm text-blue-700">
+              すでに登録済みのアカウントがあります。ログインしてください。
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -85,14 +106,14 @@ export default function LoginClient({
                 htmlFor="identifier"
                 className="mb-1.5 block text-sm font-medium text-gray-700"
               >
-                メールアドレス / ユーザーID
+                {t("auth.login.identifierLabel")}
               </label>
               <input
                 id="identifier"
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="admin@example.com または admin"
+                placeholder={t("auth.login.identifierPlaceholder")}
                 required
                 autoFocus
                 disabled={blocked}
@@ -104,14 +125,14 @@ export default function LoginClient({
                 htmlFor="password"
                 className="mb-1.5 block text-sm font-medium text-gray-700"
               >
-                パスワード
+                {t("auth.login.passwordLabel")}
               </label>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="パスワード"
+                placeholder={t("auth.login.passwordPlaceholder")}
                 required
                 disabled={blocked}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50"
@@ -127,20 +148,39 @@ export default function LoginClient({
               disabled={submitting || blocked}
               className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
             >
-              {submitting ? "認証中..." : "ログイン"}
+              {submitting ? t("auth.login.submitting") : t("auth.login.submit")}
             </button>
           </form>
 
-          {showPinLoginLink && (
-            <div className="mt-6 text-center">
-              <Link
-                href={pinLoginHref}
-                className="text-sm text-gray-500 hover:text-blue-600"
-              >
-                PINでログインする
-              </Link>
+          {googleAuthEnabled && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span className="h-px flex-1 bg-gray-200" />
+                <span>{t("common.or")}</span>
+                <span className="h-px flex-1 bg-gray-200" />
+              </div>
+              <GoogleAuthButton href={googleLoginHref}>
+                {t("auth.google.login")}
+              </GoogleAuthButton>
             </div>
           )}
+
+          <div className="mt-6 space-y-3 text-center">
+            {showPinLoginLink && (
+              <Link
+                href={pinLoginHref}
+                className="block text-sm text-gray-500 hover:text-blue-600"
+              >
+                {t("auth.login.loginWithPin")}
+              </Link>
+            )}
+            <Link
+              href="/signup"
+              className="block text-sm text-gray-500 hover:text-blue-600"
+            >
+              アカウントを作成する
+            </Link>
+          </div>
         </div>
       </div>
     </div>

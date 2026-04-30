@@ -40,6 +40,7 @@ import {
   DialogClose,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { templates } from "@/lib/templates";
 import { TemplateConfigEditor } from "@/components/dashboard/config-editors";
 import MediaUploadZone from "@/components/dashboard/MediaUploadZone";
@@ -53,6 +54,7 @@ interface BoardDetail extends Board {
 
 export default function BoardEditClient({ boardId }: { boardId: string }) {
   const router = useRouter();
+  const { t, formatDateTime, getTemplateCopy } = useLocale();
   const [board, setBoard] = useState<BoardDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -76,7 +78,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   const fetchBoard = useCallback(async () => {
     const res = await fetch(`/api/boards/${boardId}`);
     if (!res.ok) {
-      setError("ボードが見つかりません");
+      setError(t("boardEdit.notFound"));
       setLoading(false);
       return;
     }
@@ -107,7 +109,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error ?? "保存に失敗しました");
+      setError(data.error ?? t("error.createFailed"));
     } else {
       await fetchBoard();
     }
@@ -176,24 +178,25 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   }
 
   if (loading) {
-    return <div className="py-12 text-center text-muted-foreground">読み込み中...</div>;
+    return <div className="py-12 text-center text-muted-foreground">{t("common.loading")}</div>;
   }
 
   if (!board) {
     return (
       <div className="py-12 text-center">
-        <p className="text-muted-foreground">{error ?? "ボードが見つかりません"}</p>
+        <p className="text-muted-foreground">{error ?? t("boardEdit.notFound")}</p>
         <Link
           href="/boards"
           className={`mt-4 ${buttonVariants({ variant: "outline" })}`}
         >
-          ボード一覧に戻る
+          {t("boards.backToList")}
         </Link>
       </div>
     );
   }
 
   const template = templates[board.templateId as keyof typeof templates];
+  const templateCopy = getTemplateCopy(board.templateId);
 
   return (
     <div>
@@ -204,7 +207,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           className={buttonVariants({ variant: "ghost", size: "sm" })}
         >
           <ArrowLeft data-icon="inline-start" />
-          ボード一覧
+          {t("boards.backToList")}
         </Link>
         <a
           href={`/${boardId}`}
@@ -213,7 +216,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           className={buttonVariants({ variant: "outline", size: "sm" })}
         >
           <ExternalLink data-icon="inline-start" />
-          表示URLを開く
+          {t("boardEdit.openDisplayUrl")}
         </a>
       </div>
 
@@ -223,14 +226,16 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           {/* Basic info */}
           <Card>
             <CardHeader>
-              <CardTitle>基本設定</CardTitle>
+              <CardTitle>{t("boardEdit.basicTitle")}</CardTitle>
               <CardDescription>
-                テンプレート: {template?.name ?? board.templateId}
+                {t("boardEdit.templateDescription", {
+                  name: template ? templateCopy.name : board.templateId,
+                })}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="board-name">ボード名</Label>
+                <Label htmlFor="board-name">{t("boards.nameLabel")}</Label>
                 <Input
                   id="board-name"
                   value={name}
@@ -246,18 +251,18 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                   onCheckedChange={setIsActive}
                 />
                 <Label htmlFor="board-active">
-                  ボードを有効にする
+                  {t("boardEdit.activate")}
                 </Label>
                 <Badge variant={isActive ? "default" : "secondary"}>
-                  {isActive ? "有効" : "無効"}
+                  {isActive ? t("common.enabled") : t("common.disabled")}
                 </Badge>
               </div>
 
               <div className="space-y-3 rounded-lg border p-4">
                 <div className="space-y-1">
-                  <Label htmlFor="board-visibility">公開設定</Label>
+                  <Label htmlFor="board-visibility">{t("boards.visibilityLabel")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Private はログイン済みユーザーのみ表示URLを開けます。Public は誰でも表示URLを閲覧できます。
+                    {t("boardEdit.visibilityDescription")}
                   </p>
                 </div>
 
@@ -270,7 +275,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                     }`}
                   >
                     <Lock className="size-3.5" />
-                    Private
+                    {t("common.private")}
                   </div>
                   <Switch
                     id="board-visibility"
@@ -285,10 +290,12 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                     }`}
                   >
                     <Globe className="size-3.5" />
-                    Public
+                    {t("common.public")}
                   </div>
                   <Badge variant={visibility === "public" ? "default" : "secondary"}>
-                    {visibility === "public" ? "公開中" : "認証必須"}
+                    {visibility === "public"
+                      ? t("boards.visibilityPublicStatus")
+                      : t("boards.visibilityPrivateStatus")}
                   </Badge>
                 </div>
               </div>
@@ -298,9 +305,9 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           {/* Config Editor */}
           <Card>
             <CardHeader>
-              <CardTitle>テンプレート設定</CardTitle>
+              <CardTitle>{t("boardEdit.templateSettingsTitle")}</CardTitle>
               <CardDescription>
-                テンプレート固有の設定を編集できます
+                {t("boardEdit.templateSettingsDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -325,9 +332,9 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           {board.templateId !== "photo-clock" && board.templateId !== "call-number" && (
           <Card>
             <CardHeader>
-              <CardTitle>{board.templateId === "call-number" ? "番号管理" : "メッセージ"}</CardTitle>
+              <CardTitle>{t("boardEdit.messagesTitle")}</CardTitle>
               <CardDescription>
-                {board.messages.length} 件の{board.templateId === "call-number" ? "番号" : "メッセージ"}
+                {t("boardEdit.messagesCount", { count: board.messages.length })}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -336,7 +343,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 <Input
                   value={newMsgContent}
                   onChange={(e) => setNewMsgContent(e.target.value)}
-                  placeholder={board.templateId === "call-number" ? "番号を入力..." : "メッセージを入力..."}
+                  placeholder={t("boardEdit.messagePlaceholder")}
                   className="min-w-0 flex-1 basis-40"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.nativeEvent.isComposing) {
@@ -349,7 +356,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 <Input
                   value={newMsgPriority}
                   onChange={(e) => setNewMsgPriority(e.target.value)}
-                  placeholder="優先度"
+                  placeholder={t("boardEdit.priorityPlaceholder")}
                   type="number"
                   min={0}
                   className="w-20"
@@ -357,7 +364,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 )}
                 <Button type="button" size="sm" onClick={handleAddMessage}>
                   <Plus data-icon="inline-start" />
-                  追加
+                  {t("common.add")}
                 </Button>
               </div>
 
@@ -366,7 +373,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
               {/* Message list */}
               {board.messages.length === 0 ? (
                 <p className="py-4 text-center text-sm text-muted-foreground">
-                  メッセージはありません
+                  {t("board.message.none")}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -453,9 +460,9 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           {board.templateId !== "call-number" && (
           <Card>
             <CardHeader>
-              <CardTitle>メディア</CardTitle>
+              <CardTitle>{t("boardEdit.mediaTitle")}</CardTitle>
               <CardDescription>
-                {board.mediaItems.length} 件のメディア
+                {t("boardEdit.mediaCount", { count: board.mediaItems.length })}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -473,12 +480,12 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
         <div className="min-w-0 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">アクション</CardTitle>
+              <CardTitle className="text-base">{t("boardEdit.actionsTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button className="w-full" onClick={handleSave} disabled={saving}>
                 <Save data-icon="inline-start" />
-                {saving ? "保存中..." : "保存"}
+                {saving ? t("boardEdit.saving") : t("common.save")}
               </Button>
 
               <a
@@ -488,7 +495,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 className={buttonVariants({ variant: "outline", className: "w-full" })}
               >
                 <ExternalLink data-icon="inline-start" />
-                表示URLを開く
+                {t("boardEdit.openDisplayUrl")}
               </a>
 
               <Separator />
@@ -498,24 +505,23 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 render={
                   <Button variant="destructive" className="w-full">
                     <Trash2 data-icon="inline-start" />
-                    ボードを削除
+                    {t("boardEdit.delete")}
                   </Button>
                 }
               />
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>ボードを削除しますか？</DialogTitle>
+                    <DialogTitle>{t("boardEdit.deleteConfirmTitle")}</DialogTitle>
                     <DialogDescription>
-                      「{board.name}」を削除します。この操作は取り消せません。
-                      関連するメディアとメッセージもすべて削除されます。
+                      {t("boardEdit.deleteConfirmDescription", { name: board.name })}
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
                     <DialogClose
-                      render={<Button variant="outline">キャンセル</Button>}
+                      render={<Button variant="outline">{t("common.cancel")}</Button>}
                     />
                     <Button variant="destructive" onClick={handleDelete}>
-                      削除する
+                      {t("common.delete")}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -533,9 +539,9 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
 
           <Card>
             <CardContent className="py-4 text-xs text-muted-foreground">
-              <div>ID: <span className="font-mono">{board.id}</span></div>
-              <div>作成: {new Date(board.createdAt).toLocaleString("ja-JP")}</div>
-              <div>更新: {new Date(board.updatedAt).toLocaleString("ja-JP")}</div>
+              <div>{t("common.id")}: <span className="font-mono">{board.id}</span></div>
+              <div>{t("common.createdAt")}: {formatDateTime(board.createdAt)}</div>
+              <div>{t("common.updatedAt")}: {formatDateTime(board.updatedAt)}</div>
             </CardContent>
           </Card>
         </div>

@@ -18,8 +18,9 @@ export async function hashPassword(password: string): Promise<string> {
 /** Verify a plaintext password against a stored scrypt hash */
 export async function verifyPassword(
   password: string,
-  stored: string,
+  stored: string | null | undefined,
 ): Promise<boolean> {
+  if (!stored) return false;
   const [hashed, salt] = stored.split(".");
   if (!hashed || !salt) return false;
   try {

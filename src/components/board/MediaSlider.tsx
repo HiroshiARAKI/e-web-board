@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import type { MediaItem } from "@/types";
 
 /** How many upcoming images to preload ahead of the current slide. */
@@ -18,6 +19,7 @@ interface MediaSliderProps {
 }
 
 export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }: MediaSliderProps) {
+  const { t } = useLocale();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const preloadedRef = useRef<Set<string>>(new Set());
@@ -94,7 +96,7 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
   if (mediaItems.length === 0) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-black/80 text-white/60">
-        <p className="text-lg">メディアが登録されていません</p>
+        <p className="text-lg">{t("board.noMedia")}</p>
       </div>
     );
   }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -43,6 +44,7 @@ export function PhotoClockConfigEditor({
   onChange,
 }: PhotoClockConfigEditorProps) {
   useLoadAllGoogleFonts();
+  const { t } = useLocale();
 
   const slideInterval = (config.slideInterval as number) ?? 8;
   const clockPosition = (config.clockPosition as string) ?? "bottom-right";
@@ -56,18 +58,18 @@ export function PhotoClockConfigEditor({
   const fontFamily = (config.fontFamily as string) ?? "";
 
   const positionLabels: Record<string, string> = {
-    "top-left": "左上",
-    "top-right": "右上",
-    center: "中央",
-    "bottom-left": "左下",
-    "bottom-right": "右下",
+    "top-left": t("configEditor.positionTopLeft"),
+    "top-right": t("configEditor.positionTopRight"),
+    center: t("configEditor.positionCenter"),
+    "bottom-left": t("configEditor.positionBottomLeft"),
+    "bottom-right": t("configEditor.positionBottomRight"),
   };
 
   const layoutLabels: Record<string, string> = {
-    standard: "スタンダード（時刻 → 日付）",
-    compact: "コンパクト（横並び）",
-    "large-time": "大時刻（時分を大きく表示）",
-    "date-top": "日付上（日付 → 時刻）",
+    standard: t("configEditor.layoutStandard"),
+    compact: t("configEditor.layoutCompact"),
+    "large-time": t("configEditor.layoutLargeTime"),
+    "date-top": t("configEditor.layoutDateTop"),
   };
 
   function update(key: string, value: unknown) {
@@ -77,7 +79,7 @@ export function PhotoClockConfigEditor({
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-slideInterval">スライド間隔（秒）</Label>
+        <Label htmlFor="cfg-slideInterval">{t("configEditor.slideInterval")}</Label>
         <Input
           id="cfg-slideInterval"
           type="number"
@@ -92,51 +94,51 @@ export function PhotoClockConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-objectFit">メディア表示モード</Label>
+        <Label htmlFor="cfg-objectFit">{t("configEditor.mediaMode")}</Label>
         <Select value={objectFit} onValueChange={(v) => update("objectFit", v)}>
           <SelectTrigger id="cfg-objectFit" className="w-full sm:max-w-72">
-            <SelectValue>{objectFit === "cover" ? "全面表示（トリミングされる場合あり）" : "全体表示（余白ができる場合あり）"}</SelectValue>
+            <SelectValue>{objectFit === "cover" ? t("configEditor.objectFitCover") : t("configEditor.objectFitContain")}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="contain">全体表示（余白ができる場合あり）</SelectItem>
-            <SelectItem value="cover">全面表示（トリミングされる場合あり）</SelectItem>
+            <SelectItem value="contain">{t("configEditor.objectFitContain")}</SelectItem>
+            <SelectItem value="cover">{t("configEditor.objectFitCover")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-clockPos">時計の位置</Label>
+        <Label htmlFor="cfg-clockPos">{t("configEditor.clockPosition")}</Label>
         <Select value={clockPosition} onValueChange={(v) => update("clockPosition", v)}>
           <SelectTrigger id="cfg-clockPos" className="w-full sm:max-w-48">
-            <SelectValue placeholder="位置を選択">{positionLabels[clockPosition] ?? clockPosition}</SelectValue>
+            <SelectValue placeholder={t("configEditor.selectPosition")}>{positionLabels[clockPosition] ?? clockPosition}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="top-left">左上</SelectItem>
-            <SelectItem value="top-right">右上</SelectItem>
-            <SelectItem value="center">中央</SelectItem>
-            <SelectItem value="bottom-left">左下</SelectItem>
-            <SelectItem value="bottom-right">右下</SelectItem>
+            <SelectItem value="top-left">{t("configEditor.positionTopLeft")}</SelectItem>
+            <SelectItem value="top-right">{t("configEditor.positionTopRight")}</SelectItem>
+            <SelectItem value="center">{t("configEditor.positionCenter")}</SelectItem>
+            <SelectItem value="bottom-left">{t("configEditor.positionBottomLeft")}</SelectItem>
+            <SelectItem value="bottom-right">{t("configEditor.positionBottomRight")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-clockLayout">時計レイアウト</Label>
+        <Label htmlFor="cfg-clockLayout">{t("configEditor.clockLayout")}</Label>
         <Select value={clockLayout} onValueChange={(v) => update("clockLayout", v)}>
           <SelectTrigger id="cfg-clockLayout" className="w-full sm:max-w-64">
-            <SelectValue placeholder="レイアウトを選択">{layoutLabels[clockLayout] ?? clockLayout}</SelectValue>
+            <SelectValue placeholder={t("configEditor.selectLayout")}>{layoutLabels[clockLayout] ?? clockLayout}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="standard">スタンダード（時刻 → 日付）</SelectItem>
-            <SelectItem value="compact">コンパクト（横並び）</SelectItem>
-            <SelectItem value="large-time">大時刻（時分を大きく表示）</SelectItem>
-            <SelectItem value="date-top">日付上（日付 → 時刻）</SelectItem>
+            <SelectItem value="standard">{t("configEditor.layoutStandard")}</SelectItem>
+            <SelectItem value="compact">{t("configEditor.layoutCompact")}</SelectItem>
+            <SelectItem value="large-time">{t("configEditor.layoutLargeTime")}</SelectItem>
+            <SelectItem value="date-top">{t("configEditor.layoutDateTop")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-clockSize">時計の文字サイズ: {clockFontSize}px</Label>
+        <Label htmlFor="cfg-clockSize">{t("configEditor.clockFontSize", { size: clockFontSize })}</Label>
         <input
           id="cfg-clockSize"
           type="range"
@@ -154,7 +156,7 @@ export function PhotoClockConfigEditor({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-clockColor">時計の文字色</Label>
+        <Label htmlFor="cfg-clockColor">{t("configEditor.clockTextColor")}</Label>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <input
             type="color"
@@ -174,7 +176,7 @@ export function PhotoClockConfigEditor({
 
       <div className="space-y-1.5">
         <Label htmlFor="cfg-clockOpacity">
-          背景の不透明度: {Math.round(clockBgOpacity * 100)}%
+          {t("configEditor.clockBgOpacity", { percent: Math.round(clockBgOpacity * 100) })}
         </Label>
         <input
           id="cfg-clockOpacity"
@@ -195,7 +197,7 @@ export function PhotoClockConfigEditor({
           onCheckedChange={(v) => update("is24Hour", v)}
         />
         <Label htmlFor="cfg-24h" className="min-w-0 flex-1 leading-snug">
-          24時間表示（OFFで12時間+AM/PM表記）
+          {t("configEditor.twentyFourHour")}
         </Label>
       </div>
 
@@ -206,24 +208,24 @@ export function PhotoClockConfigEditor({
           onCheckedChange={(v) => update("showWeather", v)}
         />
         <Label htmlFor="cfg-weather" className="min-w-0 flex-1 leading-snug">
-          天気予報を表示
+          {t("configEditor.showWeather")}
         </Label>
       </div>
       {showWeather && (
         <p className="break-words text-xs text-muted-foreground">
-          表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+          {t("configEditor.weatherHint")}
         </p>
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor="cfg-font">フォント</Label>
+        <Label htmlFor="cfg-font">{t("configEditor.font")}</Label>
         <Select
           value={fontFamily}
           onValueChange={(v) => update("fontFamily", v === "__default__" ? "" : v)}
         >
           <SelectTrigger id="cfg-font" className="w-full sm:max-w-64">
-            <SelectValue placeholder="フォントを選択">
-              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? "デフォルト"}
+            <SelectValue placeholder={t("configEditor.fontPlaceholder")}>
+              {GOOGLE_FONTS.find((f) => f.value === fontFamily)?.label ?? t("common.default")}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>

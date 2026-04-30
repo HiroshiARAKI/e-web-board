@@ -3,8 +3,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
-const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 export type ClockLayout = "standard" | "compact" | "large-time" | "date-top";
 
@@ -32,6 +31,7 @@ export function DateTimeClock({
   fontFamily,
 }: DateTimeClockProps) {
   const [now, setNow] = useState<Date | null>(null);
+  const { locale, formatDate } = useLocale();
 
   useEffect(() => {
     setNow(new Date());
@@ -41,24 +41,28 @@ export function DateTimeClock({
 
   if (!now) return null;
 
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const weekday = WEEKDAYS[now.getDay()];
-
-  let hours = now.getHours();
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-
-  let period = "";
-  if (!is24Hour) {
-    period = hours >= 12 ? " PM" : " AM";
-    hours = hours % 12 || 12;
-  }
-  const hoursStr = String(hours).padStart(2, "0");
-
-  const timeStr = `${hoursStr}:${minutes}:${seconds}${period}`;
-  const dateStr = `${year}/${month}/${day} (${weekday})`;
+  const parts = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: !is24Hour,
+  }).formatToParts(now);
+  const hoursStr = parts.find((part) => part.type === "hour")?.value ?? "00";
+  const minutes = parts.find((part) => part.type === "minute")?.value ?? "00";
+  const seconds = parts.find((part) => part.type === "second")?.value ?? "00";
+  const period = parts.find((part) => part.type === "dayPeriod")?.value ?? "";
+  const timeStr = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: !is24Hour,
+  }).format(now);
+  const dateStr = formatDate(now, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  });
 
   const dateFontSize = Math.max(14, Math.round(timeFontSize * 0.35));
 
@@ -102,7 +106,7 @@ export function DateTimeClock({
           className="tabular-nums opacity-70"
           style={{ fontSize: Math.round(timeFontSize * 0.5) }}
         >
-          :{seconds}{period}
+          :{seconds}{period ? ` ${period}` : ""}
         </span>
         <span
           className="mt-1 font-medium opacity-80"

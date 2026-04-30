@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const LOCALHOST_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const NON_PUBLIC_HOSTNAMES = new Set(["0.0.0.0", "::", "[::]"]);
 
 function normalizeHostname(hostname: string): string {
   return hostname.trim().toLowerCase();
@@ -14,7 +15,16 @@ export function getPublicAppOrigin(): string | null {
   }
 
   try {
-    return new URL(configuredOrigin).origin;
+    const url = new URL(configuredOrigin);
+    const hostname = normalizeHostname(url.hostname);
+    if (NON_PUBLIC_HOSTNAMES.has(hostname)) {
+      console.error(
+        "[public-origin] APP_PUBLIC_ORIGIN must be a browser-accessible origin, not a bind address",
+      );
+      return null;
+    }
+
+    return url.origin;
   } catch {
     console.error("[public-origin] APP_PUBLIC_ORIGIN is invalid");
     return null;

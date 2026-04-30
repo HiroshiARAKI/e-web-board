@@ -12,6 +12,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Separator } from "@/components/ui/separator";
 import { LogoutButton } from "@/components/dashboard/LogoutButton";
 import { KeinageLogo } from "@/components/KeinageLogo";
@@ -66,6 +67,7 @@ export function DashboardShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const initialResolvedTheme = initialTheme === "system" ? undefined : initialTheme;
+  const { t } = useLocale();
 
   // Close sidebar on route change
   useEffect(() => {
@@ -85,7 +87,7 @@ export function DashboardShell({
         <button
           onClick={closeSidebar}
           className="ml-auto rounded-lg p-1.5 text-muted-foreground hover:bg-accent md:hidden"
-          aria-label="メニューを閉じる"
+          aria-label={t("dashboard.menuClose")}
         >
           <X className="size-5" />
         </button>
@@ -100,20 +102,20 @@ export function DashboardShell({
               : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
           }`}
         >
-          {role === "admin" ? "Admin" : "General"}
+          {role === "admin" ? t("common.roleAdmin") : t("common.roleGeneral")}
         </span>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-1">
         <SidebarLink href="/boards" icon={LayoutDashboard} onClick={closeSidebar}>
-          ボード管理
+          {t("dashboard.navBoards")}
         </SidebarLink>
         {role === "admin" && (
           <SidebarLink href="/users" icon={Users} onClick={closeSidebar}>
-            ユーザー管理
+            {t("dashboard.navUsers")}
           </SidebarLink>
         )}
         <SidebarLink href="/settings" icon={Settings} onClick={closeSidebar}>
-          設定
+          {t("dashboard.navSettings")}
         </SidebarLink>
       </nav>
       <Separator />
@@ -135,7 +137,7 @@ export function DashboardShell({
         <button
           onClick={() => setSidebarOpen(true)}
           className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent"
-          aria-label="メニューを開く"
+          aria-label={t("dashboard.menuOpen")}
         >
           <Menu className="size-5" />
         </button>

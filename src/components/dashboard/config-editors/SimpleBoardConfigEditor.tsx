@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -35,15 +36,15 @@ function useLoadAllGoogleFonts() {
 
 /** Ticker color/style presets */
 const TICKER_PRESETS = [
-  { label: "ダーク（デフォルト）", textColor: "#ffffff", tickerBgColor: "#1a1a2e" },
-  { label: "白背景", textColor: "#1a1a2e", tickerBgColor: "#ffffff" },
-  { label: "ネオンブルー", textColor: "#00e5ff", tickerBgColor: "#0d1117" },
-  { label: "ネオングリーン", textColor: "#39ff14", tickerBgColor: "#0a0a0a" },
-  { label: "サンセット", textColor: "#ffffff", tickerBgColor: "#e65100" },
-  { label: "ロイヤルブルー", textColor: "#ffd700", tickerBgColor: "#1a237e" },
-  { label: "チェリー", textColor: "#ffffff", tickerBgColor: "#c2185b" },
-  { label: "フォレスト", textColor: "#e8f5e9", tickerBgColor: "#1b5e20" },
-];
+  { labelKey: "configEditor.darkDefault", textColor: "#ffffff", tickerBgColor: "#1a1a2e" },
+  { labelKey: "configEditor.whiteBackground", textColor: "#1a1a2e", tickerBgColor: "#ffffff" },
+  { labelKey: "configEditor.neonBlue", textColor: "#00e5ff", tickerBgColor: "#0d1117" },
+  { labelKey: "configEditor.neonGreen", textColor: "#39ff14", tickerBgColor: "#0a0a0a" },
+  { labelKey: "configEditor.sunset", textColor: "#ffffff", tickerBgColor: "#e65100" },
+  { labelKey: "configEditor.royalBlue", textColor: "#ffd700", tickerBgColor: "#1a237e" },
+  { labelKey: "configEditor.cherry", textColor: "#ffffff", tickerBgColor: "#c2185b" },
+  { labelKey: "configEditor.forest", textColor: "#e8f5e9", tickerBgColor: "#1b5e20" },
+] as const;
 
 interface SimpleBoardConfigEditorProps {
   config: Record<string, unknown>;
@@ -55,6 +56,7 @@ export function SimpleBoardConfigEditor({
   onChange,
 }: SimpleBoardConfigEditorProps) {
   useLoadAllGoogleFonts();
+  const { t } = useLocale();
 
   const slideInterval = (config.slideInterval as number) ?? 5;
   const tickerSpeed = (config.tickerSpeed as number) ?? 60;
@@ -84,7 +86,7 @@ export function SimpleBoardConfigEditor({
     <div className="space-y-6">
       {/* Clock & Weather */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">時計・天気</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.clockAndWeather")}</h4>
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             <Switch
@@ -92,7 +94,7 @@ export function SimpleBoardConfigEditor({
               checked={showClock}
               onCheckedChange={(v) => update("showClock", v)}
             />
-            <Label htmlFor="cfg-showClock">現在時刻を表示</Label>
+            <Label htmlFor="cfg-showClock">{t("configEditor.showClock")}</Label>
           </div>
           <div className="flex flex-wrap items-start gap-3">
             <Switch
@@ -100,11 +102,11 @@ export function SimpleBoardConfigEditor({
               checked={showWeather}
               onCheckedChange={(v) => update("showWeather", v)}
             />
-            <Label htmlFor="cfg-showWeather">天気予報を表示</Label>
+            <Label htmlFor="cfg-showWeather">{t("configEditor.showWeather")}</Label>
           </div>
           {showWeather && (
             <p className="text-xs text-muted-foreground">
-              表示地域は<a href="/settings" className="underline">設定ページ</a>で変更できます。
+              {t("configEditor.weatherHint")}
             </p>
           )}
         </div>
@@ -112,10 +114,10 @@ export function SimpleBoardConfigEditor({
 
       {/* Slideshow settings */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">スライドショー</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.slideshowSection")}</h4>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-slideInterval">スライド間隔（秒）</Label>
+            <Label htmlFor="cfg-slideInterval">{t("configEditor.slideInterval")}</Label>
             <Input
               id="cfg-slideInterval"
               type="number"
@@ -129,19 +131,19 @@ export function SimpleBoardConfigEditor({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-objectFit">メディア表示モード</Label>
+            <Label htmlFor="cfg-objectFit">{t("configEditor.mediaMode")}</Label>
             <Select value={objectFit} onValueChange={(v) => update("objectFit", v)}>
               <SelectTrigger id="cfg-objectFit" className="w-full max-w-72">
-                <SelectValue>{objectFit === "cover" ? "全面表示（トリミングされる場合あり）" : "全体表示（余白ができる場合あり）"}</SelectValue>
+                <SelectValue>{objectFit === "cover" ? t("configEditor.objectFitCover") : t("configEditor.objectFitContain")}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="contain">全体表示（余白ができる場合あり）</SelectItem>
-                <SelectItem value="cover">全面表示（トリミングされる場合あり）</SelectItem>
+                <SelectItem value="contain">{t("configEditor.objectFitContain")}</SelectItem>
+                <SelectItem value="cover">{t("configEditor.objectFitCover")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-bgColor">背景色</Label>
+            <Label htmlFor="cfg-bgColor">{t("configEditor.backgroundColor")}</Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
@@ -163,10 +165,10 @@ export function SimpleBoardConfigEditor({
 
       {/* Ticker settings */}
       <div>
-        <h4 className="mb-3 text-sm font-semibold">ティッカー（流れる文字）</h4>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.tickerSection")}</h4>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-tickerSpeed">スクロール速度（px/秒）</Label>
+            <Label htmlFor="cfg-tickerSpeed">{t("configEditor.tickerSpeed")}</Label>
             <Input
               id="cfg-tickerSpeed"
               type="number"
@@ -181,7 +183,7 @@ export function SimpleBoardConfigEditor({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-tickerFontSize">文字サイズ ({tickerFontSize}px)</Label>
+            <Label htmlFor="cfg-tickerFontSize">{t("configEditor.tickerFontSize", { size: tickerFontSize })}</Label>
             <input
               id="cfg-tickerFontSize"
               type="range"
@@ -199,20 +201,20 @@ export function SimpleBoardConfigEditor({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-tickerPosition">表示位置</Label>
+            <Label htmlFor="cfg-tickerPosition">{t("configEditor.displayPosition")}</Label>
             <Select value={tickerPosition} onValueChange={(v) => update("tickerPosition", v)}>
               <SelectTrigger id="cfg-tickerPosition" className="w-full max-w-48">
-                <SelectValue>{tickerPosition === "top" ? "上部" : "下部"}</SelectValue>
+                <SelectValue>{tickerPosition === "top" ? t("configEditor.positionTop") : t("configEditor.positionBottom")}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bottom">下部</SelectItem>
-                <SelectItem value="top">上部</SelectItem>
+                <SelectItem value="bottom">{t("configEditor.positionBottom")}</SelectItem>
+                <SelectItem value="top">{t("configEditor.positionTop")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-textColor">文字色</Label>
+            <Label htmlFor="cfg-textColor">{t("configEditor.textColor")}</Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
@@ -231,7 +233,7 @@ export function SimpleBoardConfigEditor({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-tickerBg">背景色</Label>
+            <Label htmlFor="cfg-tickerBg">{t("configEditor.backgroundColor")}</Label>
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
@@ -251,7 +253,7 @@ export function SimpleBoardConfigEditor({
 
           {/* Preview */}
           <div className="space-y-1.5">
-            <Label>プレビュー</Label>
+            <Label>{t("configEditor.preview")}</Label>
             <div
               className="flex h-10 items-center overflow-hidden rounded-md border px-3 text-sm font-medium"
               style={{
@@ -260,17 +262,17 @@ export function SimpleBoardConfigEditor({
                 fontFamily: tickerFontFamily || undefined,
               }}
             >
-              サンプルテキストが流れます　　　お知らせ情報
+              {t("configEditor.previewSample")}
             </div>
           </div>
 
           {/* Color presets */}
           <div className="space-y-1.5">
-            <Label>カラープリセット</Label>
+            <Label>{t("configEditor.colorPresets")}</Label>
             <div className="flex flex-wrap gap-2">
               {TICKER_PRESETS.map((preset) => (
                 <button
-                  key={preset.label}
+                  key={preset.labelKey}
                   type="button"
                   onClick={() => applyPreset(preset)}
                   className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors hover:bg-accent"
@@ -283,7 +285,7 @@ export function SimpleBoardConfigEditor({
                     className="inline-block size-3 rounded-full border"
                     style={{ backgroundColor: preset.textColor }}
                   />
-                  {preset.label}
+                  {t(preset.labelKey)}
                 </button>
               ))}
             </div>
@@ -291,14 +293,14 @@ export function SimpleBoardConfigEditor({
 
           {/* Font family */}
           <div className="space-y-1.5">
-            <Label htmlFor="cfg-font">フォント</Label>
+            <Label htmlFor="cfg-font">{t("configEditor.font")}</Label>
             <Select
               value={tickerFontFamily}
               onValueChange={(v) => update("tickerFontFamily", v === "__default__" ? "" : v)}
             >
               <SelectTrigger id="cfg-font" className="w-full max-w-64">
-                <SelectValue placeholder="フォントを選択">
-                  {GOOGLE_FONTS.find((f) => f.value === tickerFontFamily)?.label ?? "デフォルト"}
+                <SelectValue placeholder={t("configEditor.fontPlaceholder")}>
+                  {GOOGLE_FONTS.find((f) => f.value === tickerFontFamily)?.label ?? t("common.default")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>

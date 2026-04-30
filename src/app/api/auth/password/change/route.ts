@@ -50,6 +50,12 @@ export async function PATCH(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
   }
+  if (!user.passwordHash) {
+    return NextResponse.json(
+      { error: "Googleアカウント認証のユーザーはパスワードを変更できません" },
+      { status: 400 },
+    );
+  }
 
   const valid = await verifyPassword(currentPassword, user.passwordHash);
   if (!valid) {

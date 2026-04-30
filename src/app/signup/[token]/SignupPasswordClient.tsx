@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
 
 export default function SignupPasswordClient({
@@ -15,6 +16,7 @@ export default function SignupPasswordClient({
   email: string;
 }) {
   const router = useRouter();
+  const { t } = useLocale();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,11 +27,11 @@ export default function SignupPasswordClient({
     setError("");
 
     if (password !== confirmPassword) {
-      setError("パスワードが一致しません");
+      setError(t("auth.signupPassword.mismatch"));
       return;
     }
     if (password.length < 8) {
-      setError("パスワードは8文字以上で入力してください");
+      setError(t("auth.signupPassword.tooShort"));
       return;
     }
 
@@ -43,13 +45,13 @@ export default function SignupPasswordClient({
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "パスワード登録に失敗しました");
+        setError(data.error || t("auth.signupPassword.failed"));
         return;
       }
 
       router.push("/pin/setup");
     } catch {
-      setError("通信エラーが発生しました");
+      setError(t("error.network"));
     } finally {
       setSubmitting(false);
     }
@@ -66,25 +68,23 @@ export default function SignupPasswordClient({
         <div className="rounded-2xl border bg-white p-8 shadow-sm">
           <div className="mb-6 flex flex-col items-center gap-2">
             <KeyRound className="size-8 text-blue-600" />
-            <h2 className="text-lg font-bold text-gray-900">パスワード登録</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t("auth.signupPassword.title")}</h2>
             <p className="text-center text-sm text-gray-500">
-              <span className="font-medium text-gray-700">{email}</span>
-              <br />
-              のOwnerアカウント用パスワードを設定してください。
+              {t("auth.signupPassword.subtitle", { email })}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
-                パスワード
+                {t("common.password")}
               </label>
               <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder="8文字以上"
+                placeholder={t("users.passwordHint")}
                 required
                 minLength={8}
                 autoFocus
@@ -94,14 +94,14 @@ export default function SignupPasswordClient({
 
             <div>
               <label htmlFor="confirmPassword" className="mb-1.5 block text-sm font-medium text-gray-700">
-                パスワード（確認）
+                {t("auth.signupPassword.passwordConfirmLabel")}
               </label>
               <input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="もう一度入力"
+                placeholder={t("auth.signupPassword.passwordConfirmPlaceholder")}
                 required
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
@@ -114,7 +114,7 @@ export default function SignupPasswordClient({
               disabled={submitting}
               className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
             >
-              {submitting ? "登録中..." : "次へ（PINの設定）"}
+              {submitting ? t("auth.signupPassword.submitting") : t("auth.signupPassword.submit")}
             </button>
           </form>
         </div>

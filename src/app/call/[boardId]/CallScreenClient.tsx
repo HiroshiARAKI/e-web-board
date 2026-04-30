@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useSSE } from "@/hooks/useSSE";
 import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { Message } from "@/types";
@@ -16,6 +17,7 @@ export default function CallScreenClient({
   boardId,
   initialMessages,
 }: CallScreenClientProps) {
+  const { locale, t } = useLocale();
   const [messages, setMessages] = useState(initialMessages);
   const [confirmTarget, setConfirmTarget] = useState<Message | null>(null);
   const [calling, setCalling] = useState(false);
@@ -49,9 +51,9 @@ export default function CallScreenClient({
       messages
         .filter((m) => m.priority === 0)
         .sort((a, b) =>
-          a.content.localeCompare(b.content, "ja", { numeric: true }),
+          a.content.localeCompare(b.content, locale, { numeric: true }),
         ),
-    [messages],
+    [locale, messages],
   );
 
   // Called messages (priority >= 1), most recent first
@@ -151,14 +153,14 @@ export default function CallScreenClient({
       {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-white px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
-          <h1 className="shrink-0 text-lg font-bold text-gray-900">呼び出し画面</h1>
+          <h1 className="shrink-0 text-lg font-bold text-gray-900">{t("call.screenTitle")}</h1>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={openIssueDialog}
               className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
             >
-              ＋ 番号発行
+              ＋ {t("call.issueNumber")}
             </button>
             <button
               type="button"
@@ -166,10 +168,10 @@ export default function CallScreenClient({
               disabled={messages.length === 0}
               className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:bg-gray-300"
             >
-              全削除
+              {t("call.deleteAll")}
             </button>
             <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-              待機中: {waiting.length}件
+              {t("call.waitingCount", { count: waiting.length })}
             </span>
           </div>
         </div>
@@ -192,7 +194,7 @@ export default function CallScreenClient({
                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
             </svg>
-            <p className="text-base">待機中の番号はありません</p>
+            <p className="text-base">{t("call.noneWaiting")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
@@ -214,7 +216,7 @@ export default function CallScreenClient({
       {/* Called numbers section */}
       {called.length > 0 && (
         <div className="mx-auto w-full max-w-2xl border-t border-gray-200 px-4 pb-4 pt-2">
-          <p className="mb-2 text-xs font-medium text-gray-400">呼び出し済み ({called.length}件)</p>
+          <p className="mb-2 text-xs font-medium text-gray-400">{t("call.calledSection", { count: called.length })}</p>
           <div className="flex flex-wrap gap-1.5">
             {called.map((msg) => (
               <span
@@ -238,7 +240,7 @@ export default function CallScreenClient({
                 {confirmTarget.content}
               </span>
               <br />
-              をお呼び出ししますか？
+              {t("call.confirmPrompt")}
             </p>
             <div className="flex gap-3">
               <button
@@ -247,7 +249,7 @@ export default function CallScreenClient({
                 disabled={calling}
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                キャンセル
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -255,7 +257,7 @@ export default function CallScreenClient({
                 disabled={calling}
                 className="flex-1 rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-300"
               >
-                {calling ? "処理中..." : "はい"}
+                {calling ? t("call.processing") : t("call.yes")}
               </button>
             </div>
           </div>
@@ -267,7 +269,7 @@ export default function CallScreenClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xs rounded-2xl bg-white p-6 shadow-xl">
             <p className="mb-4 text-center text-lg font-semibold text-gray-900">
-              番号発行
+              {t("call.issueDialogTitle")}
             </p>
             <input
               type="text"
@@ -285,7 +287,7 @@ export default function CallScreenClient({
                 disabled={issuing}
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                キャンセル
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -293,7 +295,7 @@ export default function CallScreenClient({
                 disabled={issuing || !issueNumber.trim()}
                 className="flex-1 rounded-lg bg-green-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-green-700 disabled:bg-gray-300"
               >
-                {issuing ? "発行中..." : "発行"}
+                {issuing ? t("call.issuing") : t("call.issue")}
               </button>
             </div>
           </div>
@@ -305,10 +307,10 @@ export default function CallScreenClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xs rounded-2xl bg-white p-6 shadow-xl">
             <p className="mb-2 text-center text-lg font-bold text-gray-900">
-              全ての番号を削除
+              {t("call.deleteAllTitle")}
             </p>
             <p className="mb-6 text-center text-sm text-gray-500">
-              全 {messages.length} 件の番号を完全に削除します。この操作は取り消せません。
+              {t("call.deleteAllDescription", { count: messages.length })}
             </p>
             <div className="flex gap-3">
               <button
@@ -317,7 +319,7 @@ export default function CallScreenClient({
                 disabled={deleting}
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                キャンセル
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -325,7 +327,7 @@ export default function CallScreenClient({
                 disabled={deleting}
                 className="flex-1 rounded-lg bg-red-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-red-700 disabled:bg-gray-300"
               >
-                {deleting ? "削除中..." : "削除する"}
+                {deleting ? t("call.deleting") : t("common.delete")}
               </button>
             </div>
           </div>

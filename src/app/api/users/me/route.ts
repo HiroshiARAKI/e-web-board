@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isSupportedLocale, LOCALE_COOKIE_NAME, type SupportedLocale } from "@/lib/i18n";
 
 /** PATCH /api/users/me — update current user's mutable preferences */
 export async function PATCH(request: NextRequest) {
@@ -14,7 +15,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { colorTheme } = body as { colorTheme?: string };
+  const { colorTheme, locale } = body as {
+    colorTheme?: string;
+    locale?: SupportedLocale | null;
+  };
+
+  const updates: Partial<typeof users.$inferInsert> = {};
 
   if (colorTheme !== undefined) {
     if (!["system", "light", "dark"].includes(colorTheme)) {
@@ -23,11 +29,37 @@ export async function PATCH(request: NextRequest) {
         { status: 400 },
       );
     }
+    updates.colorTheme = colorTheme;
+  }
+
+  if (locale !== undefined) {
+    if (locale !== null && !isSupportedLocale(locale)) {
+      return NextResponse.json(
+        { error: "locale はサポートされている言語コードを指定してください" },
+        { status: 400 },
+      );
+    }
+    updates.locale = locale;
+  }
+
+  if (Object.keys(updates).length > 0) {
     await db
       .update(users)
-      .set({ colorTheme })
+      .set(updates)
       .where(eq(users.id, session.userId));
   }
 
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  if (locale !== undefined) {
+    response.cookies.set(LOCALE_COOKIE_NAME, locale ?? "", {
+      httpOnly: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: locale ? 60 * 60 * 24 * 365 : 0,
+      expires: locale ? undefined : new Date(0),
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+
+  return response;
 }

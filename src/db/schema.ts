@@ -1,6 +1,6 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -127,6 +127,28 @@ export const signupRequests = pgTable("signup_requests", {
     .$onUpdate(() => new Date().toISOString()),
 });
 
+export const sharedSignupRequests = pgTable("shared_signup_requests", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID()),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("general"),
+  token: text("token").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
+});
+
 export const accountDeletionRequests = pgTable("account_deletion_requests", {
   id: text("id")
     .primaryKey()
@@ -155,7 +177,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   /** Phone number for owner sign-up uniqueness checks */
   phoneNumber: text("phone_number").unique(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("password_hash"),
   /** 6-digit PIN hash (nullable until PIN is configured) */
   pinHash: text("pin_hash"),
   /** Owner of an isolated workspace, or a shared member under an owner */
@@ -168,6 +190,8 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("general"),
   /** Dashboard color theme preference: "system" | "light" | "dark" */
   colorTheme: text("color_theme").notNull().default("system"),
+  /** Preferred UI locale. Null means fallback to Accept-Language per request. */
+  locale: text("locale"),
   /** Timestamp of the last successful email+password login */
   lastFullAuthAt: text("last_full_auth_at"),
   createdAt: text("created_at")
@@ -177,6 +201,42 @@ export const users = pgTable("users", {
     .notNull()
     .default(isoNow)
     .$onUpdate(() => new Date().toISOString()),
+});
+
+export const authAccounts = pgTable(
+  "auth_accounts",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    providerAccountId: text("provider_account_id").notNull(),
+    email: text("email").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(isoNow),
+  },
+  (table) => ({
+    providerAccountUnique: uniqueIndex("auth_accounts_provider_account_unique")
+      .on(table.provider, table.providerAccountId),
+  }),
+);
+
+export const googleOAuthFlows = pgTable("google_oauth_flows", {
+  state: text("state").primaryKey(),
+  mode: text("mode").notNull(),
+  redirectTo: text("redirect_to"),
+  sharedSignupToken: text("shared_signup_token"),
+  codeVerifier: text("code_verifier").notNull(),
+  nonce: text("nonce").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  consumedAt: text("consumed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
 });
 
 export const authSessions = pgTable("auth_sessions", {
@@ -214,9 +274,17 @@ export const deviceAuthGrants = pgTable("device_auth_grants", {
 // ── Relations ────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ many }) => ({
+  authAccounts: many(authAccounts),
   sessions: many(authSessions),
   deviceAuthGrants: many(deviceAuthGrants),
   pinResetTokens: many(pinResetTokens),
+}));
+
+export const authAccountsRelations = relations(authAccounts, ({ one }) => ({
+  user: one(users, {
+    fields: [authAccounts.userId],
+    references: [users.id],
+  }),
 }));
 
 export const pinResetTokensRelations = relations(pinResetTokens, ({ one }) => ({

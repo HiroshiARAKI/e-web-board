@@ -97,6 +97,26 @@ export async function sendOwnerSignupEmail(
   });
 }
 
+/** Send a shared user invitation email */
+export async function sendSharedSignupEmail(
+  to: string,
+  signupUrl: string,
+): Promise<boolean> {
+  return sendTextMail({
+    to,
+    subject: "[Keinage] Sharedアカウント招待リンク",
+    lines: [
+      "Keinage のSharedアカウント招待を受け取りました。",
+      "",
+      "以下のリンクからアカウント登録を完了してください：",
+      signupUrl,
+      "",
+      "このリンクは10分間有効です。",
+      "心当たりがない場合は、このメールを無視してください。",
+    ],
+  });
+}
+
 /** Send an owner account deletion confirmation email */
 export async function sendAccountDeletionEmail(
   to: string,

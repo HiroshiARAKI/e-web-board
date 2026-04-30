@@ -3,6 +3,7 @@
 "use client";
 
 import { useRef, useCallback } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface PinInputProps {
   value: string;
@@ -26,6 +27,7 @@ export function PinInput({
   error = false,
 }: PinInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const { t } = useLocale();
 
   const focusInput = useCallback(
     (index: number) => {
@@ -127,7 +129,7 @@ export function PinInput({
               ? "border-red-400 text-red-600 focus:border-red-500 focus:ring-red-200"
               : "border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-blue-200"
           } disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
-          aria-label={`PIN ${i + 1}桁目`}
+          aria-label={t("auth.pin.digit", { index: i + 1 })}
         />
       ))}
     </div>

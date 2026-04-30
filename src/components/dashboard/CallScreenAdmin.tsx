@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { RefreshCw, Copy, Check } from "lucide-react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,6 +32,7 @@ export default function CallScreenAdmin({
   config,
   onUpdateConfig,
 }: CallScreenAdminProps) {
+  const { t } = useLocale();
   const [networkOrigin, setNetworkOrigin] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -86,15 +88,15 @@ export default function CallScreenAdmin({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>呼び出し画面</CardTitle>
+        <CardTitle>{t("call.adminTitle")}</CardTitle>
         <CardDescription>
-          オペレーター用の呼び出し画面URLとパスコード
+          {t("call.adminDescription")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Passcode */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">パスコード（6桁）</label>
+          <label className="text-sm font-medium">{t("call.adminPasscodeLabel")}</label>
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
             <span className="max-w-full overflow-hidden rounded-lg border bg-muted px-4 py-2 font-mono text-lg tracking-[0.18em] break-all sm:text-2xl sm:tracking-[0.3em]">
               {passcode || "------"}
@@ -106,17 +108,17 @@ export default function CallScreenAdmin({
               onClick={handleRegenerate}
             >
               <RefreshCw className="mr-1.5 size-3.5" />
-              再生成
+              {t("call.adminRegenerate")}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            保存ボタンを押すとパスコードが確定します
+            {t("call.adminPasscodeHint")}
           </p>
         </div>
 
         {/* URL */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">呼び出し画面URL</label>
+          <label className="text-sm font-medium">{t("call.adminUrlLabel")}</label>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <code className="block min-w-0 w-full overflow-hidden text-ellipsis rounded-lg border bg-muted px-3 py-2 text-xs sm:flex-1">
               {callUrl}
@@ -133,7 +135,7 @@ export default function CallScreenAdmin({
               ) : (
                 <Copy className="mr-1.5 size-3.5" />
               )}
-              {copied ? "コピー済" : "URL+パスコード"}
+              {copied ? t("call.adminCopied") : t("call.adminCopyWithPasscode")}
             </Button>
           </div>
         </div>
@@ -142,7 +144,7 @@ export default function CallScreenAdmin({
         {networkOrigin && passcode && (
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              QRコード（パスコード込み）
+              {t("call.adminQrLabel")}
             </label>
             <div className="inline-block max-w-full overflow-hidden rounded-xl border bg-white p-3 sm:p-4">
               <QRCodeSVG
@@ -152,7 +154,7 @@ export default function CallScreenAdmin({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              QRコードにはパスコードが含まれるため、スキャンだけでアクセスできます
+              {t("call.adminQrHint")}
             </p>
           </div>
         )}

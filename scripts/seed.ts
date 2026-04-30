@@ -39,6 +39,15 @@ async function main() {
         })
         .returning({ id: schema.users.id })
     )[0]?.id;
+
+    if (ownerUserId) {
+      await db.insert(schema.authAccounts).values({
+        userId: ownerUserId,
+        provider: "credentials",
+        providerAccountId: "seed-owner@example.com",
+        email: "seed-owner@example.com",
+      });
+    }
   }
 
   if (!ownerUserId) {

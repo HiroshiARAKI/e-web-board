@@ -69,7 +69,10 @@ export async function POST(request: NextRequest) {
   });
   if (existingUser) {
     return NextResponse.json(
-      { error: "同じユーザーID・メールアドレス・電話番号では登録できません" },
+      {
+        code: "user_exists",
+        error: "登録済みのユーザーがあります。ログインしてください",
+      },
       { status: 409 },
     );
   }

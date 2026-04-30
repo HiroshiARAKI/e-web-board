@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import { thumbUrl } from "@/lib/utils";
 import type { MediaItem } from "@/types";
 
@@ -27,6 +28,7 @@ export default function MediaUploadZone({
   mediaItems,
   onUpdate,
 }: MediaUploadZoneProps) {
+  const { t } = useLocale();
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploading, setUploading] = useState<UploadProgress[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -206,10 +208,10 @@ export default function MediaUploadZone({
       >
         <Upload className="mb-2 size-8 text-muted-foreground" />
         <p className="text-sm font-medium">
-          ファイルをドラッグ＆ドロップ、またはクリックして選択
+          {t("media.uploadPrompt")}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          JPEG, PNG, WebP, GIF, MP4, WebM（最大 50MB）
+          {t("media.acceptedTypesHint")}
         </p>
         <input
           ref={fileInputRef}
@@ -244,7 +246,7 @@ export default function MediaUploadZone({
       {/* Media list with thumbnails & reorder */}
       {sortedMedia.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">
-          メディアはありません
+          {t("settings.mediaEmpty")}
         </p>
       ) : (
         <div className="space-y-2">
@@ -300,7 +302,7 @@ export default function MediaUploadZone({
 
               {/* Duration */}
               <div className="ml-auto flex shrink-0 items-center gap-1">
-                <Label className="text-xs text-muted-foreground">秒:</Label>
+                <Label className="text-xs text-muted-foreground">{t("media.durationSeconds")}</Label>
                 <Input
                   type="number"
                   min={1}

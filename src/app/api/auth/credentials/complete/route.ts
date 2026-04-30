@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { authSessions, signupRequests, users } from "@/db/schema";
+import { authAccounts, authSessions, signupRequests, users } from "@/db/schema";
 import {
   AUTH_SESSION_COOKIE,
   buildAuthCookieOptions,
@@ -18,10 +18,7 @@ import {
   storeDeviceFullAuth,
 } from "@/lib/device-auth";
 import { generateSessionToken } from "@/lib/pin";
-import {
-  SIGNUP_REQUEST_COOKIE,
-  SIGNUP_REQUEST_COOKIE_MAX_AGE,
-} from "@/lib/signup";
+import { SIGNUP_REQUEST_COOKIE } from "@/lib/signup";
 
 const SETUP_SESSION_MAX_AGE = 60 * 15;
 
@@ -87,6 +84,13 @@ export async function POST(request: NextRequest) {
       lastFullAuthAt: now,
     })
     .returning();
+
+  await db.insert(authAccounts).values({
+    userId: createdUser.id,
+    provider: "credentials",
+    providerAccountId: signupRequest.email,
+    email: signupRequest.email,
+  });
 
   await db
     .update(signupRequests)
