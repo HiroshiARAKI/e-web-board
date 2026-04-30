@@ -13,10 +13,12 @@ import { isSupportedLocale } from "@/lib/i18n";
 
 export default function LoginClient({
   redirectTo,
+  notice,
   showPinLoginLink,
   googleAuthEnabled,
 }: {
   redirectTo?: string | null;
+  notice?: "signup-existing" | null;
   showPinLoginLink: boolean;
   googleAuthEnabled: boolean;
 }) {
@@ -92,6 +94,12 @@ export default function LoginClient({
             </p>
           </div>
 
+          {notice === "signup-existing" && (
+            <p className="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-center text-sm text-blue-700">
+              すでに登録済みのアカウントがあります。ログインしてください。
+            </p>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label
@@ -157,16 +165,22 @@ export default function LoginClient({
             </div>
           )}
 
-          {showPinLoginLink && (
-            <div className="mt-6 text-center">
+          <div className="mt-6 space-y-3 text-center">
+            {showPinLoginLink && (
               <Link
                 href={pinLoginHref}
-                className="text-sm text-gray-500 hover:text-blue-600"
+                className="block text-sm text-gray-500 hover:text-blue-600"
               >
                 {t("auth.login.loginWithPin")}
               </Link>
-            </div>
-          )}
+            )}
+            <Link
+              href="/signup"
+              className="block text-sm text-gray-500 hover:text-blue-600"
+            >
+              アカウントを作成する
+            </Link>
+          </div>
         </div>
       </div>
     </div>

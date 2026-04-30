@@ -32,6 +32,14 @@ function errorRedirect(request: NextRequest, pathname: string, message: string) 
   return response;
 }
 
+function noticeRedirect(request: NextRequest, pathname: string, notice: string) {
+  const url = new URL(absoluteUrl(request, pathname));
+  url.searchParams.set("notice", notice);
+  const response = NextResponse.redirect(url);
+  response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE, "", buildExpiredAuthCookieOptions());
+  return response;
+}
+
 function createGoogleUserIdBase(email: string) {
   const localPart = email.split("@")[0] ?? "";
   const normalized = localPart
@@ -160,7 +168,7 @@ export async function GET(request: NextRequest) {
       where: eq(users.email, googleUser.email),
     });
     if (existingAccount || existingUser) {
-      return errorRedirect(request, "/signup", "user-already-exists");
+      return noticeRedirect(request, "/pin/login", "signup-existing");
     }
 
     const userId = await buildUniqueGoogleUserId(googleUser.email);
