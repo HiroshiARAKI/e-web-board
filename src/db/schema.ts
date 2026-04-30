@@ -119,6 +119,25 @@ export const ownerSubscriptions = pgTable(
   }),
 );
 
+export const stripeEvents = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  eventType: text("event_type").notNull(),
+  status: text("status").notNull().default("processing"),
+  payload: text("payload").notNull(),
+  error: text("error"),
+  processedAt: text("processed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(isoNow),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(isoNow)
+    .$onUpdate(() => new Date().toISOString()),
+}, (table) => ({
+  statusIdx: index("stripe_events_status_idx").on(table.status),
+  eventTypeIdx: index("stripe_events_event_type_idx").on(table.eventType),
+}));
+
 export const pinResetTokens = pgTable("pin_reset_tokens", {
   id: text("id")
     .primaryKey()

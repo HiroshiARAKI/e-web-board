@@ -36,6 +36,7 @@ flowchart TB
 | `/boards/new` | ボード作成 | 必要 |
 | `/boards/<boardId>` | ボード編集 | 必要 |
 | `/media` | アップロード済みメディア管理 | `admin` |
+| `/billing` | プランとお支払い管理 | `admin` / Billing 有効時 |
 | `/settings` | ユーザー設定・管理設定 | 必要 |
 | `/users` | Shared user 管理 | `admin` |
 | `/delete-account` | Owner アカウント削除リクエスト | Owner / `admin` |
@@ -160,7 +161,18 @@ flowchart TB
 
 Owner user は削除できません。
 
-## 10. 設定・補助 API
+## 10. Billing API
+
+| Method | Path | 内容 | 認証 |
+| --- | --- | --- | --- |
+| `GET` | `/api/billing/plan` | Owner の有効プラン状態を取得 | `admin` |
+| `POST` | `/api/billing/checkout` | 有料プランの Checkout Session を作成 | `admin` |
+| `POST` | `/api/billing/portal` | 支払い管理 Session を作成 | `admin` |
+| `POST` | `/api/billing/webhook` | 決済 webhook を署名検証し、Owner subscription を同期 | webhook signature |
+
+`BILLING_MODE=disabled` では `/billing` 導線は表示されず、`/api/billing/webhook` は 404 を返します。webhook は raw body と `STRIPE_WEBHOOK_SECRET` で署名検証し、event id を保存して重複処理を避けます。
+
+## 11. 設定・補助 API
 
 | Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
@@ -172,7 +184,7 @@ Owner user は削除できません。
 
 `/api/weather` は外部天気 API の結果を一定時間キャッシュします。`/api/version` は GitHub Releases API を参照します。
 
-## 11. SSE API
+## 12. SSE API
 
 | Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
@@ -187,9 +199,9 @@ Owner user は削除できません。
 | `media-updated` | メディア追加・並び替え・削除 |
 | `message-updated` | メッセージ追加・更新・削除 |
 
-## 12. 代表的なフロー
+## 13. 代表的なフロー
 
-### 12.1 Owner 登録
+### 13.1 Owner 登録
 
 ```mermaid
 sequenceDiagram
@@ -204,7 +216,7 @@ sequenceDiagram
   A-->>U: auth-session + device-auth
 ```
 
-### 12.2 Google ログイン
+### 13.2 Google ログイン
 
 ```mermaid
 sequenceDiagram
@@ -220,7 +232,7 @@ sequenceDiagram
   A-->>U: auth-session + device-auth
 ```
 
-### 12.3 ボード更新
+### 13.3 ボード更新
 
 ```mermaid
 sequenceDiagram

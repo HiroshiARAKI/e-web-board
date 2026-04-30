@@ -216,3 +216,20 @@ export function getStripePriceId(
 ): string | null {
   return getBillingConfig().stripePrices[planCode][interval];
 }
+
+export function resolveStripePriceId(
+  priceId: string | null | undefined,
+): { planCode: PaidPlanCode; interval: BillingInterval } | null {
+  if (!priceId) return null;
+
+  const { stripePrices } = getBillingConfig();
+  for (const planCode of PAID_PLAN_CODES) {
+    for (const interval of BILLING_INTERVALS) {
+      if (stripePrices[planCode][interval] === priceId) {
+        return { planCode, interval };
+      }
+    }
+  }
+
+  return null;
+}
