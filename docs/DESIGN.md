@@ -1,300 +1,359 @@
 # Keinage Design
 
-最終更新: 2026-04-29
+最終更新: 2026-04-30
 
-## 1. ドキュメントの位置づけ
+## 1. このドキュメントの目的
 
-本書は Keinage の内部設計を整理するためのドキュメントです。ユーザー向け仕様は `docs/SPEC.md`、HTTP エンドポイントは `docs/API.md` を参照してください。
+このドキュメントは、Keinage のメンテナーおよび開発者向けに、全体設計、技術要素、Database schema、ディレクトリ構成、i18n、主要な実装判断をまとめます。ユーザー視点の仕様は [SPEC.md](./SPEC.md)、ルーティング一覧は [API.md](./API.md) を参照してください。
 
-## 2. システム構成
+## 2. 全体アーキテクチャ
 
-Keinage は Next.js App Router をベースに、表示画面、管理画面、API を単一アプリで提供します。
+Keinage は Next.js App Router を中心に、表示画面、管理画面、Route Handler API を 1 つのアプリで提供します。
 
-```text
-┌──────────────────────────────────────────────┐
-│ Next.js 16 App                               │
-│                                              │
-│  ┌──────────────┐  ┌──────────────────────┐  │
-│  │ Board View   │  │ Dashboard / Call UI  │  │
-│  └──────┬───────┘  └──────────┬───────────┘  │
-│         │                     │              │
-│         └────────────┬────────┘              │
-│                      ▼                       │
-│               Route Handlers                 │
-│          (/api/*, /uploads/[...path])        │
-└──────────────────────┬───────────────────────┘
-                       │
-      ┌──────────────┼──────────────┐
-      ▼              ▼              ▼
-    PostgreSQL     uploads/ or         External APIs
-    Drizzle ORM    S3-compatible       weather.tsukumijima.net
-                     GitHub Releases API
-                     SMTP
-                     Google OAuth
+```mermaid
+flowchart TB
+  browser[Browser / Signage Display]
+  admin[Dashboard User]
+  call[Call Screen User]
+
+  subgraph next[Next.js App Router]
+    pages[Pages and Layouts]
+    routes["Route Handlers /api/*"]
+    uploadRoute["/uploads/[...path]"]
+    sse[SSE Streams]
+  end
+
+  subgraph appLogic[Application Logic]
+    auth[Auth and Session]
+    oidc[OIDC Provider Foundation]
+    media[Media Processing]
+    storage[Media Storage Adapter]
+    templates[Board Template Registry]
+    i18n[i18n]
+  end
+
+  db[(PostgreSQL)]
+  local[(Local uploads/)]
+  s3[(S3-compatible Storage)]
+  smtp[SMTP]
+  google[Google OIDC]
+  weather[Weather API]
+  github[GitHub Releases API]
+
+  browser --> pages
+  admin --> pages
+  call --> pages
+  pages --> routes
+  pages --> sse
+  routes --> auth
+  routes --> oidc
+  routes --> media
+  routes --> templates
+  routes --> i18n
+  auth --> db
+  templates --> db
+  media --> storage
+  storage --> local
+  storage --> s3
+  uploadRoute --> storage
+  oidc --> google
+  routes --> smtp
+  routes --> weather
+  routes --> github
+  routes --> db
+  sse --> browser
 ```
 
-### 2.1 実行モード
+## 3. 技術要素
 
-- フレームワーク: Next.js 16
-- 言語: TypeScript strict
-- UI: React 19, Tailwind CSS v4, shadcn/ui, Framer Motion
-- DB: PostgreSQL + Drizzle ORM
-- パッケージマネージャ: pnpm
-- 配布形態: `output: "standalone"` による単体実行イメージ
+| 項目 | 採用技術 |
+| --- | --- |
+| Framework | Next.js 16 App Router |
+| Language | TypeScript |
+| UI | React 19, Tailwind CSS v4, shadcn/ui, Framer Motion |
+| Icons | lucide-react |
+| Database | PostgreSQL |
+| ORM | Drizzle ORM |
+| Media processing | sharp |
+| Realtime | Server-Sent Events |
+| Auth | App session Cookie, device auth Cookie, PIN, Google OAuth/OIDC |
+| OIDC | Discovery, Authorization Code + PKCE, nonce, JWKS RS256 verification |
+| Storage | Local filesystem or S3-compatible storage |
+| Package manager | pnpm |
+| Container | Docker standalone Next.js output |
 
-### 2.2 i18n
-言語ごとの文字列は[i18n-messages.ts](../src/lib/i18n-messages.ts) で管理されています。
-文字列の追加・削除・更新はこのファイル周辺を編集します。
-
-## 3. ディレクトリ方針
-
-主要ディレクトリの責務は以下です。
+## 4. ディレクトリ構成
 
 | パス | 役割 |
 | --- | --- |
-| `src/app/(board)` | 表示画面の App Router ルート |
-| `src/app/(dashboard)` | PIN/フル認証後の管理画面 |
-| `src/app/api` | Route Handler 群 |
-| `src/app/call` | 呼び出し番号テンプレート向け運用画面 |
-| `src/app/uploads/[...path]` | 動的アップロードファイル配信 |
-| `src/components/board/templates` | テンプレート実装 |
+| `src/app` | App Router。画面、Route Handler、アップロード配信 route を配置 |
+| `src/app/(board)` | 公開ボード表示 |
+| `src/app/(dashboard)` | 認証後の管理画面 |
+| `src/app/api` | API Route Handler |
+| `src/app/call` | 呼び出し番号テンプレート用の操作画面 |
+| `src/app/uploads/[...path]` | ローカル/S3 上のアップロード済みファイルを配信 |
+| `src/components/board` | ボード表示、テンプレート、表示用部品 |
 | `src/components/dashboard` | 管理画面 UI |
-| `src/db` | DB スキーマと接続 |
-| `src/lib` | 認証、SSE、画像処理、ストレージ抽象化などの共通ロジック |
-| `drizzle/` | SQL マイグレーション |
-| `docker/` | Dockerfile、migration runner、entrypoint |
-| `uploads/` | S3 未設定時の実アップロードファイル置き場 |
+| `src/components/auth` | 認証 UI |
+| `src/components/i18n` | クライアント側 i18n provider |
+| `src/db` | Drizzle schema と DB 接続 |
+| `src/lib` | 認証、OIDC、SSE、メディア、設定、i18n などの共通ロジック |
+| `src/types` | 共有型定義 |
+| `drizzle` | SQL migration と snapshot |
+| `docker` | Dockerfile、entrypoint、migration runner |
+| `uploads` | ローカル保存時のメディア実体 |
 
-## 4. データモデル
+## 5. Database Schema
 
-### 4.1 コンテンツ系テーブル
+### 5.1 ER 図
+
+```mermaid
+erDiagram
+  users ||--o{ boards : owns
+  users ||--o{ users : owns_shared_users
+  users ||--o{ auth_accounts : has
+  users ||--o{ auth_sessions : has
+  users ||--o{ device_auth_grants : has
+  users ||--o{ pin_reset_tokens : has
+  users ||--o{ settings : owns
+  users ||--o{ shared_signup_requests : invites
+  boards ||--o{ media_items : has
+  boards ||--o{ messages : has
+
+  users {
+    text id PK
+    text user_id UK
+    text email UK
+    text phone_number UK
+    text password_hash
+    text pin_hash
+    text attribute
+    text owner_user_id FK
+    text role
+    text color_theme
+    text locale
+    text last_full_auth_at
+  }
+
+  auth_accounts {
+    text id PK
+    text user_id FK
+    text provider
+    text provider_account_id
+    text email
+  }
+
+  boards {
+    text id PK
+    text owner_user_id FK
+    text name
+    text visibility
+    text template_id
+    text config
+    boolean is_active
+  }
+
+  media_items {
+    text id PK
+    text board_id FK
+    text type
+    text file_path
+    integer display_order
+    integer duration
+  }
+
+  messages {
+    text id PK
+    text board_id FK
+    text content
+    integer priority
+    text expires_at
+  }
+
+  settings {
+    text owner_user_id PK
+    text key PK
+    text value
+  }
+```
+
+### 5.2 主要テーブル
 
 | テーブル | 役割 |
 | --- | --- |
-| `boards` | ボード本体。テンプレート種別と JSON 設定を保持 |
+| `users` | ログイン主体。Owner / Shared、ロール、表示設定、PIN、認証時刻を保持 |
+| `auth_accounts` | 認証方式と外部アカウントの紐付け。`provider + providerAccountId` が一意 |
+| `auth_sessions` | 24 時間のアプリセッション |
+| `device_auth_grants` | 端末単位のフル認証履歴。PIN ログイン対象ユーザーを決める |
+| `signup_requests` | Owner のメールアドレス + パスワード仮登録 |
+| `shared_signup_requests` | Shared user 招待 |
+| `google_oauth_flows` | Google OAuth/OIDC の state、PKCE verifier、nonce、mode、redirectTo |
+| `pin_reset_tokens` | PIN リセット用トークン |
+| `account_deletion_requests` | Owner アカウント削除用トークン |
+| `boards` | ボード本体。テンプレート ID と JSON config を保持 |
 | `media_items` | ボードに紐づく画像・動画 |
 | `messages` | ボードに紐づくメッセージ |
-| `settings` | システム共通設定の KV ストア |
+| `settings` | Owner 単位の KV 設定 |
+| `pin_attempts` | 認証失敗回数の記録 |
 
-### 4.2 認証系テーブル
+## 6. 認証設計
 
-| テーブル | 役割 |
-| --- | --- |
-| `users` | ログイン主体。`userId`, `email`, `passwordHash`, `pinHash`, `role` を保持 |
-| `auth_accounts` | 認証方式と外部アカウントの紐付け。`provider`, `providerAccountId`, `email` を保持 |
-| `google_oauth_flows` | Google OAuth/OIDC 開始時の短命フロー状態。opaque state、PKCE verifier、nonce、mode を保持 |
-| `auth_sessions` | 認証済みセッション |
-| `pin_reset_tokens` | PIN リセット用トークン |
-| `signup_requests` | Owner 仮登録と登録用トークン |
-| `shared_signup_requests` | Shared ユーザー招待と登録用トークン |
-| `pin_attempts` | 失敗試行回数の IP ベース記録 |
+### 6.1 セッションモデル
 
-### 4.3 設計上の特徴
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as Next.js App
+  participant DB as PostgreSQL
 
-- `boards.config` は JSON で保持し、テンプレート追加時にスキーマ変更を最小化します。
-- `settings` は DB 移行を伴わず共通設定を追加しやすい KV ストアです。
-- 認証は「ユーザー」単位に再設計されており、旧来の単一管理者 PIN モデルより拡張しやすい構成です。
+  U->>A: Full auth (password or Google)
+  A->>DB: update users.last_full_auth_at
+  A->>DB: upsert device_auth_grants
+  A->>DB: insert auth_sessions
+  A-->>U: auth-session + device-auth Cookie
 
-## 5. 認証設計
+  U->>A: PIN login
+  A->>DB: read device_auth_grants by device-auth
+  A->>DB: verify user pin_hash and full-auth expiry
+  A->>DB: insert auth_sessions
+  A-->>U: auth-session Cookie
+```
 
-### 5.1 二層認証モデル
+Keinage は「フル認証」と「PIN による軽量再認証」を分けています。フル認証はメールアドレス + パスワードまたは Google OAuth/OIDC で行います。PIN ログインは `device-auth` に紐づくユーザーだけを対象にし、フル認証期限が切れていれば拒否します。
 
-Keinage の認証は次の 2 段構成です。
+### 6.2 Google OAuth/OIDC
 
-1. メールアドレスまたはユーザーID + パスワードによるフル認証
-2. Google アカウントによるRS256-based OIDC認証
-3. 有効期限内に限り利用できる PIN による軽量再認証
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant S as Keinage
+  participant G as Google OIDC
+  participant DB as PostgreSQL
 
-認証方式は `auth_accounts.provider` で管理します。現時点ではユーザーは作成時の認証方式に固定され、Google ユーザーは `passwordHash` を持たず、パスワード変更 API も利用できません。Google の安定 ID は `auth_accounts.providerAccountId` に保存します。
+  B->>S: GET /api/auth/google/start
+  S->>G: Discovery
+  S->>DB: store state, code_verifier, nonce, mode
+  S-->>B: redirect to authorization_endpoint
+  B->>G: authorize
+  G-->>B: redirect /api/auth/google/callback?code&state
+  B->>S: callback
+  S->>DB: verify state flow
+  S->>G: token exchange with PKCE
+  S->>G: JWKS fetch and userinfo
+  S->>DB: create or lookup user/auth_account
+  S-->>B: session cookies and redirect
+```
 
-### 5.2 Owner サインアップ設計
+Google は `issuer=https://accounts.google.com` の OIDC Provider preset です。実装は `src/lib/oidc.ts` に集約し、次を provider 非依存にしています。
 
-Owner のメールアドレス + パスワード登録は次の 3 段階で進めます。
+- Discovery (`/.well-known/openid-configuration`)
+- 認可 URL 生成
+- Authorization Code + PKCE token exchange
+- ID token の issuer / audience / expiration / nonce 検証
+- JWKS による RS256 署名検証
+- userinfo 取得
 
-1. `/signup` で `signup_requests` に仮登録を作成する
-2. `/signingup` で登録用 URL の送達待ち状態を扱う
-3. `/signup/[token]` でパスワード登録後、一時 `auth-session` を発行して `/pin/setup` へ進める
+Google 固有 route は後方互換のため `src/app/api/auth/google/*` に残します。環境変数名も `GOOGLE_OAUTH_*` を維持します。
 
-設計上のポイント:
+## 7. ボードとテンプレート設計
 
-- 登録用トークンは UUID ベースで、`signup_requests.expiresAt` に 10 分の期限を持たせる
-- 再送時は同じ仮登録レコードに新しいトークンを再発行し、古いリンクを失効させる
-- `/signingup` は `signup-request-id` Cookie がある場合だけ表示し、直リンク利用を防ぐ
-- 登録リンクは `APP_PUBLIC_ORIGIN` を基準に生成し、未認証の direct-link フォールバックはローカル開発用の明示フラグ付きの場合にだけ許可する
-- `APP_PUBLIC_ORIGIN` はブラウザでアクセスできる origin に限定し、`0.0.0.0` や `::` のような bind address は許可しない
+テンプレートは registry 方式です。`boards.templateId` と `boards.config` で表示を決め、DB schema を増やさずにテンプレート固有設定を JSON として保持します。
 
-Google Owner 登録は `src/app/api/auth/google/start/route.ts` と `src/app/api/auth/google/callback/route.ts` で扱います。route は Google 固有 URL を維持しますが、認可 URL 生成、token exchange、ID token 検証、userinfo 取得は `src/lib/oidc.ts` の汎用 OIDC Provider 基盤を呼び出します。OAuth `state` はランダムな不透明値だけを URL に載せ、`mode`、`redirectTo`、Shared 招待トークン、PKCE `code_verifier`、OIDC `nonce` は `google_oauth_flows` に保存します。callback では state Cookie と state パラメータの一致に加え、DB 上の未使用・期限内 flow を確認します。
+```mermaid
+flowchart LR
+  board[boards row] --> templateId[templateId]
+  board --> config[JSON config]
+  templateId --> registry[src/lib/templates.ts]
+  registry --> component[React template component]
+  config --> component
+  media[media_items] --> component
+  messages[messages] --> component
+```
 
-Google OAuth/OIDC は Authorization Code + PKCE (`S256`) で開始します。Google は `issuer=https://accounts.google.com` の preset として扱い、Discovery (`/.well-known/openid-configuration`) から authorization endpoint、token endpoint、userinfo endpoint、JWKS URI を取得します。token exchange では保存済み `code_verifier` を送信し、ID token は issuer、audience、有効期限、nonce、JWKS による RS256 署名を検証します。Google の userinfo から検証済みメールアドレスと `sub` を取得し、`sub` は `auth_accounts(provider='google', providerAccountId=<sub>)` として保存します。Owner の `userId` はメールアドレスのローカルパートから生成し、重複時は suffix を付与します。
-
-### 5.3 Shared ユーザー招待設計
-
-Shared ユーザーは admin が `/users` から招待します。
-
-1. `POST /api/users` が `shared_signup_requests` に招待レコードを作成する
-2. `APP_PUBLIC_ORIGIN` を基準に `/signup/shared?token=<token>` を生成する
-3. SMTP が設定されていれば招待メールを送信する
-4. SMTP 未設定かつローカルプレビューが有効な場合は `previewUrl` を返す
-5. `/signup/shared` でメールアドレス + パスワードまたは Google アカウントを選択してユーザーを作成する
-
-Shared Google 登録では、Google から取得したメールアドレスが招待レコードのメールアドレスと完全一致する必要があります。これにより、招待 URL の転送だけで別 Google アカウントが Shared ユーザーになることを防ぎます。
-
-### 5.4 セッション管理
-
-- Cookie 名: `auth-session`
-- 端末認証 Cookie: `device-auth`
-- Google OAuth state Cookie: `google-oauth-state`。値は opaque state のみで、payload は `google_oauth_flows` に保存します。
-- 仮登録 Cookie: `signup-request-id`
-- セッション本体は `auth_sessions` に保存します。
-- フル認証の最終成功時刻は `users.lastFullAuthAt` に保存します。
-
-PIN ハッシュはパスワードと同様にメモリハード KDF で保存します。旧形式の高速ハッシュが残っている場合は、PIN 検証成功時に新形式へ順次再ハッシュします。
-
-`device-auth` に紐づく `device_auth_grants` を持つことで、PIN 入力画面が「どのユーザーの PIN を検証するか」と「PIN ログイン前にフル認証期限が切れていないか」を決定できます。
-
-### 5.5 レート制限
-
-- 失敗試行は `pin_attempts` に記録します。
-- メールアドレス + パスワード認証と PIN 認証で同じ試行回数制限を共有します。
-- 単純なインメモリ制御ではなく DB 記録にしているため、同一 PostgreSQL を使う単一インスタンス運用では再起動後も履歴を参照できます。
-
-## 6. ボードテンプレート設計
-
-テンプレートはレジストリ方式で管理します。
-
-### 6.1 構成
-
-- テンプレート実装: `src/components/board/templates/*`
-- 型: `BoardTemplate`
-- レジストリ: `src/lib/templates.ts`
-
-### 6.2 追加手順
-
-新テンプレートを追加する場合は次を満たします。
-
-1. 表示コンポーネントを実装する
-2. 既定設定を定義する
-3. レジストリへ登録する
-4. 必要ならダッシュボード設定エディタを追加する
-
-この構成により、テンプレート追加のために DB スキーマを増やさずに済みます。
-
-## 7. リアルタイム更新設計
-
-Keinage は WebSocket ではなく Server-Sent Events を採用しています。
-
-### 7.1 フロー
-
-1. API がボード・メディア・メッセージを更新する
-2. Route Handler が `emitSSE(boardId, event)` を呼ぶ
-3. `src/lib/sse.ts` がボード単位の購読者へイベントを配信する
-4. `useSSE` を使う画面側が再取得する
-
-### 7.2 採用理由
-
-- 要件がサーバーからクライアントへの片方向通知中心である
-- 実装がシンプルで、表示画面の自動再接続とも相性が良い
-- クライアントはボード単位のイベントだけを受け取れば十分
-
-### 7.3 制約
-
-- SSE チャンネルはプロセス内メモリで管理します。
-- 複数アプリインスタンス間の通知共有は未対応です。
+テンプレート追加時は、表示コンポーネント、既定 config、必要な dashboard editor、i18n 文字列、registry 登録を追加します。
 
 ## 8. メディア保存と配信
 
-### 8.1 保存設計
+`src/lib/media-storage.ts` がローカル保存と S3 互換ストレージを抽象化します。
 
-- DB には `/uploads/<filename>` の公開パスを保持します。
-- `S3_*` 環境変数を設定すると、S3 互換のあるストレージサービスを利用できます。
-- `S3_*` 未設定時は `uploads/` と `uploads/thumbs/` を使うローカル保存が既定動作です。
+```mermaid
+flowchart TB
+  upload[POST /api/media] --> validate[Validate file]
+  validate --> image[Image resize / thumbnail]
+  image --> adapter[media-storage adapter]
+  adapter --> local[uploads/]
+  adapter --> s3[S3-compatible bucket]
+  adapter --> db[(media_items)]
+  request[GET /uploads/... ] --> adapter
+  adapter --> response[Media response]
+```
 
-### 8.2 画像処理
+- DB には `/uploads/<filename>` の公開パスを保存します。
+- S3 未設定時は `uploads/` と `uploads/thumbs/` に保存します。
+- S3 設定時は `S3_INTERNAL_ENDPOINT` を優先し、なければ `S3_ENDPOINT` を使います。
+- 画像は `src/lib/image.ts` でリサイズとサムネイル生成を行います。
+- standalone build 後の動的ファイル配信に対応するため、`/uploads/[...path]` route で保存先から読み出します。
 
-`src/lib/image.ts` で次を担当します。
+## 9. リアルタイム更新
 
-- 長辺上限に合わせた画像リサイズ
-- 600px サムネイル生成
-- GIF のサムネイル静止画化
+Keinage は WebSocket ではなく Server-Sent Events を使います。
 
-### 8.3 配信設計
+```mermaid
+flowchart LR
+  mutation[API mutation] --> emit[emitSSE(boardId, event)]
+  emit --> hub[src/lib/sse.ts in-memory clients]
+  hub --> display[Board display]
+  display --> refetch[Refetch board/media/messages]
+```
 
-Next.js standalone 出力では、ビルド後に追加された `public/` 配下ファイルをそのまま配信できません。そのため Keinage では `src/app/uploads/[...path]/route.ts` を経由し、ローカルディスクまたは S3 互換ストレージ上のオブジェクトを同じ `/uploads/...` URL で返却します。
+SSE はプロセス内メモリで購読者を管理します。複数アプリインスタンス間のイベント共有は未対応です。
 
-配信レスポンスには `Cache-Control: public, max-age=31536000, immutable` を付与し、スライドショーの再表示を軽くしています。
+## 10. i18n
 
-## 9. PostgreSQL 接続設計
+| ファイル | 役割 |
+| --- | --- |
+| `src/lib/i18n.ts` | 対応 locale、fallback、format helper |
+| `src/lib/i18n-messages.ts` | UI 文字列 catalog |
+| `src/lib/i18n-server.ts` | Server Component / Route Handler 側の request locale 解決 |
+| `src/components/i18n/LocaleProvider.tsx` | Client Component 側の locale context |
 
-`src/db/index.ts` は lazy proxy で DB 接続を初期化します。
+Locale はユーザー設定、Cookie、`Accept-Language` の順に解決します。新しい表示文字列を追加する場合は、原則として `i18n-messages.ts` に全対応 locale 分を追加します。
 
-### 理由
+## 11. 設定管理
 
-- `DATABASE_URL` の解決とコネクションプール生成を、実際に DB を使うタイミングまで遅らせられる
-- import 時点で接続を張らないことで、ビルド時や静的解析時の不要な DB 接続を避けられる
+設定は大きく 2 種類です。
 
-### 実装ポイント
+| 種類 | 保存先 | 例 |
+| --- | --- | --- |
+| ユーザー設定 | `users` | `colorTheme`, `locale`, userId, email, PIN |
+| Owner 設定 | `settings` | `weatherCityId`, `imageMaxLongEdge`, `authExpireDays` |
 
-- `pg` の `Pool` を単一インスタンスとして保持する
-- Drizzle の query builder / relation API は既存の Route Handler からそのまま利用する
-- 時刻カラムは既存 API 互換のため ISO 8601 文字列で保持する
+Owner 設定は KV 形式のため、DB migration を増やさずに設定項目を追加できます。型変換や既定値は `src/lib/owner-settings.ts` と各 Route Handler / UI で扱います。
 
-## 10. Docker / デプロイ設計
+## 12. 外部連携
 
-### 10.1 ビルド
+| 連携先 | 用途 |
+| --- | --- |
+| Google OIDC | Google アカウントによる登録・ログイン |
+| SMTP | 登録、招待、PIN リセット、アカウント削除 URL の送信 |
+| weather.tsukumijima.net | 天気情報表示 |
+| GitHub Releases API | 最新バージョン確認 |
+| S3-compatible storage | メディア保存 |
 
-- マルチステージビルドを採用します。
-- `deps` ステージで依存関係をインストールします。
-- `builder` ステージで `pnpm build` を実行します。
-- `runner` ステージでは standalone 出力と静的ファイルだけを持ちます。
+## 13. Docker / デプロイ
 
-### 10.2 起動
+Docker は multi-stage build です。
 
-`docker/entrypoint.sh` の責務は次の 2 つです。
+1. `deps`: pnpm 依存関係をインストール
+2. `builder`: `pnpm build`
+3. `runner`: standalone output と静的ファイルを実行
 
-1. 起動前にマイグレーションを実行する
-2. `node server.js` を起動する
+`docker/entrypoint.sh` は起動前に migration を実行してから `node server.js` を起動します。Docker Compose では PostgreSQL health check 後に app が起動します。
 
-Docker Compose では PostgreSQL コンテナの health check 完了後にアプリを起動します。
+## 14. 開発時の注意
 
-### 10.3 永続化対象
-
-- PostgreSQL volume : アプリデータ本体
-- `uploads/` : 既定のアップロードファイルとサムネイル
-- S3-compatible bucket : S3 設定時のアップロードファイルとサムネイル
-
-## 11. 設定・キャッシュ設計
-
-### 11.1 `settings` テーブル
-
-代表的なキー:
-
-- `weatherCityId`
-- `imageMaxLongEdge`
-- `authExpireDays`
-
-少数の共通設定を柔軟に増やせる一方、設定名の型安全性は呼び出し側に委ねています。
-
-### 11.2 天気キャッシュ
-
-`/api/weather` は 30 分のインメモリキャッシュを持ちます。これも単一プロセス前提の設計です。
-
-## 12. パフォーマンス上の判断
-
-### 12.1 画像先読み
-
-スライドショーでは、低スペック端末での表示品質を優先し、次の画像を事前ロードします。
-
-- 現在表示中に次の最大 2 枚を `new Image()` で先読み
-- 画像の `onLoad` 完了まで切り替えタイマーを開始しない
-- 動画は `onEnded` ベース遷移を維持しつつ、フォールバックタイマーを分離
-
-### 12.2 モバイル管理画面
-
-ダッシュボードは `DashboardShell` を境に、PC とモバイルでナビゲーションを切り替えます。管理機能の量を維持したまま、狭い画面でも運用できることを優先しています。
-
-## 13. 現時点の前提と限界
-
-- マルチテナントは未対応です。
-- S3 互換ストレージサービスを利用する場合は、運用側で別途用意する前提です。
-- SSE、天気キャッシュ、ファイル一覧参照は単一インスタンスを前提にしています。
-- ダッシュボード内部 API は、認証ゲートをレイアウト側で担保している箇所と、Route Handler 単体で認可している箇所が混在します。
+- Route Handler の認可境界は endpoint ごとに確認してください。
+- 新しい UI 文字列は i18n catalog に追加してください。
+- 新しいテンプレート設定は `boards.config` の後方互換を意識してください。
+- OAuth redirect で `0.0.0.0` を使わず、ローカルでは `http://localhost:3000` を使ってください。
+- SSE は単一プロセス前提です。水平スケール時は共有 pub/sub が必要です。
