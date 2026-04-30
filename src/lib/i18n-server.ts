@@ -13,14 +13,21 @@ import {
   translate,
   translateWeatherTelop,
 } from "@/lib/i18n";
+import { resolveAuthenticatedLocale } from "@/lib/locale-cookie";
 
 export async function getRequestLocale() {
   const cookieStore = await cookies();
   const headerStore = await headers();
   const session = await getSessionUser();
 
+  if (session) {
+    return resolveAuthenticatedLocale({
+      storedLocale: session.user.locale,
+      acceptLanguage: headerStore.get("accept-language"),
+    });
+  }
+
   return resolvePreferredLocale({
-    storedLocale: session?.user.locale,
     cookieLocale: cookieStore.get(LOCALE_COOKIE_NAME)?.value ?? null,
     acceptLanguage: headerStore.get("accept-language"),
   });

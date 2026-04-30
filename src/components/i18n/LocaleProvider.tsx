@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import {
   DEFAULT_LOCALE,
   LOCALE_COOKIE_NAME,
+  isSupportedLocale,
   formatDate,
   formatDateTime,
   formatTime,
@@ -52,13 +53,22 @@ export function LocaleProvider({
   const [locale, setLocaleState] = useState<SupportedLocale>(initialLocale);
 
   useEffect(() => {
+    setLocaleState(initialLocale);
+  }, [initialLocale]);
+
+  useEffect(() => {
     document.documentElement.lang = locale;
     document.cookie = `${LOCALE_COOKIE_NAME}=${encodeURIComponent(locale)}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`;
   }, [locale]);
 
+  const setLocale = (nextLocale: SupportedLocale) => {
+    if (!isSupportedLocale(nextLocale)) return;
+    setLocaleState(nextLocale);
+  };
+
   const value: LocaleContextValue = {
     locale,
-    setLocale: setLocaleState,
+    setLocale,
     t: (key, vars) => translate(locale, key, vars),
     formatDate: (value, options) => formatDate(value, locale, options),
     formatDateTime: (value, options) => formatDateTime(value, locale, options),

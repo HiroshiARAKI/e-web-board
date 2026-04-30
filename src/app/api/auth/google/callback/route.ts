@@ -142,6 +142,8 @@ export async function GET(request: NextRequest) {
       userId: user.id,
       redirectTo: absoluteUrl(request, redirectPath),
       setupSessionMaxAge: user.pinHash ? undefined : SETUP_SESSION_MAX_AGE,
+      locale: user.locale,
+      acceptLanguage: request.headers.get("accept-language"),
     });
     response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE, "", buildExpiredAuthCookieOptions());
     return response;
@@ -187,6 +189,8 @@ export async function GET(request: NextRequest) {
       userId: createdUser.id,
       redirectTo: absoluteUrl(request, "/pin/setup"),
       setupSessionMaxAge: SETUP_SESSION_MAX_AGE,
+      locale: createdUser.locale,
+      acceptLanguage: request.headers.get("accept-language"),
     });
     response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE, "", buildExpiredAuthCookieOptions());
     return response;
@@ -257,6 +261,8 @@ export async function GET(request: NextRequest) {
       userId: createdUser.id,
       redirectTo: absoluteUrl(request, "/pin/setup"),
       setupSessionMaxAge: SETUP_SESSION_MAX_AGE,
+      locale: createdUser.locale,
+      acceptLanguage: request.headers.get("accept-language"),
     });
     response.cookies.set(GOOGLE_OAUTH_STATE_COOKIE, "", buildExpiredAuthCookieOptions());
     return response;

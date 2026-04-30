@@ -9,6 +9,7 @@ import { KeyRound } from "lucide-react";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { KeinageLogo } from "@/components/KeinageLogo";
+import { isSupportedLocale } from "@/lib/i18n";
 
 export default function LoginClient({
   redirectTo,
@@ -20,7 +21,7 @@ export default function LoginClient({
   googleAuthEnabled: boolean;
 }) {
   const router = useRouter();
-  const { t } = useLocale();
+  const { t, setLocale } = useLocale();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -52,6 +53,10 @@ export default function LoginClient({
           return;
         }
 
+        if (isSupportedLocale(data.locale)) {
+          setLocale(data.locale);
+        }
+
         router.push(redirectTo || "/boards");
       } catch {
         setError(t("error.network"));
@@ -59,7 +64,7 @@ export default function LoginClient({
         setSubmitting(false);
       }
     },
-    [router, redirectTo, identifier, password, submitting, blocked, t],
+    [router, redirectTo, identifier, password, submitting, blocked, t, setLocale],
   );
 
   const pinLoginHref = redirectTo
