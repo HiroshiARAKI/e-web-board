@@ -27,6 +27,8 @@ export interface OwnerSubscriptionState {
   planCode: PlanCode;
   billingInterval: BillingInterval | null;
   status: SubscriptionStatus;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
 }
@@ -49,6 +51,8 @@ function normalizeSubscription(
     planCode: isPlanCode(row.planCode) ? row.planCode : "free",
     billingInterval: isBillingInterval(row.billingInterval) ? row.billingInterval : null,
     status: isSubscriptionStatus(row.status) ? row.status : "none",
+    stripeCustomerId: row.stripeCustomerId,
+    stripeSubscriptionId: row.stripeSubscriptionId,
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd,
   };
@@ -105,4 +109,37 @@ export async function getEffectivePlanForOwner(ownerUserId: string): Promise<Eff
 
 export async function getEffectivePlanForUser(user: UserLike): Promise<EffectivePlan> {
   return getEffectivePlanForOwner(resolveOwnerUserId(user));
+}
+
+export async function saveOwnerStripeCustomer(params: {
+  ownerUserId: string;
+  stripeCustomerId: string;
+}): Promise<OwnerSubscriptionState> {
+  const existing = await db.query.ownerSubscriptions.findFirst({
+    where: eq(ownerSubscriptions.ownerUserId, params.ownerUserId),
+  });
+
+  if (existing) {
+    const [updated] = await db
+      .update(ownerSubscriptions)
+      .set({
+        billingMode: "stripe",
+        stripeCustomerId: params.stripeCustomerId,
+      })
+      .where(eq(ownerSubscriptions.ownerUserId, params.ownerUserId))
+      .returning();
+
+    return normalizeSubscription(updated);
+  }
+
+  const [created] = await db
+    .insert(ownerSubscriptions)
+    .values({
+      ownerUserId: params.ownerUserId,
+      billingMode: "stripe",
+      stripeCustomerId: params.stripeCustomerId,
+    })
+    .returning();
+
+  return normalizeSubscription(created);
 }
