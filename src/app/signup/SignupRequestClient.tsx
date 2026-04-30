@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { MailPlus } from "lucide-react";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useLocale } from "@/components/i18n/LocaleProvider";
@@ -11,15 +12,17 @@ import { KeinageLogo } from "@/components/KeinageLogo";
 
 export default function SignupRequestClient({
   googleAuthEnabled,
+  initialError,
 }: {
   googleAuthEnabled: boolean;
+  initialError?: string | null;
 }) {
   const router = useRouter();
   const { t } = useLocale();
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -40,6 +43,10 @@ export default function SignupRequestClient({
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 409 && data.code === "user_exists") {
+          router.push("/pin/login?notice=signup-existing");
+          return;
+        }
         setError(data.error || t("auth.signupRequest.failed"));
         return;
       }
@@ -145,6 +152,15 @@ export default function SignupRequestClient({
               </GoogleAuthButton>
             </div>
           )}
+
+          <div className="mt-6 text-center">
+            <Link
+              href="/pin/login"
+              className="text-sm text-gray-500 hover:text-blue-600"
+            >
+              すでにアカウントをお持ちの方はログイン
+            </Link>
+          </div>
         </div>
       </div>
     </div>
