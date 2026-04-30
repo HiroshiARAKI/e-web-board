@@ -14,7 +14,7 @@ Keinage は Next.js App Router を中心に、表示画面、管理画面、Rout
 flowchart TB
   browser[Browser / Signage Display]
   admin[Dashboard User]
-  call[Call Screen User]
+  callUser[Call Screen User]
 
   subgraph next[Next.js App Router]
     pages[Pages and Layouts]
@@ -42,7 +42,7 @@ flowchart TB
 
   browser --> pages
   admin --> pages
-  call --> pages
+  callUser --> pages
   pages --> routes
   pages --> sse
   routes --> auth
