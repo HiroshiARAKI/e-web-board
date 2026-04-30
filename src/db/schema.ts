@@ -1,6 +1,6 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -81,6 +81,41 @@ export const settings = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.ownerUserId, table.key] }),
+  }),
+);
+
+export const ownerSubscriptions = pgTable(
+  "owner_subscriptions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    billingMode: text("billing_mode").notNull().default("disabled"),
+    planCode: text("plan_code").notNull().default("free"),
+    billingInterval: text("billing_interval"),
+    status: text("status").notNull().default("none"),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    currentPeriodEnd: text("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    createdAt: text("created_at")
+      .notNull()
+      .default(isoNow),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(isoNow)
+      .$onUpdate(() => new Date().toISOString()),
+  },
+  (table) => ({
+    ownerUnique: uniqueIndex("owner_subscriptions_owner_user_id_unique")
+      .on(table.ownerUserId),
+    stripeCustomerIdx: index("owner_subscriptions_stripe_customer_id_idx")
+      .on(table.stripeCustomerId),
+    stripeSubscriptionIdx: index("owner_subscriptions_stripe_subscription_id_idx")
+      .on(table.stripeSubscriptionId),
   }),
 );
 
@@ -278,6 +313,14 @@ export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(authSessions),
   deviceAuthGrants: many(deviceAuthGrants),
   pinResetTokens: many(pinResetTokens),
+  ownerSubscriptions: many(ownerSubscriptions),
+}));
+
+export const ownerSubscriptionsRelations = relations(ownerSubscriptions, ({ one }) => ({
+  owner: one(users, {
+    fields: [ownerSubscriptions.ownerUserId],
+    references: [users.id],
+  }),
 }));
 
 export const authAccountsRelations = relations(authAccounts, ({ one }) => ({
