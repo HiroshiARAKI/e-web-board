@@ -9,6 +9,7 @@ import { Lock } from "lucide-react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { PinInput } from "@/components/auth/PinInput";
 import { KeinageLogo } from "@/components/KeinageLogo";
+import { isSupportedLocale } from "@/lib/i18n";
 
 export default function PinLoginClient({
   userId,
@@ -18,7 +19,7 @@ export default function PinLoginClient({
   redirectTo?: string | null;
 }) {
   const router = useRouter();
-  const { t } = useLocale();
+  const { t, setLocale } = useLocale();
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -50,6 +51,10 @@ export default function PinLoginClient({
           return;
         }
 
+        if (isSupportedLocale(data.locale)) {
+          setLocale(data.locale);
+        }
+
         router.push(redirectTo || "/boards");
       } catch {
         setError(t("error.network"));
@@ -57,7 +62,7 @@ export default function PinLoginClient({
         setVerifying(false);
       }
     },
-    [router, redirectTo, verifying, blocked, t],
+    [router, redirectTo, verifying, blocked, t, setLocale],
   );
 
   const accountLoginHref = redirectTo

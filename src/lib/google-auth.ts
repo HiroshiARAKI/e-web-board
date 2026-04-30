@@ -23,6 +23,10 @@ import {
 } from "@/lib/oidc";
 import { generateSessionToken } from "@/lib/pin";
 import { buildPublicAppUrl } from "@/lib/public-origin";
+import {
+  resolveAuthenticatedLocale,
+  setLocaleCookie,
+} from "@/lib/locale-cookie";
 
 export const GOOGLE_OAUTH_STATE_COOKIE = "google-oauth-state";
 export const GOOGLE_OAUTH_STATE_MAX_AGE = 60 * 10;
@@ -126,6 +130,8 @@ export async function createSignedInResponse(input: {
   userId: string;
   redirectTo: string;
   setupSessionMaxAge?: number;
+  locale?: string | null;
+  acceptLanguage?: string | null;
 }) {
   const now = new Date().toISOString();
   const sessionToken = generateSessionToken();
@@ -151,6 +157,13 @@ export async function createSignedInResponse(input: {
     buildAuthCookieOptions(sessionMaxAge),
   );
   setDeviceAuthCookie(response, deviceToken);
+  setLocaleCookie(
+    response,
+    resolveAuthenticatedLocale({
+      storedLocale: input.locale,
+      acceptLanguage: input.acceptLanguage,
+    }),
+  );
   clearLegacyLastUserCookie(response);
   return response;
 }

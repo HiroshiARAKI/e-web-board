@@ -25,6 +25,10 @@ import {
   buildRateLimitKey,
   resolveRateLimitClientIp,
 } from "@/lib/rate-limit";
+import {
+  resolveAuthenticatedLocale,
+  setLocaleCookie,
+} from "@/lib/locale-cookie";
 
 /** POST /api/auth/credentials/login — email/userId + password login */
 export async function POST(request: NextRequest) {
@@ -151,9 +155,14 @@ export async function POST(request: NextRequest) {
     expiresAt,
   });
 
-  const res = NextResponse.json({ success: true });
+  const locale = resolveAuthenticatedLocale({
+    storedLocale: user.locale,
+    acceptLanguage: request.headers.get("accept-language"),
+  });
+  const res = NextResponse.json({ success: true, locale });
   res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SESSION_MAX_AGE));
   setDeviceAuthCookie(res, deviceToken);
+  setLocaleCookie(res, locale);
   clearLegacyLastUserCookie(res);
   return res;
 }
