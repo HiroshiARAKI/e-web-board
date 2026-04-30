@@ -300,10 +300,10 @@ Keinage は WebSocket ではなく Server-Sent Events を使います。
 
 ```mermaid
 flowchart LR
-  mutation[API mutation] --> emit[emitSSE(boardId, event)]
-  emit --> hub[src/lib/sse.ts in-memory clients]
-  hub --> display[Board display]
-  display --> refetch[Refetch board/media/messages]
+  mutation["API mutation"] --> emit["emitSSE(boardId, event)"]
+  emit --> hub["src/lib/sse.ts in-memory clients"]
+  hub --> display["Board display"]
+  display --> refetch["Refetch board/media/messages"]
 ```
 
 SSE はプロセス内メモリで購読者を管理します。複数アプリインスタンス間のイベント共有は未対応です。
