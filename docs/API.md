@@ -1,608 +1,234 @@
-# Keinage API Reference
+# Keinage Routing Reference
 
-最終更新: 2026-04-29
+最終更新: 2026-04-30
 
-## 1. このドキュメントの範囲
+## 1. このドキュメントの目的
 
-本書は Keinage が提供する HTTP エンドポイントを整理するためのドキュメントです。
+このドキュメントは Keinage の画面ルートと API Route Handler を一覧できるようにまとめます。詳細な利用者向け仕様は [SPEC.md](./SPEC.md)、内部設計は [DESIGN.md](./DESIGN.md) を参照してください。
 
-- `src/app/api/*` の Route Handler
-- `src/app/uploads/[...path]/route.ts` によるストレージ上メディア配信
+## 2. ルーティング全体
 
-利用者向け仕様は `docs/SPEC.md`、設計方針は `docs/DESIGN.md` を参照してください。
+```mermaid
+flowchart TB
+  root["/"] --> board["/<boardId>"]
+  root --> dashboard["/boards, /media, /settings, /users"]
+  root --> auth["/signup, /pin, /pin/login"]
+  root --> call["/call/<boardId>"]
+  root --> api["/api/*"]
+  root --> uploads["/uploads/*"]
+```
 
-## 2. 利用上の前提
+## 3. 画面ルート
 
-### 2.1 認証 Cookie
+### 3.1 公開・表示画面
+
+| Path | 内容 | 認証 |
+| --- | --- | --- |
+| `/` | 初期導線。状態に応じてボード/ダッシュボード/認証へ誘導 | 状況による |
+| `/<boardId>` | 公開ボード表示 | 不要 |
+| `/call/<boardId>` | 呼び出し番号テンプレート用の操作画面 | ボードの call passcode |
+
+### 3.2 ダッシュボード
+
+| Path | 内容 | 認証 |
+| --- | --- | --- |
+| `/boards` | ボード一覧 | 必要 |
+| `/boards/new` | ボード作成 | 必要 |
+| `/boards/<boardId>` | ボード編集 | 必要 |
+| `/media` | アップロード済みメディア管理 | `admin` |
+| `/settings` | ユーザー設定・管理設定 | 必要 |
+| `/users` | Shared user 管理 | `admin` |
+| `/delete-account` | Owner アカウント削除リクエスト | Owner / `admin` |
+
+### 3.3 認証・登録
+
+| Path | 内容 | 認証 |
+| --- | --- | --- |
+| `/signup` | Owner 登録開始 | 不要 |
+| `/signingup` | Owner 登録 URL の送達待ち | `signup-request-id` Cookie |
+| `/signup/<token>` | Owner パスワード設定 | 登録 token |
+| `/signup/shared?token=<token>` | Shared user 登録 | 招待 token |
+| `/pin/setup` | 初期 PIN 設定 | 一時セットアップセッション |
+| `/pin` | PIN ログイン | `device-auth` Cookie |
+| `/pin/login` | フル認証ログイン | 不要 |
+| `/pin/forgot` | PIN リセット依頼 | 不要 |
+| `/pin/reset/<token>` | PIN リセット | リセット token |
+| `/deleting-account/<token>` | アカウント削除確定 | 削除 token |
+| `/deleted-account` | アカウント削除完了 | 不要 |
+
+## 4. Cookie
 
 | Cookie | 用途 |
 | --- | --- |
-| `auth-session` | 認証済みセッション識別 |
-| `device-auth` | 端末単位の完全認証キャッシュ識別 |
-| `signup-request-id` | `/signingup` で仮登録状態を識別 |
-| `google-oauth-state` | Google OAuth callback の opaque state 検証 |
+| `auth-session` | 認証済みセッション |
+| `device-auth` | 端末単位のフル認証履歴 |
+| `signup-request-id` | `/signingup` 用の Owner 仮登録識別 |
+| `google-oauth-state` | Google OAuth/OIDC callback の state 検証 |
 
-補足:
+`NODE_ENV=production` では認証系 Cookie に `Secure` 属性が付きます。ローカル開発では HTTP 動作のため `Secure` を付与しません。
 
-- `auth-session`、`device-auth`、`signup-request-id`、`google-oauth-state` は `NODE_ENV=production` のとき `Secure` 属性付きで発行されます。
-- ローカル開発では HTTP 動作を維持するため `Secure` を付与しません。
+## 5. 認証 API
 
-### 2.2 認証の考え方
+### 5.1 Owner / Shared 登録
 
-API は大きく 3 種類に分かれます。
-
-| 区分 | 説明 |
-| --- | --- |
-| 認証前 API | セットアップ、ログイン、PIN 検証など |
-| ダッシュボード内部 API | 管理画面から利用する内部向け API |
-| 外部連携 API | 外部システムから直接呼ぶことを想定した API |
-
-注意点:
-
-- `users` 系 API は Route Handler 内で認可しています。
-- `boards`、`media`、`messages`、`settings` など一部の内部 API は、現状レイアウト側の認証ゲート利用を前提にしており、Route Handler 単体では厳密な認可チェックを入れていないものがあります。
-- `POST /api/messages` は外部連携向けです。
-
-### 2.3 ログイン試行制限の IP 解決
-
-- `POST /api/auth/credentials/login` と `POST /api/auth/pin/verify` は `pin_attempts` を使って試行制限します。
-- `TRUST_PROXY_HEADERS=true` のときだけ `x-forwarded-for` / `x-real-ip` を client IP として利用します。
-- `TRUST_PROXY_HEADERS=false` のときは proxy header を信用せず、`client + auth subject` 単位の bucket で試行回数を管理します。
-- 公開運用で ALB / CloudFront / Nginx などが header を上書きする場合のみ `TRUST_PROXY_HEADERS=true` を設定してください。
-
-## 3. 認証 API
-
-### 3.1 Owner サインアップ / 初期 PIN 設定
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `POST` | `/api/auth/credentials/setup` | Owner 仮登録を作成し、登録用 URL を発行 | 不要 |
-| `POST` | `/api/auth/credentials/setup/resend` | 仮登録中の Owner 登録 URL を再送 / 再発行 | `signup-request-id` Cookie |
-| `POST` | `/api/auth/credentials/complete` | 登録トークンで Owner を作成し、一時セッションを発行 | 不要 |
-| `POST` | `/api/auth/credentials/shared/complete` | Shared 招待トークンで Shared ユーザーを作成し、一時セッションを発行 | 不要 |
-| `GET` | `/api/auth/google/start` | Google ログイン / Owner 登録 / Shared 登録を開始し、Google 認可画面へ redirect | 不要 |
-| `POST` | `/api/auth/google/start` | Google ログイン / Owner 登録 / Shared 登録を開始 | 不要 |
-| `GET` | `/api/auth/google/callback` | Google OAuth callback を完了し、ユーザー作成またはログインを行う | 不要 |
-| `POST` | `/api/auth/pin/setup` | 一時セットアップセッションに対して初期 PIN を設定 | 一時セットアップセッション |
+| `POST` | `/api/auth/credentials/setup` | Owner 仮登録を作成し、登録 URL を発行 | 不要 |
+| `POST` | `/api/auth/credentials/setup/resend` | Owner 登録 URL を再送・再発行 | `signup-request-id` Cookie |
+| `POST` | `/api/auth/credentials/complete` | Owner のパスワード登録を完了 | 登録 token |
+| `POST` | `/api/auth/credentials/shared/complete` | Shared user のパスワード登録を完了 | 招待 token |
+| `GET` | `/api/auth/google/start` | Google OAuth/OIDC を開始して Google へ redirect | 不要 |
+| `POST` | `/api/auth/google/start` | Google OAuth/OIDC 認可 URL を JSON で返す | 不要 |
+| `GET` | `/api/auth/google/callback` | Google callback を処理し、登録またはログインを完了 | state Cookie |
+| `POST` | `/api/auth/pin/setup` | 初期 PIN を設定 | 一時セットアップセッション |
 
-#### `POST /api/auth/credentials/setup`
+`GET /api/auth/google/start` は `mode=login|owner-signup|shared-signup`、`redirectTo`、`token` を受け付けます。Google OAuth/OIDC は Authorization Code + PKCE、nonce、opaque state、JWKS 署名検証を使います。
 
-Owner 登録の仮受付を行います。
+### 5.2 ログイン・ログアウト
 
-リクエスト例:
-
-```json
-{
-  "userId": "admin",
-  "email": "admin@example.com",
-  "phoneNumber": "090-1234-5678"
-}
-```
-
-正常時は `signup-request-id` Cookie を設定します。登録用 URL は `APP_PUBLIC_ORIGIN` を基準に組み立てます。SMTP が設定されていれば登録用 URL をメール送信し、SMTP 未設定時は `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` かつ localhost 開発環境でのみ `previewUrl` を返します。それ以外では `503` を返します。
-
-レスポンス例:
-
-```json
-{
-  "success": true,
-  "previewUrl": "http://localhost:3000/signup/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-}
-```
-
-#### `POST /api/auth/credentials/setup/resend`
-
-現在の仮登録に対して登録用 URL を再送または再発行します。成功すると以前のトークンは無効になります。`previewUrl` の返却条件は `POST /api/auth/credentials/setup` と同じです。
-
-レスポンス例:
-
-```json
-{
-  "success": true,
-  "previewUrl": "http://localhost:3000/signup/yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
-}
-```
-
-#### `POST /api/auth/credentials/complete`
-
-登録リンクで開いた `/signup/[token]` から呼び出します。
-
-リクエスト例:
-
-```json
-{
-  "token": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "password": "changeme123"
-}
-```
-
-仕様:
-
-- トークンは 10 分有効、未完了のものだけを受け付けます。
-- 成功時に Owner ユーザーを作成し、15 分有効の一時 `auth-session` Cookie を設定します。
-- 後続の `/api/auth/pin/setup` で PIN 設定を完了します。
-
-#### `POST /api/auth/credentials/shared/complete`
-
-Shared 招待リンクで開いた `/signup/shared?token=<token>` から呼び出します。
-
-リクエスト例:
-
-```json
-{
-  "token": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "password": "changeme123"
-}
-```
-
-仕様:
-
-- `shared_signup_requests` の未完了かつ期限内トークンだけを受け付けます。
-- 成功時に Shared ユーザーを作成し、15 分有効の一時 `auth-session` Cookie を設定します。
-- 後続の `/api/auth/pin/setup` で PIN 設定を完了します。
-
-#### `POST /api/auth/google/start`
-
-Google OAuth/OIDC を Authorization Code + PKCE で開始します。利用には `GOOGLE_OAUTH_ENABLED=true`、`GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET`、`APP_PUBLIC_ORIGIN` が必要です。`APP_PUBLIC_ORIGIN` はブラウザで開く origin と一致させ、ローカル開発では `http://localhost:3000` を使います。`http://0.0.0.0:3000` のような bind address は state Cookie が callback に送られないため使用できません。
-
-リクエスト例:
-
-```json
-{
-  "mode": "owner-signup"
-}
-```
-
-```json
-{
-  "mode": "shared-signup",
-  "token": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-}
-```
-
-```json
-{
-  "mode": "login",
-  "redirectTo": "/boards"
-}
-```
-
-レスポンス例:
-
-```json
-{
-  "authorizationUrl": "https://accounts.google.com/o/oauth2/v2/auth?..."
-}
-```
-
-仕様:
-
-- `mode` は `login`、`owner-signup`、`shared-signup` のいずれかです。
-- `shared-signup` では有効な Shared 招待トークンが必要です。
-- 成功時に `google_oauth_flows` へ mode、redirectTo、Shared 招待トークン、PKCE `code_verifier`、OIDC `nonce` を保存します。
-- OAuth `state` はランダムな不透明値で、payload は含めません。
-- 成功時に `google-oauth-state` Cookie を設定します。この Cookie の値も opaque state のみです。
-- Google は `issuer=https://accounts.google.com` の OIDC preset として扱い、Discovery から authorization endpoint を取得します。
-- Google 認可 URL には `openid email profile` scope と `code_challenge` / `code_challenge_method=S256` / `nonce` を含めます。
-
-#### `GET /api/auth/google/start`
-
-Google OAuth を redirect で開始する endpoint です。`/pin/login` と `/signup` のリンクから利用します。
-
-クエリ:
-
-- `mode`: `login`、`owner-signup`、`shared-signup` のいずれか。省略時は `login`。
-- `redirectTo`: ログイン成功後のアプリ内パス。省略時は `/boards`。
-- `token`: `mode=shared-signup` のときの Shared 招待トークン。
-
-リクエストの `Host` が `APP_PUBLIC_ORIGIN` の host と異なる場合は、state Cookie を正しい host に設定するため、同じ path/query を `APP_PUBLIC_ORIGIN` 側へ redirect してから Google 認可 URL へ進みます。
-
-#### `GET /api/auth/google/callback`
-
-Google 認可画面から戻る callback です。
-
-仕様:
-
-- `state` と `google-oauth-state` Cookie が一致し、かつ `google_oauth_flows` に未使用・期限内の flow が存在する場合だけ処理します。
-- token exchange では Discovery で取得した token endpoint へ保存済み PKCE `code_verifier` を送信します。
-- token response の ID token で issuer、audience、有効期限、nonce、JWKS による RS256 署名を検証します。
-- Google userinfo の `email_verified !== true` は拒否します。
-- `login` では `auth_accounts(provider='google', providerAccountId=<Google sub>)` に紐づく既存ユーザーだけログインできます。
-- `owner-signup` では Google メールアドレスと Google subject が未使用の場合だけ Owner ユーザーを作成します。アプリ内 `userId` は Google メールアドレスから自動生成し、Google subject は `auth_accounts` に保存します。
-- `shared-signup` では Google メールアドレスが招待先メールアドレスと一致する場合だけ Shared ユーザーを作成し、Google subject は `auth_accounts` に保存します。
-- 成功時は一時 `auth-session` と `device-auth` を設定し、PIN 未設定の場合は `/pin/setup` へ redirect します。
-
-#### `POST /api/auth/pin/setup`
-
-リクエスト例:
-
-```json
-{
-  "pin": "123456"
-}
-```
-
-PIN 設定後、正式な 24 時間セッションへ切り替え、端末単位の `device-auth` Cookie も更新します。
-
-### 3.2 ログイン / ログアウト
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
 | `POST` | `/api/auth/credentials/login` | メールアドレスまたはユーザーID + パスワードでログイン | 不要 |
-| `GET` | `/api/auth/google/start` | Google アカウントでログイン開始 | 不要 |
-| `POST` | `/api/auth/pin/verify` | PIN でクイックログイン | 不要 |
-| `POST` | `/api/auth/pin/logout` | セッション削除 | 任意 |
-| `GET` | `/api/auth/pin/status` | 現在の対象ユーザー、PIN 設定状態、期限情報を取得 | 不要 |
+| `POST` | `/api/auth/pin/verify` | PIN ログイン | `device-auth` Cookie |
+| `POST` | `/api/auth/pin/logout` | 現在のセッションを削除 | 任意 |
+| `GET` | `/api/auth/pin/status` | PIN ログイン対象ユーザーと期限情報を取得 | 任意 |
 
-#### `POST /api/auth/credentials/login`
+`POST /api/auth/credentials/login` と `POST /api/auth/pin/verify` は失敗回数制限を行います。`TRUST_PROXY_HEADERS=true` のときだけ `x-forwarded-for` / `x-real-ip` を client IP として信用します。
 
-リクエスト例:
+### 5.3 アカウント設定
 
-```json
-{
-  "identifier": "admin@example.com",
-  "password": "changeme123"
-}
-```
-
-仕様:
-
-- `identifier` はメールアドレスまたは `userId`
-- Google 認証ユーザーはこの endpoint ではログインできません。
-- 成功時に `auth-session` と `device-auth` Cookie を設定
-- 失敗回数は `client + identifier` bucket ベースで制限
-
-#### `POST /api/auth/pin/verify`
-
-リクエスト例:
-
-```json
-{
-  "pin": "123456"
-}
-```
-
-仕様:
-
-- `device-auth` に紐づく端末認証キャッシュがあればそのユーザーの PIN を検証
-- 対象ユーザーに PIN がない場合は `requiresFullAuth: true` を返す
-- フル認証期限切れでも `requiresFullAuth: true` を返す
-- 失敗回数は `client + target user` bucket ベースで制限
-
-#### `GET /api/auth/pin/status`
-
-レスポンス例:
-
-```json
-{
-  "userConfigured": true,
-  "pinConfigured": true,
-  "email": "admin@example.com",
-  "userId": "admin",
-  "fullAuthExpiry": "2026-05-19T03:00:00.000Z",
-  "authExpireDays": 30
-}
-```
-
-注記:
-
-- 未認証アクセスでは `email` / `userId` を返しません。
-- 詳細な期限情報は認証済みセッション時のみ返します。
-
-### 3.3 PIN / アカウント情報変更
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `PATCH` | `/api/auth/pin/change` | PIN、メールアドレス、ユーザーIDの変更 | 必要 |
 | `PATCH` | `/api/auth/password/change` | パスワード変更 | 必要 |
-| `POST` | `/api/auth/pin/forgot` | PIN リセット要求 | 不要 |
-| `POST` | `/api/auth/pin/reset` | リセットトークンで PIN 再設定 | 不要 |
+| `PATCH` | `/api/auth/pin/change` | PIN 変更 | 必要 |
+| `POST` | `/api/auth/pin/forgot` | PIN リセット URL を送信 | 不要 |
+| `POST` | `/api/auth/pin/reset` | PIN リセット token で PIN を更新 | リセット token |
+| `POST` | `/api/auth/account-deletion/request` | Owner アカウント削除 URL を送信 | Owner / `admin` |
+| `POST` | `/api/auth/account-deletion/complete` | Owner アカウント削除を確定 | 削除 token |
+| `PATCH` | `/api/users/me` | 自分の表示テーマ・locale を更新 | 必要 |
 
-#### `PATCH /api/auth/pin/change`
+## 6. ボード API
 
-`action` に応じて挙動が変わります。
-
-| `action` | 必須項目 | 内容 |
-| --- | --- | --- |
-| `verifyCurrentPin` | `currentPin` | 現在 PIN の検証 |
-| `changePin` | `currentPin`, `newPin` | PIN 変更 |
-| `setupPin` | `newPin` | 未設定ユーザーの初期 PIN 設定 |
-| `changeEmail` | `newEmail` | メールアドレス変更 |
-| `changeUserId` | `newUserId` | ユーザーID変更 |
-
-リクエスト例:
-
-```json
-{
-  "action": "changePin",
-  "currentPin": "123456",
-  "newPin": "654321"
-}
-```
-
-#### `POST /api/auth/pin/forgot`
-
-仕様:
-
-- remembered user がいる端末からのみ利用できます。対象ユーザーを特定できない GET 直アクセスは `/pin` または `/pin/login` へ戻します。
-- POST では `targetUserId` を受け取り、現在その端末で PIN 入力対象になっているユーザーと一致する必要があります。
-- 入力メールアドレスは、その対象ユーザーに登録されているメールアドレスと完全一致する必要があります。
-- 未認証レスポンスでは reset URL や token 相当の情報を返しません。
-- PIN 初期化リンクは `APP_PUBLIC_ORIGIN` を基準に組み立て、メールでのみ配布します。
-- `SMTP_*` と `APP_PUBLIC_ORIGIN` が未設定の環境では、このエンドポイントは `503` を返します。
-- メール送信に失敗した場合は `500` を返します。
-
-#### `POST /api/auth/pin/reset`
-
-仕様:
-
-- リセットトークンは必ず特定ユーザーに紐づいている必要があります。
-- 運用上、未認証の PIN リセットはメールで受け取ったリンク経由のみを想定します。
-- ログイン済みユーザーの PIN 変更は `/api/auth/pin/change` を使用します。
-
-## 4. ユーザー API
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `GET` | `/api/users` | ユーザー一覧取得 | `admin` |
-| `POST` | `/api/users` | Shared ユーザー招待作成 | `admin` |
-| `PATCH` | `/api/users/[id]` | ロール変更 | `admin` |
-| `DELETE` | `/api/users/[id]` | ユーザー削除 | `admin` |
-| `PATCH` | `/api/users/me` | 自分のテーマ変更 | 必要 |
+| `GET` | `/api/boards` | 自分が編集できるボード一覧 | 必要 |
+| `POST` | `/api/boards` | ボード作成 | 必要 |
+| `GET` | `/api/boards/<id>` | ボード詳細 | 必要 |
+| `PATCH` | `/api/boards/<id>` | ボード設定更新 | 必要 |
+| `DELETE` | `/api/boards/<id>` | ボード削除 | 必要 |
+| `GET` | `/api/public/boards/<id>` | 公開ボード詳細 | 不要 |
 
-#### `POST /api/users`
+ボード更新・削除後は対象ボードへ SSE イベントが発行されます。
 
-リクエスト例:
+## 7. メディア API
 
-```json
-{
-  "userId": "staff01",
-  "email": "staff01@example.com",
-  "role": "general"
-}
-```
-
-仕様:
-
-- 即時に `users` レコードは作成せず、`shared_signup_requests` に 10 分有効の招待を作成します。
-- 招待 URL は `APP_PUBLIC_ORIGIN` を基準に `/signup/shared?token=<token>` として生成します。
-- SMTP が設定されていれば招待メールを送信します。
-- SMTP 未設定時は `ALLOW_UNAUTHENTICATED_SIGNUP_PREVIEW=true` かつ localhost 開発環境でのみ `previewUrl` を返します。それ以外では `503` を返します。
-
-レスポンス例:
-
-```json
-{
-  "id": "invite-row-id",
-  "userId": "staff01",
-  "email": "staff01@example.com",
-  "invited": true,
-  "role": "general",
-  "previewUrl": "http://localhost:3000/signup/shared?token=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-}
-```
-
-#### `PATCH /api/users/[id]`
-
-リクエスト例:
-
-```json
-{
-  "role": "general"
-}
-```
-
-#### `PATCH /api/users/me`
-
-現在の実装ではテーマ変更のみを扱います。
-
-```json
-{
-  "colorTheme": "dark"
-}
-```
-
-## 5. ボード API
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `GET` | `/api/boards` | ボード一覧取得 | 内部向け |
-| `POST` | `/api/boards` | ボード作成 | 内部向け |
-| `GET` | `/api/boards/[id]` | ボード詳細取得 | 内部向け |
-| `PATCH` | `/api/boards/[id]` | ボード更新 | 内部向け |
-| `DELETE` | `/api/boards/[id]` | ボード削除 | 内部向け |
-| `GET` | `/api/boards/[id]/messages` | 有効なメッセージ一覧取得 | 表示画面 / 内部向け |
-| `DELETE` | `/api/boards/[id]/messages` | ボードのメッセージ全削除 | 内部向け |
+| `GET` | `/api/media` | DB 登録済みメディア一覧 | 必要 |
+| `POST` | `/api/media` | メディアアップロード | 必要 |
+| `PATCH` | `/api/media` | メディア並び順・表示時間更新 | 必要 |
+| `DELETE` | `/api/media` | DB 登録済みメディアを一括削除 | `admin` |
+| `PATCH` | `/api/media/<id>` | 1 件の表示時間などを更新 | 必要 |
+| `DELETE` | `/api/media/<id>` | 1 件削除 | 必要 |
+| `GET` | `/api/media/files` | ストレージ上のアップロード済みファイル一覧 | `admin` |
+| `DELETE` | `/api/media/files` | ストレージ上のファイル削除 | `admin` |
+| `GET` | `/uploads/<path>` | アップロード済みファイル配信 | 不要 |
 
-#### `POST /api/boards`
+アップロード対応形式は画像 JPEG/PNG/WebP/GIF、動画 MP4/WebM です。最大ファイルサイズは 50 MB です。
 
-```json
-{
-  "name": "待合室メイン",
-  "templateId": "simple",
-  "config": {
-    "slideInterval": 8
-  }
-}
-```
+## 8. メッセージ API
 
-`config` を省略または空オブジェクトで送ると、テンプレート既定値を適用します。
-
-#### `PATCH /api/boards/[id]`
-
-```json
-{
-  "name": "待合室サブ",
-  "isActive": true,
-  "config": {
-    "slideInterval": 10
-  }
-}
-```
-
-更新時の補足:
-
-- `board-updated` を発行します。
-- `slideInterval` の変更時、既定値のまま残っている画像の `duration` を同期します。
-
-#### `GET /api/boards/[id]`
-
-レスポンスはボード本体に加え、`mediaItems` と `messages` を内包します。
-
-## 6. メディア API
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `GET` | `/api/media` | メディア一覧取得 | 内部向け |
-| `POST` | `/api/media` | メディアアップロード | 内部向け |
-| `PATCH` | `/api/media` | 表示順更新 | 内部向け |
-| `DELETE` | `/api/media` | 全メディア削除 | `admin` |
-| `DELETE` | `/api/media/[id]` | 1 件削除 | 内部向け |
-| `PATCH` | `/api/media/[id]` | 1 件の設定更新 | 内部向け |
-| `GET` | `/api/media/files` | ストレージ上ファイル一覧取得 | `admin` |
-| `DELETE` | `/api/media/files` | ストレージ上ファイルと参照レコード削除 | `admin` |
+| `GET` | `/api/boards/<id>/messages` | ボードのメッセージ一覧 | 必要 |
+| `DELETE` | `/api/boards/<id>/messages` | ボードのメッセージ一括削除 | 必要 |
+| `GET` | `/api/public/boards/<id>/messages` | 公開表示用メッセージ一覧 | 不要 |
+| `POST` | `/api/messages` | メッセージ作成 | 必要 |
+| `PATCH` | `/api/messages/<id>` | メッセージ更新 | 必要 |
+| `DELETE` | `/api/messages/<id>` | メッセージ削除 | 必要 |
 
-#### `POST /api/media`
+メッセージ変更後は対象ボードへ SSE イベントが発行されます。
 
-`multipart/form-data` を受け付けます。
+## 9. ユーザー API
 
-| フィールド | 必須 | 内容 |
-| --- | --- | --- |
-| `file` | Yes | 画像または動画 |
-| `boardId` | Yes | 対象ボード ID |
-| `duration` | No | 画像表示秒数 |
-
-補足:
-
-- 対応 MIME: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`
-- 画像は必要に応じてリサイズとサムネイル生成を行います。
-- 画像の既定 `duration` は対象ボードの `slideInterval` を優先します。
-
-#### `PATCH /api/media`
-
-```json
-[
-  { "id": "<media-id-1>", "displayOrder": 0 },
-  { "id": "<media-id-2>", "displayOrder": 1 }
-]
-```
-
-#### `GET /api/media/files`
-
-ストレージ上の実ファイルを返し、DB 上でどのボードが参照しているかを `boards` 配列で付与します。
-
-#### `DELETE /api/media/files`
-
-```json
-{
-  "filename": "example.jpg"
-}
-```
-
-対象ファイル、サムネイル、参照する `media_items` レコードを削除します。
-
-## 7. メッセージ API
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `POST` | `/api/messages` | メッセージ作成 | 内部向け |
-| `PATCH` | `/api/messages/[id]` | メッセージ更新 | 内部向け |
-| `DELETE` | `/api/messages/[id]` | メッセージ削除 | 内部向け |
+| `GET` | `/api/users` | Owner 配下のユーザー一覧 | `admin` |
+| `POST` | `/api/users` | Shared user 招待作成 | `admin` |
+| `PATCH` | `/api/users/<id>` | Shared user のロールなどを更新 | `admin` |
+| `DELETE` | `/api/users/<id>` | Shared user 削除 | `admin` |
 
-#### `POST /api/messages`
+Owner user は削除できません。
 
-```json
-{
-  "boardId": "<board-uuid>",
-  "content": "受付 3 番へお越しください",
-  "priority": 1,
-  "expiresAt": "2026-04-19T12:00:00Z"
-}
-```
+## 10. 設定・補助 API
 
-仕様:
-
-- `boardId` は UUID
-- `content` は 1〜1000 文字
-- `priority` は 0 以上の整数
-- `expiresAt` は ISO 8601 datetime または `null`
-
-成功時は `message-updated` を発行します。
-
-注記:
-
-- 現在の `POST /api/messages` は認証済みセッションを前提とする内部 API です。
-- 外部連携として公開する場合は、別 endpoint と別認証方式で切り出す前提です。
-
-## 8. 設定 API
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `GET` | `/api/settings` | KV 設定をまとめて取得 | `admin` |
-| `PATCH` | `/api/settings` | KV 設定を upsert | `admin` |
+| `GET` | `/api/settings` | Owner 設定取得 | `admin` |
+| `PATCH` | `/api/settings` | Owner 設定更新 | `admin` |
+| `GET` | `/api/weather` | 天気情報取得 | 不要 |
+| `GET` | `/api/version` | 現在バージョンと最新リリース情報 | 不要 |
+| `GET` | `/api/network` | ネットワーク情報取得 | 不要 |
 
-#### `PATCH /api/settings`
+`/api/weather` は外部天気 API の結果を一定時間キャッシュします。`/api/version` は GitHub Releases API を参照します。
 
-```json
-{
-  "weatherCityId": "130010",
-  "imageMaxLongEdge": "3840",
-  "authExpireDays": "30"
-}
-```
+## 11. SSE API
 
-現在の実装では value は文字列として保存します。
-
-設定 API は owner 全体に影響するため、管理者ユーザーのみ利用できます。
-
-## 9. SSE / 補助 API
-
-| Method | Path | 説明 | 認証 |
+| Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
-| `GET` | `/api/sse/[boardId]` | ボード単位の SSE ストリーム | 表示画面 |
-| `GET` | `/api/sse` | 誤アクセス時の案内 | なし |
-| `GET` | `/api/weather` | 設定地域の天気取得 | 内部向け / 表示向け |
-| `GET` | `/api/network` | ローカル IPv4 を返す | `admin` |
-| `GET` | `/api/version` | 現在/最新バージョン情報 | 内部向け |
+| `GET` | `/api/sse` | SSE 疎通用 endpoint | 不要 |
+| `GET` | `/api/sse/<boardId>` | ボード単位の SSE stream | 不要 |
 
-#### `GET /api/sse/[boardId]`
+イベント名:
 
-配信イベント例:
+| Event | 発生契機 |
+| --- | --- |
+| `board-updated` | ボード更新・削除 |
+| `media-updated` | メディア追加・並び替え・削除 |
+| `message-updated` | メッセージ追加・更新・削除 |
 
-```text
-event: media-updated
-data: {}
+## 12. 代表的なフロー
+
+### 12.1 Owner 登録
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as App
+  participant M as SMTP or Preview
+
+  U->>A: POST /api/auth/credentials/setup
+  A->>M: Send signup URL
+  U->>A: POST /api/auth/credentials/complete
+  U->>A: POST /api/auth/pin/setup
+  A-->>U: auth-session + device-auth
 ```
 
-#### `GET /api/weather`
+### 12.2 Google ログイン
 
-- `settings.weatherCityId` を参照します。
-- 30 分のインメモリキャッシュを使います。
-- 返却内容は外部 API レスポンス互換の JSON です。
+```mermaid
+sequenceDiagram
+  participant U as Browser
+  participant A as App
+  participant G as Google
 
-#### `GET /api/network`
-
-- 管理者セッションがある場合のみ、最初に見つかった非 internal IPv4 を返します。
-- 権限がない場合は `403` を返します。
-
-#### `GET /api/version`
-
-返却例:
-
-```json
-{
-  "current": "1.3.0",
-  "releaseUrl": "https://github.com/HiroshiARAKI/Keinage/releases/tag/v1.3.0",
-  "latest": "1.3.0",
-  "latestUrl": "https://github.com/HiroshiARAKI/Keinage/releases/tag/v1.3.0",
-  "hasUpdate": false
-}
+  U->>A: GET /api/auth/google/start?mode=login
+  A-->>U: Redirect to Google
+  U->>G: Authorize
+  G-->>U: Redirect callback
+  U->>A: GET /api/auth/google/callback
+  A-->>U: auth-session + device-auth
 ```
 
-## 10. 非 API ルート
+### 12.3 ボード更新
 
-| Method | Path | 説明 |
-| --- | --- | --- |
-| `GET` | `/uploads/[...path]` | ストレージ上メディアの動的配信 |
+```mermaid
+sequenceDiagram
+  participant D as Dashboard
+  participant A as API
+  participant V as Board View
 
-このルートは standalone 配布時に、ローカル保存と S3 互換ストレージ保存のどちらでも同じ公開 URL で配信できるようにするための補助ルートです。
+  D->>A: PATCH /api/boards/<id>
+  A-->>V: SSE board-updated
+  V->>A: GET /api/public/boards/<id>
+```
