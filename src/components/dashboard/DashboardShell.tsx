@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
+  CreditCard,
   LayoutDashboard,
   Settings,
   Users,
@@ -56,23 +56,19 @@ function SidebarLink({
 export function DashboardShell({
   userId,
   role,
+  billingEnabled,
   initialTheme,
   children,
 }: {
   userId: string;
   role: string;
+  billingEnabled: boolean;
   initialTheme: "system" | "light" | "dark";
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
   const initialResolvedTheme = initialTheme === "system" ? undefined : initialTheme;
   const { t } = useLocale();
-
-  // Close sidebar on route change
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
 
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
@@ -112,6 +108,11 @@ export function DashboardShell({
         {role === "admin" && (
           <SidebarLink href="/users" icon={Users} onClick={closeSidebar}>
             {t("dashboard.navUsers")}
+          </SidebarLink>
+        )}
+        {role === "admin" && billingEnabled && (
+          <SidebarLink href="/billing" icon={CreditCard} onClick={closeSidebar}>
+            {t("dashboard.navBilling")}
           </SidebarLink>
         )}
         <SidebarLink href="/settings" icon={Settings} onClick={closeSidebar}>
