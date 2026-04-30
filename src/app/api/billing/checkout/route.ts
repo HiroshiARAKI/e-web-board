@@ -30,12 +30,12 @@ function errorResponse(error: unknown) {
       status: error.status,
       message: error.message,
     });
-    return NextResponse.json({ error: "Stripe連携に失敗しました", code: error.code }, { status: error.status });
+    return NextResponse.json({ error: "決済連携に失敗しました", code: error.code }, { status: error.status });
   }
 
   console.error("[billing/checkout] Failed to create checkout session", error);
   return NextResponse.json(
-    { error: "Checkout Session の作成に失敗しました", code: "checkout_session_failed" },
+    { error: "Checkout セッションの作成に失敗しました", code: "checkout_session_failed" },
     { status: 500 },
   );
 }
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   const { billingMode } = getBillingConfig();
   if (billingMode !== "stripe") {
     return NextResponse.json(
-      { error: "Billing is disabled", code: "billing_disabled" },
+      { error: "課金機能は無効です", code: "billing_disabled" },
       { status: 403 },
     );
   }
@@ -67,13 +67,13 @@ export async function POST(request: NextRequest) {
   const priceId = getStripePriceId(planCode, interval);
   if (!priceId) {
     return NextResponse.json(
-      { error: "Stripe price ID が未設定です", code: "stripe_price_not_configured" },
+      { error: "決済価格 ID が未設定です", code: "stripe_price_not_configured" },
       { status: 503 },
     );
   }
 
-  const successUrl = buildPublicAppUrl("/settings?billing=checkout-success");
-  const cancelUrl = buildPublicAppUrl("/settings?billing=checkout-cancelled");
+  const successUrl = buildPublicAppUrl("/billing?billing=checkout-success");
+  const cancelUrl = buildPublicAppUrl("/billing?billing=checkout-cancelled");
   if (!successUrl || !cancelUrl) {
     return NextResponse.json(
       { error: "APP_PUBLIC_ORIGIN が未設定、または不正です", code: "public_origin_not_configured" },

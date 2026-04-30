@@ -18,12 +18,12 @@ function errorResponse(error: unknown) {
       status: error.status,
       message: error.message,
     });
-    return NextResponse.json({ error: "Stripe連携に失敗しました", code: error.code }, { status: error.status });
+    return NextResponse.json({ error: "決済連携に失敗しました", code: error.code }, { status: error.status });
   }
 
   console.error("[billing/portal] Failed to create portal session", error);
   return NextResponse.json(
-    { error: "Customer Portal Session の作成に失敗しました", code: "portal_session_failed" },
+    { error: "支払い管理セッションの作成に失敗しました", code: "portal_session_failed" },
     { status: 500 },
   );
 }
@@ -37,12 +37,12 @@ export async function POST() {
   const { billingMode } = getBillingConfig();
   if (billingMode !== "stripe") {
     return NextResponse.json(
-      { error: "Billing is disabled", code: "billing_disabled" },
+      { error: "課金機能は無効です", code: "billing_disabled" },
       { status: 403 },
     );
   }
 
-  const returnUrl = buildPublicAppUrl("/settings?billing=portal-return");
+  const returnUrl = buildPublicAppUrl("/billing?billing=portal-return");
   if (!returnUrl) {
     return NextResponse.json(
       { error: "APP_PUBLIC_ORIGIN が未設定、または不正です", code: "public_origin_not_configured" },
@@ -55,7 +55,7 @@ export async function POST() {
     const subscription = await getOwnerSubscription(ownerUserId);
     if (!subscription?.stripeCustomerId) {
       return NextResponse.json(
-        { error: "Stripe customer が未作成です", code: "stripe_customer_not_found" },
+        { error: "決済用の顧客情報が未作成です", code: "stripe_customer_not_found" },
         { status: 404 },
       );
     }
