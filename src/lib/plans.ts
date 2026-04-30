@@ -17,6 +17,9 @@ export const PLAN_CODES = [
 ] as const;
 export type PlanCode = (typeof PLAN_CODES)[number];
 
+export const PAID_PLAN_CODES = ["lite", "standard", "standard_plus"] as const;
+export type PaidPlanCode = (typeof PAID_PLAN_CODES)[number];
+
 export const BILLING_INTERVALS = ["monthly", "yearly"] as const;
 export type BillingInterval = (typeof BILLING_INTERVALS)[number];
 
@@ -146,6 +149,10 @@ export function isPlanCode(value: string | null | undefined): value is PlanCode 
   return PLAN_CODES.includes(value as PlanCode);
 }
 
+export function isPaidPlanCode(value: string | null | undefined): value is PaidPlanCode {
+  return PAID_PLAN_CODES.includes(value as PaidPlanCode);
+}
+
 export function isBillingInterval(
   value: string | null | undefined,
 ): value is BillingInterval {
@@ -201,4 +208,11 @@ export function getBillingConfig() {
 
 export function getPlanDefinition(planCode: string | null | undefined): PlanDefinition {
   return PLAN_DEFINITIONS[isPlanCode(planCode) ? planCode : "unlimited"];
+}
+
+export function getStripePriceId(
+  planCode: PaidPlanCode,
+  interval: BillingInterval,
+): string | null {
+  return getBillingConfig().stripePrices[planCode][interval];
 }
