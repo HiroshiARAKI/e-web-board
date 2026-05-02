@@ -22,6 +22,7 @@ import { PinInput } from "@/components/auth/PinInput";
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { useTheme, type Theme } from "@/components/dashboard/ThemeProvider";
 import { getLocaleDefinition, SUPPORTED_LOCALES, type SupportedLocale } from "@/lib/i18n";
+import { planLimitMessageKey } from "@/lib/plan-limit";
 import { QRCodeSVG } from "qrcode.react";
 
 interface UploadedFile {
@@ -66,8 +67,10 @@ export function SettingsClient({
   const [deletingFile, setDeletingFile] = useState<string | null>(null);
   const [maxLongEdge, setMaxLongEdge] = useState(3840);
   const [resizeEnabled, setResizeEnabled] = useState(true);
+  const [planMaxResolution, setPlanMaxResolution] = useState<number | null>(null);
   const [imageSaving, setImageSaving] = useState(false);
   const [imageSaved, setImageSaved] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t, formatDate } = useLocale();
@@ -158,6 +161,16 @@ export function SettingsClient({
             setMaxLongEdge(val);
           }
         }
+        const planRes = await fetch("/api/billing/plan");
+        if (planRes.ok) {
+          const planData = await planRes.json();
+          const limit = planData?.plan?.limits?.maxResolution;
+          if (typeof limit === "number" && Number.isFinite(limit)) {
+            setPlanMaxResolution(limit);
+            setResizeEnabled(true);
+            setMaxLongEdge((current) => Math.min(current || limit, limit));
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -234,14 +247,28 @@ export function SettingsClient({
   async function handleImageSettingSave() {
     setImageSaving(true);
     setImageSaved(false);
+    setImageError(null);
     try {
-      const value = resizeEnabled ? String(maxLongEdge) : "0";
+      const effectiveResizeEnabled = planMaxResolution !== null || resizeEnabled;
+      const cappedLongEdge = planMaxResolution === null
+        ? maxLongEdge
+        : Math.min(maxLongEdge, planMaxResolution);
+      const value = effectiveResizeEnabled ? String(cappedLongEdge) : "0";
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageMaxLongEdge: value }),
       });
-      if (res.ok) setImageSaved(true);
+      if (res.ok) {
+        setMaxLongEdge(cappedLongEdge);
+        setImageSaved(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const messageKey = planLimitMessageKey(data.code, data.messageKey);
+        setImageError(messageKey ? t(messageKey) : data.error ?? t("settings.changeFailed"));
+      }
+    } catch {
+      setImageError(t("error.network"));
     } finally {
       setImageSaving(false);
     }
@@ -778,13 +805,14 @@ export function SettingsClient({
           <div className="flex items-center gap-3">
             <Switch
               id="resize-enabled"
-              checked={resizeEnabled}
+              checked={resizeEnabled || planMaxResolution !== null}
+              disabled={planMaxResolution !== null}
               onCheckedChange={setResizeEnabled}
             />
             <Label htmlFor="resize-enabled">{t("settings.resizeEnabled")}</Label>
           </div>
 
-          {resizeEnabled && (
+          {(resizeEnabled || planMaxResolution !== null) && (
             <div className="space-y-1.5">
               <Label htmlFor="max-long-edge">{t("settings.maxLongEdge")}</Label>
               <div className="flex items-center gap-2">
@@ -792,19 +820,28 @@ export function SettingsClient({
                   id="max-long-edge"
                   type="number"
                   min={100}
+                  max={planMaxResolution ?? undefined}
                   step={100}
                   value={maxLongEdge}
                   onChange={(e) => {
                     const v = parseInt(e.target.value, 10);
-                    if (v >= 100) setMaxLongEdge(v);
+                    if (v >= 100) setMaxLongEdge(planMaxResolution ? Math.min(v, planMaxResolution) : v);
                   }}
                   className="w-32"
                 />
                 <span className="text-sm text-muted-foreground">px</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t("settings.defaultLongEdge")}
+                {planMaxResolution
+                  ? t("settings.planMaxLongEdge", { value: planMaxResolution })
+                  : t("settings.defaultLongEdge")}
               </p>
+            </div>
+          )}
+
+          {imageError && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {imageError}
             </div>
           )}
 
