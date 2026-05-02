@@ -231,6 +231,8 @@ export async function POST(request: NextRequest) {
       boardId,
       type: mediaType,
       filePath: publicPathForStorageKey(filename),
+      fileSizeBytes: buffer.length,
+      thumbnailSizeBytes: thumbnail?.buffer.length ?? 0,
       displayOrder: maxOrder + 1,
       duration: durationValue,
     })

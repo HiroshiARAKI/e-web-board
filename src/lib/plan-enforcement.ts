@@ -1,24 +1,14 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { boards, mediaItems } from "@/db/schema";
 import { getEffectivePlanForOwner } from "@/lib/billing";
 import type { MessageKey } from "@/lib/i18n";
-import {
-  listStoredObjects,
-  publicPathForStorageKey,
-  thumbnailStorageKeyFromPublicPath,
-} from "@/lib/media-storage";
+import { getOwnerBoardCount, getOwnerUsage, type OwnerUsage } from "@/lib/owner-usage";
 import { PLAN_LIMIT_MESSAGE_KEYS, type PlanLimitCode } from "@/lib/plan-limit";
 import type { PlanCode, PlanDefinition } from "@/lib/plans";
 
-export interface OwnerPlanUsage {
-  boards: number;
-  images: number;
-  videos: number;
-  storageBytes: number;
-}
+export type OwnerPlanUsage = OwnerUsage;
+export { getOwnerBoardCount, getOwnerUsage };
+export const getOwnerPlanUsage = getOwnerUsage;
 
 export class PlanLimitError extends Error {
   constructor(
@@ -75,46 +65,6 @@ export function planLimitErrorBody(error: PlanLimitError) {
   };
 }
 
-export async function getOwnerPlanUsage(ownerUserId: string): Promise<OwnerPlanUsage> {
-  const boardCount = await getOwnerBoardCount(ownerUserId);
-  const ownerMedia = await db
-    .select({
-      type: mediaItems.type,
-      filePath: mediaItems.filePath,
-    })
-    .from(mediaItems)
-    .innerJoin(boards, eq(mediaItems.boardId, boards.id))
-    .where(eq(boards.ownerUserId, ownerUserId));
-
-  const storedObjects = await listStoredObjects();
-  const sizeByPublicPath = new Map<string, number>();
-  for (const object of storedObjects) {
-    sizeByPublicPath.set(publicPathForStorageKey(object.key), object.size);
-  }
-
-  const storageBytes = ownerMedia.reduce((total, item) => {
-    const mediaSize = sizeByPublicPath.get(item.filePath) ?? 0;
-    const thumbnailPath = publicPathForStorageKey(thumbnailStorageKeyFromPublicPath(item.filePath));
-    const thumbnailSize = sizeByPublicPath.get(thumbnailPath) ?? 0;
-    return total + mediaSize + thumbnailSize;
-  }, 0);
-
-  return {
-    boards: boardCount,
-    images: ownerMedia.filter((item) => item.type === "image").length,
-    videos: ownerMedia.filter((item) => item.type === "video").length,
-    storageBytes,
-  };
-}
-
-export async function getOwnerBoardCount(ownerUserId: string): Promise<number> {
-  const ownerBoards = await db
-    .select({ id: boards.id })
-    .from(boards)
-    .where(eq(boards.ownerUserId, ownerUserId));
-  return ownerBoards.length;
-}
-
 export async function assertCanCreateBoard(ownerUserId: string) {
   const effectivePlan = await getEffectivePlanForOwner(ownerUserId);
   const limit = effectivePlan.plan.limits.boards;
@@ -150,7 +100,7 @@ export async function assertCanUploadMedia(input: {
     || (plan.limits.storageBytes !== null && input.additionalStorageBytes !== undefined);
   if (!needsUsage) return effectivePlan;
 
-  const usage = await getOwnerPlanUsage(input.ownerUserId);
+  const usage = await getOwnerUsage(input.ownerUserId);
   if (
     input.mediaType === "image"
     && plan.limits.images !== null
