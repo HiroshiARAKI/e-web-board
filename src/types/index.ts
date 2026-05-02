@@ -15,6 +15,11 @@ export type NewBoard = InferInsertModel<typeof boards>;
 export type NewMediaItem = InferInsertModel<typeof mediaItems>;
 export type NewMessage = InferInsertModel<typeof messages>;
 
+// Public board payload includes only safe display flags derived server-side.
+export interface PublicBoardPlan {
+  watermark: boolean;
+}
+
 // Template types
 export type TemplateId = "simple" | "photo-clock" | "retro" | "message" | "call-number";
 

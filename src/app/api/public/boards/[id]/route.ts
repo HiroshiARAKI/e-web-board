@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { getEffectivePlanForOwner } from "@/lib/billing";
 import { isInOwnerScope } from "@/lib/ownership";
 import { normalizeConfig } from "@/lib/utils";
 
@@ -42,9 +43,13 @@ export async function GET(
     .select()
     .from(messages)
     .where(eq(messages.boardId, id));
+  const effectivePlan = await getEffectivePlanForOwner(board.ownerUserId);
 
   return NextResponse.json({
     ...normalizeConfig(board),
+    boardPlan: {
+      watermark: effectivePlan.plan.limits.watermark,
+    },
     mediaItems: media,
     messages: boardMessages,
   });

@@ -50,13 +50,12 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
   useEffect(() => {
     if (!current) return;
 
-    if (current.type !== "image") {
-      setImageLoaded(true);
-      return;
-    }
+    const loaded =
+      current.type !== "image" || Boolean(currentImageRef.current?.complete);
+    const raf = requestAnimationFrame(() => setImageLoaded(loaded));
 
-    setImageLoaded(Boolean(currentImageRef.current?.complete));
-  }, [current?.id, current?.filePath, current?.type]);
+    return () => cancelAnimationFrame(raf);
+  }, [current]);
 
   // --- Auto-advance timer (starts only after the current image has loaded) ---
   useEffect(() => {
