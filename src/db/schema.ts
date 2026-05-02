@@ -1,6 +1,16 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
-import { pgTable, text, integer, boolean, primaryKey, AnyPgColumn, uniqueIndex, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  boolean,
+  bigint,
+  primaryKey,
+  AnyPgColumn,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
 import { sql, relations } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
@@ -36,6 +46,8 @@ export const mediaItems = pgTable("media_items", {
     .references(() => boards.id, { onDelete: "cascade" }),
   type: text("type").notNull(), // "image" | "video"
   filePath: text("file_path").notNull(),
+  fileSizeBytes: bigint("file_size_bytes", { mode: "number" }).notNull().default(0),
+  thumbnailSizeBytes: bigint("thumbnail_size_bytes", { mode: "number" }).notNull().default(0),
   displayOrder: integer("display_order").notNull().default(0),
   duration: integer("duration").notNull().default(5), // seconds
   createdAt: text("created_at")

@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSessionUser } from "@/lib/auth";
 import { getEffectivePlanForUser } from "@/lib/billing";
+import { getOwnerUsage } from "@/lib/owner-usage";
 
 /** GET /api/billing/plan — return the current owner billing/plan foundation state */
 export async function GET() {
@@ -12,6 +13,7 @@ export async function GET() {
   }
 
   const effectivePlan = await getEffectivePlanForUser(session.user);
+  const usage = await getOwnerUsage(effectivePlan.ownerUserId);
 
   return NextResponse.json({
     ownerUserId: effectivePlan.ownerUserId,
@@ -19,5 +21,6 @@ export async function GET() {
     planEnforcementMode: effectivePlan.planEnforcementMode,
     plan: effectivePlan.plan,
     subscription: effectivePlan.subscription,
+    usage,
   });
 }
