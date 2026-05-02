@@ -71,6 +71,13 @@
       "when": 1777532241597,
       "tag": "0009_woozy_champions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777559410988,
+      "tag": "0010_pink_ulik",
+      "breakpoints": true
     }
   ]
 }
