@@ -10,6 +10,7 @@ import { emitSSE } from "@/lib/sse";
 import {
   resizeImage,
   generateThumbnail,
+  getImageLongEdge,
   DEFAULT_IMAGE_MAX_LONG_EDGE,
 } from "@/lib/image";
 import {
@@ -22,6 +23,13 @@ import {
 } from "@/lib/media-storage";
 import { getOwnerSetting } from "@/lib/owner-settings";
 import { resolveOwnerUserId } from "@/lib/ownership";
+import {
+  assertCanUploadMedia,
+  assertImageResolutionAllowed,
+  getEffectiveImageMaxLongEdge,
+  isPlanLimitError,
+  planLimitErrorBody,
+} from "@/lib/plan-enforcement";
 import { parseJsonObject } from "@/lib/utils";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -34,7 +42,13 @@ const ALLOWED_IMAGE_TYPES = [
 ];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
 const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+function planLimitResponse(error: unknown) {
+  if (isPlanLimitError(error)) {
+    return NextResponse.json(planLimitErrorBody(error), { status: 403 });
+  }
+  return null;
+}
 
 function readSlideInterval(config: unknown): number | undefined {
   const raw = parseJsonObject(config).slideInterval;
@@ -117,18 +131,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Validate file size
-  if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json(
-      { error: `File too large. Max size: ${MAX_FILE_SIZE / 1024 / 1024}MB` },
-      { status: 400 },
-    );
-  }
-
   // Determine media type
   const mediaType = ALLOWED_IMAGE_TYPES.includes(file.type)
     ? "image"
     : "video";
+  const ownerUserId = resolveOwnerUserId(session.user);
+
+  try {
+    await assertCanUploadMedia({
+      ownerUserId,
+      mediaType,
+      fileSize: file.size,
+    });
+  } catch (error) {
+    const response = planLimitResponse(error);
+    if (response) return response;
+    throw error;
+  }
 
   // Generate unique filename
   const ext = path.extname(file.name) || `.${file.type.split("/")[1]}`;
@@ -140,15 +159,44 @@ export async function POST(request: NextRequest) {
   if (mediaType === "image") {
     // Read the max long edge setting
     const maxSetting = await getOwnerSetting(board.ownerUserId, "imageMaxLongEdge");
-    const maxLongEdge = maxSetting
+    const ownerMaxLongEdge = maxSetting
       ? parseInt(maxSetting, 10)
       : DEFAULT_IMAGE_MAX_LONG_EDGE;
+    const maxLongEdge = await getEffectiveImageMaxLongEdge(
+      board.ownerUserId,
+      ownerMaxLongEdge,
+    );
 
+    if (sanitizedExt.toLowerCase() === ".gif") {
+      try {
+        await assertImageResolutionAllowed({
+          ownerUserId: board.ownerUserId,
+          longEdge: await getImageLongEdge(buffer),
+        });
+      } catch (error) {
+        const response = planLimitResponse(error);
+        if (response) return response;
+        throw error;
+      }
+    }
     buffer = Buffer.from(await resizeImage(buffer, sanitizedExt, maxLongEdge));
   }
 
   const thumbnail =
     mediaType === "image" ? await generateThumbnail(buffer, filename) : null;
+
+  try {
+    await assertCanUploadMedia({
+      ownerUserId,
+      mediaType,
+      fileSize: file.size,
+      additionalStorageBytes: buffer.length + (thumbnail?.buffer.length ?? 0),
+    });
+  } catch (error) {
+    const response = planLimitResponse(error);
+    if (response) return response;
+    throw error;
+  }
 
   await writeStoredObject(filename, buffer, file.type);
   if (thumbnail) {

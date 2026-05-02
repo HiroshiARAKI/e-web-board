@@ -55,6 +55,11 @@ export async function resizeImage(
   return await resized.toBuffer();
 }
 
+export async function getImageLongEdge(buffer: Buffer): Promise<number> {
+  const metadata = await sharp(buffer).metadata();
+  return Math.max(metadata.width ?? 0, metadata.height ?? 0);
+}
+
 /**
  * Generate a thumbnail (600px long edge) buffer for later storage.
  *

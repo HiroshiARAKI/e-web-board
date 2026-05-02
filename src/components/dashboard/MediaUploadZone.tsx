@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Upload, X, GripVertical, Trash2, Image, Film } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { AlertCircle, Upload, X, GripVertical, Trash2, Image, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { planLimitMessageKey } from "@/lib/plan-limit";
 import { thumbUrl } from "@/lib/utils";
 import type { MediaItem } from "@/types";
 
@@ -31,12 +32,19 @@ export default function MediaUploadZone({
   const { t } = useLocale();
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploading, setUploading] = useState<UploadProgress[]>([]);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const ACCEPTED_TYPES =
     "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm";
+
+  useEffect(() => {
+    if (!uploadNotice) return;
+    const timeout = window.setTimeout(() => setUploadNotice(null), 7000);
+    return () => window.clearTimeout(timeout);
+  }, [uploadNotice]);
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -59,6 +67,14 @@ export default function MediaUploadZone({
 
           if (!res.ok) {
             const err = await res.json();
+            const messageKey = planLimitMessageKey(err.code, err.messageKey);
+            setUploadNotice(
+              messageKey
+                ? t(messageKey)
+                : typeof err.error === "string"
+                  ? err.error
+                  : t("error.network"),
+            );
             console.error(`Upload failed for ${file.name}:`, err.error);
           }
 
@@ -68,6 +84,7 @@ export default function MediaUploadZone({
             ),
           );
         } catch (err) {
+          setUploadNotice(t("error.network"));
           console.error(`Upload error for ${file.name}:`, err);
         }
       }
@@ -75,7 +92,7 @@ export default function MediaUploadZone({
       await onUpdate();
       setUploading([]);
     },
-    [boardId, onUpdate],
+    [boardId, onUpdate, t],
   );
 
   const handleDrop = useCallback(
@@ -194,6 +211,21 @@ export default function MediaUploadZone({
 
   return (
     <div className="space-y-4">
+      {uploadNotice && (
+        <div className="fixed right-4 top-4 z-50 flex max-w-sm items-start gap-2 rounded-lg border border-destructive/30 bg-background px-4 py-3 text-sm text-foreground shadow-lg">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+          <div className="min-w-0 flex-1">{uploadNotice}</div>
+          <button
+            type="button"
+            onClick={() => setUploadNotice(null)}
+            className="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label={t("common.cancel")}
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Drop zone */}
       <div
         onDrop={handleDrop}
