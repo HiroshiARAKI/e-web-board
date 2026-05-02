@@ -13,8 +13,10 @@ import {
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { UsageDashboard } from "@/components/dashboard/UsageDashboard";
 import type { EffectivePlan } from "@/lib/billing";
 import type { MessageKey } from "@/lib/i18n";
+import type { OwnerUsage } from "@/lib/owner-usage";
 import type { BillingInterval, PaidPlanCode, PlanCode } from "@/lib/plans";
 
 type BillingNotice =
@@ -125,9 +127,11 @@ function formatYearlyPrice(plan: PlanDisplay, t: (key: MessageKey, vars?: Record
 
 export function BillingClient({
   effectivePlan,
+  usage,
   billingNotice,
 }: {
   effectivePlan: EffectivePlan;
+  usage: OwnerUsage;
   billingNotice: BillingNotice;
 }) {
   const { t, formatDate } = useLocale();
@@ -297,6 +301,12 @@ export function BillingClient({
         )}
       </section>
 
+      <UsageDashboard
+        effectivePlan={effectivePlan}
+        usage={usage}
+        showUpgradeAction
+      />
+
       {recommendedPlan && isBillingActive && (
         <section className="rounded-lg border bg-card p-5 text-card-foreground">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -327,7 +337,7 @@ export function BillingClient({
         </section>
       )}
 
-      <section>
+      <section id="plan-comparison">
         <div className="mb-4">
           <h2 className="text-lg font-semibold">{t("billing.comparisonTitle")}</h2>
           <p className="mt-1 text-sm text-muted-foreground">

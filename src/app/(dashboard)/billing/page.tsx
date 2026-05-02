@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getEffectivePlanForUser } from "@/lib/billing";
 import { getRequestI18n } from "@/lib/i18n-server";
+import { getOwnerUsage } from "@/lib/owner-usage";
 import { getBillingConfig } from "@/lib/plans";
 import { BillingClient } from "@/components/dashboard/BillingClient";
 
@@ -53,10 +54,12 @@ export default async function BillingPage({
     getEffectivePlanForUser(session.user),
     searchParams,
   ]);
+  const usage = await getOwnerUsage(effectivePlan.ownerUserId);
 
   return (
     <BillingClient
       effectivePlan={effectivePlan}
+      usage={usage}
       billingNotice={toBillingNotice(resolvedSearchParams.billing)}
     />
   );
