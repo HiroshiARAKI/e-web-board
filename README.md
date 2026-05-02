@@ -193,5 +193,10 @@ Issue や Pull Request は歓迎します。
 ## ライセンス
 
 このプロジェクトは [Apache License 2.0](LICENSE) の下でライセンスされています。
+個人利用、社内利用、商用利用、オンプレミス環境でのセルフホスト利用は、
+Apache License 2.0 の条件に従って自由に行えます。
 
-詳しくは [LICENSE](LICENSE) ファイルおよび [NOTICE](NOTICE) ファイルをご参照ください。
+ただし、Keinage の名称、ロゴ、公式サービスと誤認されるブランド表現は
+Apache License 2.0 の許諾対象ではありません。
+
+詳しくは [LICENSE](LICENSE), [NOTICE](NOTICE) および [TRADEMARK.md](docs/TRADEMARK.md)ファイルをご参照ください。
