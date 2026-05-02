@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { AlertCircle, Upload, X, GripVertical, Trash2, Image, Film } from "lucide-react";
+import { AlertCircle, Upload, X, GripVertical, Trash2, Image as ImageIcon, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,96 @@ interface MediaUploadZoneProps {
 interface UploadProgress {
   name: string;
   progress: number;
+}
+
+const VIDEO_TYPES = new Set(["video/mp4", "video/webm"]);
+const VIDEO_POSTER_MIME_TYPE = "image/jpeg";
+const VIDEO_POSTER_EXTENSION = ".jpg";
+
+function waitForVideoEvent(video: HTMLVideoElement, eventName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out while waiting for ${eventName}`));
+    }, 8000);
+
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      video.removeEventListener(eventName, handleEvent);
+      video.removeEventListener("error", handleError);
+    };
+
+    const handleEvent = () => {
+      cleanup();
+      resolve();
+    };
+
+    const handleError = () => {
+      cleanup();
+      reject(new Error("Could not load video for poster generation"));
+    };
+
+    video.addEventListener(eventName, handleEvent, { once: true });
+    video.addEventListener("error", handleError, { once: true });
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, VIDEO_POSTER_MIME_TYPE, 0.82);
+  });
+}
+
+async function createVideoPoster(file: File): Promise<File | null> {
+  if (!VIDEO_TYPES.has(file.type)) return null;
+
+  const objectUrl = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.preload = "metadata";
+  video.playsInline = true;
+  video.src = objectUrl;
+
+  try {
+    video.load();
+    await waitForVideoEvent(video, "loadedmetadata");
+
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const seekTarget = duration > 0.3 ? Math.min(0.25, duration / 3) : 0;
+    if (seekTarget > 0) {
+      video.currentTime = seekTarget;
+      await waitForVideoEvent(video, "seeked");
+    } else if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      await waitForVideoEvent(video, "loadeddata");
+    }
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (width <= 0 || height <= 0) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(video, 0, 0, width, height);
+
+    const blob = await canvasToBlob(canvas);
+    if (!blob) return null;
+
+    const baseName = file.name.replace(/\.[^.]+$/, "");
+    return new File([blob], `${baseName}${VIDEO_POSTER_EXTENSION}`, {
+      type: VIDEO_POSTER_MIME_TYPE,
+    });
+  } catch (error) {
+    console.error("[MediaUploadZone] Failed to generate video poster", {
+      filename: file.name,
+      error,
+    });
+    return null;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 export default function MediaUploadZone({
@@ -58,6 +148,10 @@ export default function MediaUploadZone({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("boardId", boardId);
+        const poster = await createVideoPoster(file);
+        if (poster) {
+          formData.append("poster", poster);
+        }
 
         try {
           const res = await fetch("/api/media", {
@@ -310,6 +404,14 @@ export default function MediaUploadZone({
                   />
                 ) : (
                   <div className="flex size-full items-center justify-center">
+                    <img
+                      src={thumbUrl(item.filePath)}
+                      alt=""
+                      className="absolute inset-0 size-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget.style.display = "none");
+                      }}
+                    />
                     <Film className="size-5 text-muted-foreground" />
                   </div>
                 )}
@@ -320,7 +422,7 @@ export default function MediaUploadZone({
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="shrink-0">
                     {item.type === "image" ? (
-                      <Image className="mr-1 size-3" />
+                      <ImageIcon className="mr-1 size-3" />
                     ) : (
                       <Film className="mr-1 size-3" />
                     )}

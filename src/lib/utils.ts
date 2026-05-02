@@ -11,6 +11,7 @@ export function cn(...inputs: ClassValue[]) {
  * Derive the thumbnail URL from an original upload path.
  * e.g. `/uploads/uuid.jpg` -> `/uploads/thumbs/uuid.jpg`
  *      `/uploads/uuid.gif` -> `/uploads/thumbs/uuid.jpg` (GIF → JPEG thumb)
+ *      `/uploads/uuid.mp4` -> `/uploads/thumbs/uuid.jpg` (video poster)
  */
 export function thumbUrl(filePath: string): string {
   const parts = filePath.split("/");
@@ -18,7 +19,7 @@ export function thumbUrl(filePath: string): string {
   const dotIdx = filename.lastIndexOf(".");
   const name = dotIdx >= 0 ? filename.slice(0, dotIdx) : filename;
   const ext = dotIdx >= 0 ? filename.slice(dotIdx).toLowerCase() : "";
-  const thumbExt = ext === ".gif" ? ".jpg" : ext;
+  const thumbExt = [".gif", ".mp4", ".webm"].includes(ext) ? ".jpg" : ext;
   return `/uploads/thumbs/${name}${thumbExt}`;
 }
 

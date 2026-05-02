@@ -197,7 +197,7 @@ export function storageKeyFromPublicPath(filePath: string): string {
 export function thumbnailStorageKeyFromFilename(filename: string): string {
   const safeName = path.basename(filename);
   const ext = path.extname(safeName).toLowerCase();
-  const thumbExt = ext === ".gif" ? ".jpg" : ext;
+  const thumbExt = [".gif", ".mp4", ".webm"].includes(ext) ? ".jpg" : ext;
   const base = path.basename(safeName, ext);
   return `${THUMB_PREFIX}${base}${thumbExt}`;
 }

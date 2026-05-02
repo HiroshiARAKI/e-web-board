@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { thumbUrl } from "@/lib/utils";
 import type { MediaItem } from "@/types";
 
 /** How many upcoming images to preload ahead of the current slide. */
@@ -16,6 +17,80 @@ interface MediaSliderProps {
   interval?: number;
   /** How media fits the container: "contain" (show all) or "cover" (fill, may crop) */
   objectFit?: "contain" | "cover";
+}
+
+interface DeferredVideoSlideProps {
+  item: MediaItem;
+  fitClass: string;
+  onEnded: () => void;
+}
+
+function DeferredVideoSlide({ item, fitClass, onEnded }: DeferredVideoSlideProps) {
+  const { t } = useLocale();
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [posterFailed, setPosterFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const poster = thumbUrl(item.filePath);
+  const showLoading = !isPlaying && !videoFailed;
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      setShouldLoad(true);
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <div className="relative h-full w-full bg-black">
+      <div className="absolute inset-0 bg-black" aria-hidden />
+      {!isPlaying && !posterFailed && (
+        <img
+          src={poster}
+          alt=""
+          className={`absolute inset-0 z-10 h-full w-full ${fitClass}`}
+          onError={() => setPosterFailed(true)}
+        />
+      )}
+      <video
+        ref={videoRef}
+        src={shouldLoad && !videoFailed ? item.filePath : undefined}
+        poster={posterFailed ? undefined : poster}
+        preload="metadata"
+        className={`absolute inset-0 z-20 h-full w-full transition-opacity duration-300 ${fitClass} ${
+          isPlaying ? "opacity-100" : "opacity-0"
+        }`}
+        autoPlay
+        loop
+        muted
+        playsInline
+        onCanPlay={() => {
+          void videoRef.current?.play().catch(() => {
+            // Muted autoplay should normally succeed; leave the poster visible if it does not.
+          });
+        }}
+        onPlaying={() => setIsPlaying(true)}
+        onEnded={onEnded}
+        onError={() => {
+          setVideoFailed(true);
+          console.error("[MediaSlider] Failed to load video", {
+            mediaId: item.id,
+            filePath: item.filePath,
+          });
+        }}
+      />
+      {showLoading && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/20 text-white">
+          <div className="size-10 animate-spin rounded-full border-2 border-white/25 border-t-white" />
+          <span className="rounded bg-black/35 px-3 py-1 text-sm font-medium">
+            {t("common.loading")}
+          </span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }: MediaSliderProps) {
@@ -102,10 +177,10 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
   const fitClass = objectFit === "cover" ? "object-cover" : "object-contain";
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-black">
+    <div className="relative isolate h-full w-full overflow-hidden bg-black">
       <AnimatePresence mode="wait">
         <motion.div
-          key={current.id}
+          key={`${current.id}:${current.filePath}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -113,12 +188,9 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
           className="absolute inset-0"
         >
           {current.type === "video" ? (
-            <video
-              src={current.filePath}
-              className={`h-full w-full ${fitClass}`}
-              autoPlay
-              muted
-              playsInline
+            <DeferredVideoSlide
+              item={current}
+              fitClass={fitClass}
               onEnded={advance}
             />
           ) : (

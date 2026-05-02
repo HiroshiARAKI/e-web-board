@@ -1244,9 +1244,16 @@ export function SettingsClient({
                         alt=""
                         className="h-full w-full object-cover"
                       />
+                    ) : file.thumbPath ? (
+                      <img
+                        src={file.thumbPath}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <video
                         src={file.filePath}
+                        preload="metadata"
                         muted
                         className="h-full w-full object-cover"
                       />
