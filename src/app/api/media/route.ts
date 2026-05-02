@@ -42,6 +42,7 @@ const ALLOWED_IMAGE_TYPES = [
 ];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
 const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
+const ALLOWED_VIDEO_POSTER_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function planLimitResponse(error: unknown) {
   if (isPlanLimitError(error)) {
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
   }
 
   const file = formData.get("file");
+  const poster = formData.get("poster");
   const boardId = formData.get("boardId");
   const duration = formData.get("duration");
 
@@ -182,8 +184,20 @@ export async function POST(request: NextRequest) {
     buffer = Buffer.from(await resizeImage(buffer, sanitizedExt, maxLongEdge));
   }
 
-  const thumbnail =
+  let thumbnail =
     mediaType === "image" ? await generateThumbnail(buffer, filename) : null;
+
+  if (mediaType === "video" && poster instanceof File && poster.size > 0) {
+    if (!ALLOWED_VIDEO_POSTER_TYPES.includes(poster.type)) {
+      return NextResponse.json(
+        { error: "Unsupported poster image type" },
+        { status: 400 },
+      );
+    }
+
+    const posterBuffer = Buffer.from(await poster.arrayBuffer());
+    thumbnail = await generateThumbnail(posterBuffer, "poster.jpg");
+  }
 
   try {
     await assertCanUploadMedia({
