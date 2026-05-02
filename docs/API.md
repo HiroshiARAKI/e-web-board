@@ -119,6 +119,8 @@ flowchart TB
 | `DELETE` | `/api/boards/<id>` | ボード削除 | 必要 |
 | `GET` | `/api/public/boards/<id>` | 公開ボード詳細 | 不要 |
 
+`GET /api/public/boards/<id>` はボード表示に必要な `boardPlan.watermark` を返します。この値は Owner の effective plan からサーバー側で算出され、plan code や subscription 詳細は公開しません。ブラウザ表示上のウォーターマークであり、完全な削除・改ざん防止は保証しません。
+
 ボード更新・削除後は対象ボードへ SSE イベントが発行されます。
 
 ## 7. メディア API

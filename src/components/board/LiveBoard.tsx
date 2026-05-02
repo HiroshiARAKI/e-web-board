@@ -4,9 +4,16 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import { WatermarkOverlay } from "@/components/board/WatermarkOverlay";
 import { useSSE } from "@/hooks/useSSE";
 import { parseJsonObject } from "@/lib/utils";
-import type { Board, MediaItem, Message, BoardTemplateProps } from "@/types";
+import type {
+  Board,
+  MediaItem,
+  Message,
+  BoardTemplateProps,
+  PublicBoardPlan,
+} from "@/types";
 
 const CURSOR_HIDE_DELAY = 3000;
 
@@ -14,7 +21,22 @@ interface LiveBoardProps {
   board: Board;
   mediaItems: MediaItem[];
   messages: Message[];
+  boardPlan: PublicBoardPlan;
   TemplateComponent: React.ComponentType<BoardTemplateProps>;
+}
+
+const DEFAULT_PUBLIC_BOARD_PLAN: PublicBoardPlan = {
+  watermark: false,
+};
+
+function parsePublicBoardPlan(raw: unknown): PublicBoardPlan {
+  if (!raw || typeof raw !== "object") {
+    return DEFAULT_PUBLIC_BOARD_PLAN;
+  }
+
+  return {
+    watermark: (raw as Partial<PublicBoardPlan>).watermark === true,
+  };
 }
 
 /**
@@ -26,11 +48,13 @@ export default function LiveBoard({
   board: initialBoard,
   mediaItems: initialMedia,
   messages: initialMessages,
+  boardPlan: initialBoardPlan,
   TemplateComponent,
 }: LiveBoardProps) {
   const [board, setBoard] = useState(initialBoard);
   const [mediaItems, setMediaItems] = useState(initialMedia);
   const [messages, setMessages] = useState(initialMessages);
+  const [boardPlan, setBoardPlan] = useState(initialBoardPlan);
   const [cursorVisible, setCursorVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,21 +62,25 @@ export default function LiveBoard({
   const { t } = useLocale();
 
   // --- Cursor auto-hide ---
-  const resetCursorTimer = useCallback(() => {
-    setCursorVisible(true);
+  const startCursorTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setCursorVisible(false), CURSOR_HIDE_DELAY);
   }, []);
 
+  const resetCursorTimer = useCallback(() => {
+    setCursorVisible(true);
+    startCursorTimer();
+  }, [startCursorTimer]);
+
   useEffect(() => {
-    resetCursorTimer();
+    startCursorTimer();
     const onMove = () => resetCursorTimer();
     window.addEventListener("mousemove", onMove);
     return () => {
       window.removeEventListener("mousemove", onMove);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [resetCursorTimer]);
+  }, [resetCursorTimer, startCursorTimer]);
 
   // --- Fullscreen sync ---
   useEffect(() => {
@@ -87,6 +115,7 @@ export default function LiveBoard({
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       });
+      setBoardPlan(parsePublicBoardPlan(data.boardPlan));
       setMediaItems(data.mediaItems ?? []);
       setMessages(data.messages ?? []);
     } catch {
@@ -114,6 +143,7 @@ export default function LiveBoard({
       style={{ cursor: cursorVisible ? "auto" : "none" }}
     >
       <TemplateComponent board={board} mediaItems={mediaItems} messages={messages} />
+      {boardPlan.watermark && <WatermarkOverlay />}
 
       {/* Expand / Restore button */}
       <button

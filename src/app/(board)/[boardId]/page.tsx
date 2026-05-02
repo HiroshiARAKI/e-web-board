@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc, and, or, isNull, gt } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { getEffectivePlanForOwner } from "@/lib/billing";
 import { isInOwnerScope } from "@/lib/ownership";
 import { getTemplate } from "@/lib/templates";
 import { normalizeConfig } from "@/lib/utils";
@@ -71,12 +72,14 @@ export default async function BoardPage({
         or(isNull(messages.expiresAt), gt(messages.expiresAt, now))
       )
     );
+  const effectivePlan = await getEffectivePlanForOwner(board.ownerUserId);
 
   return (
     <LiveBoard
       board={normalizedBoard}
       mediaItems={media}
       messages={activeMessages}
+      boardPlan={{ watermark: effectivePlan.plan.limits.watermark }}
       TemplateComponent={template.component}
     />
   );

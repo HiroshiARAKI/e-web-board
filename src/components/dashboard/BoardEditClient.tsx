@@ -91,10 +91,14 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
       typeof data.config === "string" ? JSON.parse(data.config) : data.config;
     setConfig(parsed && typeof parsed === "object" ? parsed : {});
     setLoading(false);
-  }, [boardId]);
+  }, [boardId, t]);
 
   useEffect(() => {
-    fetchBoard();
+    const timer = setTimeout(() => {
+      void fetchBoard();
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [fetchBoard]);
 
   async function handleSave() {
