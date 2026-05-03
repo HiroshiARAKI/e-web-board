@@ -8,7 +8,8 @@ export type PlanLimitCode =
   | "plan_limit_image_count"
   | "plan_limit_video_disabled"
   | "plan_limit_resolution"
-  | "plan_limit_upload_size";
+  | "plan_limit_upload_size"
+  | "plan_limit_template_disabled";
 
 export const PLAN_LIMIT_MESSAGE_KEYS = {
   plan_limit_board_count: "planLimit.boardCount",
@@ -17,6 +18,7 @@ export const PLAN_LIMIT_MESSAGE_KEYS = {
   plan_limit_video_disabled: "planLimit.videoDisabled",
   plan_limit_resolution: "planLimit.resolution",
   plan_limit_upload_size: "planLimit.uploadSize",
+  plan_limit_template_disabled: "planLimit.templateDisabled",
 } as const satisfies Record<PlanLimitCode, MessageKey>;
 
 export function isPlanLimitCode(value: string | null | undefined): value is PlanLimitCode {

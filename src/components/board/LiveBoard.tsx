@@ -28,6 +28,7 @@ interface LiveBoardProps {
 const DEFAULT_PUBLIC_BOARD_PLAN: PublicBoardPlan = {
   watermark: false,
   scheduling: "full",
+  menuItemImages: true,
 };
 
 function parsePublicBoardPlan(raw: unknown): PublicBoardPlan {
@@ -43,6 +44,7 @@ function parsePublicBoardPlan(raw: unknown): PublicBoardPlan {
       (raw as Partial<PublicBoardPlan>).scheduling === "full"
         ? (raw as PublicBoardPlan).scheduling
         : DEFAULT_PUBLIC_BOARD_PLAN.scheduling,
+    menuItemImages: (raw as Partial<PublicBoardPlan>).menuItemImages !== false,
   };
 }
 

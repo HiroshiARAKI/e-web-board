@@ -44,6 +44,8 @@ export interface PlanLimits {
   watermark: boolean;
   maxUploadBytes: number | null;
   scheduling: "none" | "time_weekday" | "full";
+  extendedTemplates: boolean;
+  menuItemImages: boolean;
 }
 
 export interface PlanDefinition {
@@ -68,6 +70,8 @@ export const PLAN_DEFINITIONS = {
       watermark: false,
       maxUploadBytes: null,
       scheduling: "full",
+      extendedTemplates: true,
+      menuItemImages: true,
     },
   },
   free: {
@@ -82,6 +86,8 @@ export const PLAN_DEFINITIONS = {
       watermark: true,
       maxUploadBytes: 5 * MB,
       scheduling: "none",
+      extendedTemplates: false,
+      menuItemImages: false,
     },
   },
   lite: {
@@ -96,6 +102,8 @@ export const PLAN_DEFINITIONS = {
       watermark: false,
       maxUploadBytes: 20 * MB,
       scheduling: "time_weekday",
+      extendedTemplates: true,
+      menuItemImages: false,
     },
   },
   standard: {
@@ -110,6 +118,8 @@ export const PLAN_DEFINITIONS = {
       watermark: false,
       maxUploadBytes: 500 * MB,
       scheduling: "full",
+      extendedTemplates: true,
+      menuItemImages: true,
     },
   },
   standard_plus: {
@@ -124,6 +134,8 @@ export const PLAN_DEFINITIONS = {
       watermark: false,
       maxUploadBytes: 2 * GB,
       scheduling: "full",
+      extendedTemplates: true,
+      menuItemImages: true,
     },
   },
   unlimited: {
@@ -138,6 +150,8 @@ export const PLAN_DEFINITIONS = {
       watermark: false,
       maxUploadBytes: null,
       scheduling: "full",
+      extendedTemplates: true,
+      menuItemImages: true,
     },
   },
 } as const satisfies Record<PlanCode, PlanDefinition>;

@@ -50,6 +50,7 @@ export async function GET(
     boardPlan: {
       watermark: effectivePlan.plan.limits.watermark,
       scheduling: effectivePlan.plan.limits.scheduling,
+      menuItemImages: effectivePlan.plan.limits.menuItemImages,
     },
     mediaItems: media,
     messages: boardMessages,

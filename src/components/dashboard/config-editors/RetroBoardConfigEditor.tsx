@@ -48,11 +48,14 @@ export function RetroBoardConfigEditor({
 
   const displayColor = (config.displayColor as string) ?? "green";
   const rows = (config.rows as number) ?? 5;
+  const fontSize = (config.fontSize as number) ?? 36;
   const flipSpeed = (config.flipSpeed as number) ?? 0.08;
   const switchInterval = (config.switchInterval as number) ?? 5;
   const showClock = (config.showClock as boolean) ?? false;
   const showWeather = (config.showWeather as boolean) ?? false;
   const fontFamily = (config.fontFamily as string) ?? "";
+  const columnMode = ((config.columnMode as string) ?? "single") === "two" ? "two" : "single";
+  const leftColumnPercent = (config.leftColumnPercent as number) ?? 50;
 
   const colorLabels: Record<string, string> = {
     green: t("configEditor.green"),
@@ -109,6 +112,61 @@ export function RetroBoardConfigEditor({
           className="w-24"
         />
       </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cfg-fontSize">{t("configEditor.retroFontSize", { size: fontSize })}</Label>
+        <Input
+          id="cfg-fontSize"
+          type="range"
+          min={18}
+          max={96}
+          value={fontSize}
+          onChange={(e) =>
+            update("fontSize", Math.max(18, parseInt(e.target.value, 10) || 36))
+          }
+          className="w-full max-w-sm"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cfg-columnMode">{t("configEditor.retroColumnMode")}</Label>
+        <Select value={columnMode} onValueChange={(v) => update("columnMode", v)}>
+          <SelectTrigger id="cfg-columnMode" className="w-full max-w-48">
+            <SelectValue>
+              {columnMode === "two"
+                ? t("configEditor.retroColumnTwo")
+                : t("configEditor.retroColumnSingle")}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="single">{t("configEditor.retroColumnSingle")}</SelectItem>
+            <SelectItem value="two">{t("configEditor.retroColumnTwo")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {t("configEditor.retroColumnHint")}
+        </p>
+      </div>
+
+      {columnMode === "two" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="cfg-leftColumnPercent">
+            {t("configEditor.retroLeftColumnWidth", { percent: leftColumnPercent })}
+          </Label>
+          <Input
+            id="cfg-leftColumnPercent"
+            type="range"
+            min={20}
+            max={80}
+            step={5}
+            value={leftColumnPercent}
+            onChange={(e) =>
+              update("leftColumnPercent", Math.min(80, Math.max(20, parseInt(e.target.value, 10) || 50)))
+            }
+            className="w-full max-w-sm"
+          />
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label htmlFor="cfg-flipSpeed">{t("configEditor.flipSpeed")}</Label>

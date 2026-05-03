@@ -7,6 +7,11 @@ import { eq, asc } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
 import { getEffectivePlanForOwner } from "@/lib/billing";
 import { sanitizeSchedulingConfig } from "@/lib/scheduling";
+import {
+  assertCanUseTemplate,
+  isPlanLimitError,
+  planLimitErrorBody,
+} from "@/lib/plan-enforcement";
 import { updateBoardSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
 import { findOwnedBoard, resolveOwnerUserId } from "@/lib/ownership";
@@ -52,6 +57,7 @@ export async function GET(
     boardPlan: {
       watermark: effectivePlan.plan.limits.watermark,
       scheduling: effectivePlan.plan.limits.scheduling,
+      menuItemImages: effectivePlan.plan.limits.menuItemImages,
     },
     mediaItems: media,
     messages: boardMessages,
@@ -93,7 +99,20 @@ export async function PATCH(
 
   const updates: Record<string, unknown> = {};
   if (result.data.name !== undefined) updates.name = result.data.name;
-  if (result.data.templateId !== undefined) updates.templateId = result.data.templateId;
+  if (result.data.templateId !== undefined) {
+    try {
+      await assertCanUseTemplate({
+        ownerUserId: existing.ownerUserId,
+        templateId: result.data.templateId,
+      });
+    } catch (error) {
+      if (isPlanLimitError(error)) {
+        return NextResponse.json(planLimitErrorBody(error), { status: 403 });
+      }
+      throw error;
+    }
+    updates.templateId = result.data.templateId;
+  }
   if (result.data.visibility !== undefined) updates.visibility = result.data.visibility;
   if (result.data.config !== undefined) {
     const [boardMedia, boardMessages, effectivePlan] = await Promise.all([

@@ -13,18 +13,37 @@ import type { BoardTemplateProps } from "@/types";
 export const retroBoardDefaultConfig = {
   displayColor: "green" as "green" | "orange" | "white",
   rows: 5,
+  fontSize: 36,
   flipSpeed: 0.08,
   switchInterval: 5,
   showClock: false,
   showWeather: false,
   fontFamily: "",
+  columnMode: "single" as "single" | "two",
+  leftColumnPercent: 50,
 };
 
 type RetroBoardConfig = typeof retroBoardDefaultConfig;
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function parseConfig(raw: unknown): RetroBoardConfig {
   const cfg = (raw && typeof raw === "object" ? raw : {}) as Partial<RetroBoardConfig>;
-  return { ...retroBoardDefaultConfig, ...cfg };
+  const fontSize = typeof cfg.fontSize === "number" ? cfg.fontSize : retroBoardDefaultConfig.fontSize;
+  const leftColumnPercent =
+    typeof cfg.leftColumnPercent === "number"
+      ? cfg.leftColumnPercent
+      : retroBoardDefaultConfig.leftColumnPercent;
+
+  return {
+    ...retroBoardDefaultConfig,
+    ...cfg,
+    fontSize: clamp(fontSize, 18, 96),
+    leftColumnPercent: clamp(leftColumnPercent, 20, 80),
+    columnMode: cfg.columnMode === "two" ? "two" : "single",
+  };
 }
 
 const COLOR_MAP: Record<string, { text: string; glow: string }> = {
@@ -75,12 +94,21 @@ function RetroRow({
   color,
   glow,
   flipSpeed,
+  fontSize,
+  columnMode,
+  leftColumnPercent,
 }: {
   text: string;
   color: string;
   glow: string;
   flipSpeed: number;
+  fontSize: number;
+  columnMode: "single" | "two";
+  leftColumnPercent: number;
 }) {
+  const [leftText, rightText] = splitRetroColumns(text);
+  const rightColumnPercent = 100 - leftColumnPercent;
+
   return (
     <div className="flex items-center border-b border-white/5 px-6 py-3">
       <AnimatePresence mode="wait">
@@ -90,22 +118,98 @@ function RetroRow({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="flex overflow-hidden text-2xl font-bold tracking-widest md:text-3xl lg:text-4xl"
+          className={
+            columnMode === "two"
+              ? "grid w-full overflow-hidden font-bold tracking-widest"
+              : "flex overflow-hidden font-bold tracking-widest"
+          }
+          style={
+            columnMode === "two"
+              ? {
+                  fontSize,
+                  lineHeight: 1.25,
+                  gridTemplateColumns: `${leftColumnPercent}% ${rightColumnPercent}%`,
+                }
+              : { fontSize, lineHeight: 1.25 }
+          }
         >
-          {text.split("").map((char, i) => (
-            <FlipChar
-              key={`${text}-${i}`}
-              char={char}
-              delay={i * flipSpeed}
+          {columnMode === "two" ? (
+            <>
+              <div className="min-w-0 overflow-hidden pr-4 whitespace-nowrap">
+                <FlipText
+                  text={leftText}
+                  color={color}
+                  glow={glow}
+                  flipSpeed={flipSpeed}
+                  keyPrefix={`${text}-left`}
+                />
+              </div>
+              <div className="min-w-0 overflow-hidden whitespace-nowrap text-right">
+                <FlipText
+                  text={rightText}
+                  color={color}
+                  glow={glow}
+                  flipSpeed={flipSpeed}
+                  keyPrefix={`${text}-right`}
+                />
+              </div>
+            </>
+          ) : (
+            <FlipText
+              text={text}
               color={color}
               glow={glow}
               flipSpeed={flipSpeed}
+              keyPrefix={text}
             />
-          ))}
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
   );
+}
+
+function FlipText({
+  text,
+  color,
+  glow,
+  flipSpeed,
+  keyPrefix,
+}: {
+  text: string;
+  color: string;
+  glow: string;
+  flipSpeed: number;
+  keyPrefix: string;
+}) {
+  return (
+    <>
+      {text.split("").map((char, i) => (
+        <FlipChar
+          key={`${keyPrefix}-${i}`}
+          char={char}
+          delay={i * flipSpeed}
+          color={color}
+          glow={glow}
+          flipSpeed={flipSpeed}
+        />
+      ))}
+    </>
+  );
+}
+
+function splitRetroColumns(text: string): [string, string] {
+  if (text.includes("|")) {
+    const [left, ...right] = text.split("|");
+    return [left.trim(), right.join("|").trim()];
+  }
+
+  if (text.includes("\t")) {
+    const [left, ...right] = text.split("\t");
+    return [left.trim(), right.join("\t").trim()];
+  }
+
+  return [text, ""];
 }
 
 export default function RetroBoard({
@@ -212,6 +316,9 @@ export default function RetroBoard({
                 color={color}
                 glow={glow}
                 flipSpeed={config.flipSpeed}
+                fontSize={config.fontSize}
+                columnMode={config.columnMode}
+                leftColumnPercent={config.leftColumnPercent}
               />
             ))}
           </motion.div>

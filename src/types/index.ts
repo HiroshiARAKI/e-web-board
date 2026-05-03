@@ -19,10 +19,19 @@ export type NewMessage = InferInsertModel<typeof messages>;
 export interface PublicBoardPlan {
   watermark: boolean;
   scheduling: "none" | "time_weekday" | "full";
+  menuItemImages: boolean;
 }
 
 // Template types
-export type TemplateId = "simple" | "photo-clock" | "retro" | "message" | "call-number";
+export type TemplateId =
+  | "simple"
+  | "photo-clock"
+  | "retro"
+  | "message"
+  | "call-number"
+  | "clinic-hours"
+  | "restaurant-menu"
+  | "qr-info";
 
 export interface BoardTemplate {
   id: TemplateId;

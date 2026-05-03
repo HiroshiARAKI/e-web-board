@@ -10,6 +10,7 @@ import { resolveOwnerUserId } from "@/lib/ownership";
 import { templates } from "@/lib/templates";
 import {
   assertCanCreateBoard,
+  assertCanUseTemplate,
   isPlanLimitError,
   planLimitErrorBody,
 } from "@/lib/plan-enforcement";
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await assertCanCreateBoard(ownerUserId);
+    await assertCanUseTemplate({ ownerUserId, templateId });
   } catch (error) {
     if (isPlanLimitError(error)) {
       return NextResponse.json(planLimitErrorBody(error), { status: 403 });

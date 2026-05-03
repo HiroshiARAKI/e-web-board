@@ -82,6 +82,7 @@ export default async function BoardPage({
       boardPlan={{
         watermark: effectivePlan.plan.limits.watermark,
         scheduling: effectivePlan.plan.limits.scheduling,
+        menuItemImages: effectivePlan.plan.limits.menuItemImages,
       }}
       TemplateComponent={template.component}
     />

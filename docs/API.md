@@ -179,7 +179,7 @@ Owner user は削除できません。
 
 `BILLING_MODE=disabled` では `/billing` 導線は表示されず、`/api/billing/webhook` は 404 を返します。webhook は raw body と `STRIPE_WEBHOOK_SECRET` で署名検証し、event id を保存して重複処理を避けます。
 
-Plan 制限に到達した場合、ボード作成やメディア追加 API は `403` と machine readable な `code` を返します。主な code は `plan_limit_board_count`、`plan_limit_storage`、`plan_limit_image_count`、`plan_limit_video_disabled`、`plan_limit_resolution`、`plan_limit_upload_size` です。`PLAN_ENFORCEMENT_MODE=unlimited` では制限を適用しません。
+Plan 制限に到達した場合、ボード作成・更新やメディア追加 API は `403` と machine readable な `code` を返します。主な code は `plan_limit_board_count`、`plan_limit_storage`、`plan_limit_image_count`、`plan_limit_video_disabled`、`plan_limit_resolution`、`plan_limit_upload_size`、`plan_limit_template_disabled` です。`PLAN_ENFORCEMENT_MODE=unlimited` では制限を適用しません。
 
 ## 11. 設定・補助 API
 
