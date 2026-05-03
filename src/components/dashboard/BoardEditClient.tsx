@@ -208,6 +208,9 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
 
   const template = templates[board.templateId as keyof typeof templates];
   const templateCopy = getTemplateCopy(board.templateId);
+  const supportsScheduleTemplate =
+    board.templateId === "simple" || board.templateId === "photo-clock";
+  const boardPlan = board.boardPlan ?? DEFAULT_BOARD_PLAN;
 
   return (
     <div>
@@ -481,8 +484,11 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 boardId={boardId}
                 mediaItems={board.mediaItems}
                 onUpdate={fetchBoard}
+                scheduleConfig={supportsScheduleTemplate ? config : undefined}
+                scheduling={boardPlan.scheduling}
+                onScheduleConfigChange={supportsScheduleTemplate ? setConfig : undefined}
               />
-              {(board.templateId === "simple" || board.templateId === "photo-clock") && (
+              {supportsScheduleTemplate && (
                 <>
                   <Separator />
                   <BoardSchedulePanel
@@ -490,7 +496,7 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                     config={config}
                     mediaItems={board.mediaItems}
                     messages={board.messages}
-                    scheduling={(board.boardPlan ?? DEFAULT_BOARD_PLAN).scheduling}
+                    scheduling={boardPlan.scheduling}
                     onChange={setConfig}
                   />
                 </>

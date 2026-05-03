@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
-import { CalendarDays, Clock3, Image as ImageIcon, MessageSquare } from "lucide-react";
+import { CalendarDays, Clock3, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,6 @@ import {
   type ScheduleCapability,
   type ScheduleMap,
 } from "@/lib/scheduling";
-import { thumbUrl } from "@/lib/utils";
 import type { MediaItem, Message } from "@/types";
 
 interface BoardSchedulePanelProps {
@@ -44,7 +43,7 @@ const WEEKDAYS = [
   { value: 6, label: "土" },
 ] as const;
 
-function planLabel(capability: ScheduleCapability) {
+export function planLabel(capability: ScheduleCapability) {
   switch (capability) {
     case "none":
       return "このプランではスケジュール機能は利用できません";
@@ -59,17 +58,17 @@ function scheduleModeLabel(schedule: DisplaySchedule) {
   return schedule.mode === "scheduled" ? "指定する" : "常に表示";
 }
 
-function sanitizeMap(map: ScheduleMap) {
+export function sanitizeScheduleMap(map: ScheduleMap) {
   return Object.fromEntries(
     Object.entries(map).filter(([, schedule]) => schedule.mode === "scheduled"),
   );
 }
 
-function itemName(item: MediaItem) {
+export function itemName(item: MediaItem) {
   return item.filePath.split("/").pop() ?? item.filePath;
 }
 
-function numberedImageLabel(item: MediaItem, imageItems: MediaItem[]) {
+export function numberedImageLabel(item: MediaItem, imageItems: MediaItem[]) {
   const index = imageItems.findIndex((image) => image.id === item.id);
   const number = index >= 0 ? index + 1 : 0;
   return number > 0 ? `画像${number}: ${itemName(item)}` : itemName(item);
@@ -82,7 +81,7 @@ interface ScheduleControlsProps {
   onChange: (schedule: DisplaySchedule) => void;
 }
 
-function ScheduleControls({
+export function ScheduleControls({
   idPrefix,
   schedule,
   capability,
@@ -231,7 +230,6 @@ export function BoardSchedulePanel({
   const isPhotoClock = templateId === "photo-clock";
   if (!isSimple && !isPhotoClock) return null;
 
-  const mediaSchedules = getScheduleMap(config.mediaSchedules);
   const messageSchedules = getScheduleMap(config.messageSchedules);
   const sortedMedia = [...mediaItems].sort((a, b) => a.displayOrder - b.displayOrder);
   const imageItems = sortedMedia.filter((item) => item.type === "image");
@@ -244,7 +242,7 @@ export function BoardSchedulePanel({
 
   function updateSchedule(kind: "mediaSchedules" | "messageSchedules", id: string, schedule: DisplaySchedule) {
     const currentMap = getScheduleMap(config[kind]);
-    const nextMap = sanitizeMap({
+    const nextMap = sanitizeScheduleMap({
       ...currentMap,
       [id]: schedule,
     });
@@ -263,124 +261,74 @@ export function BoardSchedulePanel({
         </h4>
         <p className="text-sm text-muted-foreground">{planLabel(scheduling)}</p>
       </div>
-        {scheduling !== "none" && (
-          <div className="space-y-1.5">
-            <Label htmlFor="schedule-fallback">表示対象がない時の画像</Label>
-            <Select
-              value={fallbackMediaId || "__none__"}
-              onValueChange={(value) =>
-                onChange({
-                  ...config,
-                  fallbackMediaId: value === "__none__" ? "" : value,
-                })
-              }
-            >
-              <SelectTrigger id="schedule-fallback" className="w-full max-w-md">
-                <span data-slot="select-value" className="min-w-0 flex-1 truncate text-left">
-                  {fallbackLabel}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">デフォルト（黒画にKeinageロゴ）</SelectItem>
-                {imageItems.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {numberedImageLabel(item, imageItems)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+      {scheduling !== "none" && (
+        <div className="space-y-1.5">
+          <Label htmlFor="schedule-fallback">表示対象がない時の画像</Label>
+          <Select
+            value={fallbackMediaId || "__none__"}
+            onValueChange={(value) =>
+              onChange({
+                ...config,
+                fallbackMediaId: value === "__none__" ? "" : value,
+              })
+            }
+          >
+            <SelectTrigger id="schedule-fallback" className="w-full max-w-md">
+              <span data-slot="select-value" className="min-w-0 flex-1 truncate text-left">
+                {fallbackLabel}
+              </span>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">デフォルト（黒画にKeinageロゴ）</SelectItem>
+              {imageItems.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {numberedImageLabel(item, imageItems)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
+      {isSimple && scheduling !== "none" && (
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold">画像・動画</h4>
-          {sortedMedia.length === 0 ? (
+          <h4 className="text-sm font-semibold">メッセージ</h4>
+          {messages.length === 0 ? (
             <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-              メディアを追加すると、ここで表示スケジュールを設定できます。
+              メッセージを追加すると、ここで表示スケジュールを設定できます。
             </p>
           ) : (
             <div className="space-y-2">
-              {sortedMedia.map((item) => {
-                const schedule = normalizeDisplaySchedule(mediaSchedules[item.id]);
-                return (
-                  <div key={item.id} className="rounded-md border p-3">
-                    <div className="mb-3 flex flex-wrap items-center gap-3">
-                      <div className="relative size-10 shrink-0 overflow-hidden rounded border bg-muted">
-                        <img
-                          src={thumbUrl(item.filePath)}
-                          alt=""
-                          className="size-full object-cover"
-                          onError={(event) => {
-                            if (item.type === "image") {
-                              (event.currentTarget as HTMLImageElement).src = item.filePath;
-                            } else {
-                              event.currentTarget.style.display = "none";
-                            }
-                          }}
-                        />
+              {[...messages]
+                .sort((a, b) => b.priority - a.priority)
+                .map((message) => {
+                  const schedule = normalizeDisplaySchedule(messageSchedules[message.id]);
+                  return (
+                    <div key={message.id} className="rounded-md border p-3">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="gap-1">
+                          <MessageSquare className="size-3" />
+                          P{message.priority}
+                        </Badge>
+                        <span className="min-w-0 flex-1 truncate text-sm">
+                          {message.content}
+                        </span>
                       </div>
-                      <Badge variant="outline" className="gap-1">
-                        <ImageIcon className="size-3" />
-                        {item.type}
-                      </Badge>
-                      <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-                        {itemName(item)}
-                      </span>
+                      <ScheduleControls
+                        idPrefix={`message-${message.id}`}
+                        schedule={schedule}
+                        capability={scheduling}
+                        onChange={(nextSchedule) =>
+                          updateSchedule("messageSchedules", message.id, nextSchedule)
+                        }
+                      />
                     </div>
-                    <ScheduleControls
-                      idPrefix={`media-${item.id}`}
-                      schedule={schedule}
-                      capability={scheduling}
-                      onChange={(nextSchedule) =>
-                        updateSchedule("mediaSchedules", item.id, nextSchedule)
-                      }
-                    />
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </div>
-
-        {isSimple && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold">メッセージ</h4>
-            {messages.length === 0 ? (
-              <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-                メッセージを追加すると、ここで表示スケジュールを設定できます。
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {[...messages]
-                  .sort((a, b) => b.priority - a.priority)
-                  .map((message) => {
-                    const schedule = normalizeDisplaySchedule(messageSchedules[message.id]);
-                    return (
-                      <div key={message.id} className="rounded-md border p-3">
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="gap-1">
-                            <MessageSquare className="size-3" />
-                            P{message.priority}
-                          </Badge>
-                          <span className="min-w-0 flex-1 truncate text-sm">
-                            {message.content}
-                          </span>
-                        </div>
-                        <ScheduleControls
-                          idPrefix={`message-${message.id}`}
-                          schedule={schedule}
-                          capability={scheduling}
-                          onChange={(nextSchedule) =>
-                            updateSchedule("messageSchedules", message.id, nextSchedule)
-                          }
-                        />
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
-        )}
+      )}
     </div>
   );
 }
