@@ -60,12 +60,30 @@ services:
       - GOOGLE_OAUTH_ENABLED=${GOOGLE_OAUTH_ENABLED:-false}
       - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-}
       - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      # Billing and plan enforcement settings
+      - BILLING_MODE=${BILLING_MODE:-}
+      - PLAN_ENFORCEMENT_MODE=${PLAN_ENFORCEMENT_MODE:-}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRICE_LITE_MONTHLY=${STRIPE_PRICE_LITE_MONTHLY:-}
+      - STRIPE_PRICE_LITE_YEARLY=${STRIPE_PRICE_LITE_YEARLY:-}
+      - STRIPE_PRICE_STANDARD_MONTHLY=${STRIPE_PRICE_STANDARD_MONTHLY:-}
+      - STRIPE_PRICE_STANDARD_YEARLY=${STRIPE_PRICE_STANDARD_YEARLY:-}
+      - STRIPE_PRICE_STANDARD_PLUS_MONTHLY=${STRIPE_PRICE_STANDARD_PLUS_MONTHLY:-}
+      - STRIPE_PRICE_STANDARD_PLUS_YEARLY=${STRIPE_PRICE_STANDARD_PLUS_YEARLY:-}
       # SMTP settings for PIN reset email (optional)
-      # - SMTP_HOST=smtp.example.com
-      # - SMTP_PORT=587
-      # - SMTP_USER=noreply@example.com
-      # - SMTP_PASS=your-password-here
-      # - SMTP_FROM=noreply@example.com
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      # SMTP settings for contact form email (optional)
+      - CONTACT_SMTP_HOST=${CONTACT_SMTP_HOST:-}
+      - CONTACT_SMTP_PORT=${CONTACT_SMTP_PORT:-}
+      - CONTACT_SMTP_USER=${CONTACT_SMTP_USER:-}
+      - CONTACT_SMTP_PASS=${CONTACT_SMTP_PASS:-}
+      - CONTACT_SMTP_FROM=${CONTACT_SMTP_FROM:-}
+      - CONTACT_TO_EMAIL=${CONTACT_TO_EMAIL:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))\""]

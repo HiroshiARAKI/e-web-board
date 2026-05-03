@@ -107,6 +107,9 @@ flowchart TB
 | `POST` | `/api/auth/account-deletion/request` | Owner アカウント削除 URL を送信 | Owner / `admin` |
 | `POST` | `/api/auth/account-deletion/complete` | Owner アカウント削除を確定 | 削除 token |
 | `PATCH` | `/api/users/me` | 自分の表示テーマ・locale を更新 | 必要 |
+| `POST` | `/api/contact` | 問い合わせメール送信 | 必要 |
+
+`/contact` は plan に応じて導線を出し分けます。Self-hosted / unlimited は GitHub Issues / Discussions、Free は Upgrade 推奨 + GitHub Issues、Lite / Standard / Standard+ は SMTP 設定がある場合に問い合わせフォームを表示します。フォーム送信時の Owner 情報、送信ユーザー、現在の plan は server-side session から付与され、hidden input には持たせません。問い合わせ専用 SMTP は `CONTACT_SMTP_HOST`、`CONTACT_SMTP_PORT`、`CONTACT_SMTP_USER`、`CONTACT_SMTP_PASS`、`CONTACT_SMTP_FROM`、`CONTACT_TO_EMAIL` で設定します。未設定時は GitHub への fallback を表示します。送信 API は Owner + IP 単位で 1 時間 3 件までの rate limit を適用します。
 
 ## 6. ボード API
 
