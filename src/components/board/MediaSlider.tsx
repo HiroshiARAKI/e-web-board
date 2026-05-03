@@ -105,12 +105,15 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
     setCurrentIndex((prev) => (prev + 1) % mediaItems.length);
   }, [mediaItems.length]);
 
+  const safeCurrentIndex =
+    mediaItems.length === 0 ? 0 : Math.min(currentIndex, mediaItems.length - 1);
+
   // --- Preload upcoming images ---
   useEffect(() => {
     if (mediaItems.length <= 1) return;
 
     for (let offset = 1; offset <= PRELOAD_AHEAD; offset++) {
-      const idx = (currentIndex + offset) % mediaItems.length;
+      const idx = (safeCurrentIndex + offset) % mediaItems.length;
       const item = mediaItems[idx];
       if (item?.type === "image" && !preloadedRef.current.has(item.filePath)) {
         preloadedRef.current.add(item.filePath);
@@ -118,9 +121,9 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
         img.src = item.filePath;
       }
     }
-  }, [currentIndex, mediaItems]);
+  }, [safeCurrentIndex, mediaItems]);
 
-  const current = mediaItems[currentIndex];
+  const current = mediaItems[safeCurrentIndex];
 
   useEffect(() => {
     if (!current) return;
@@ -136,7 +139,7 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
   useEffect(() => {
     if (mediaItems.length <= 1) return;
 
-    const item = mediaItems[currentIndex];
+    const item = mediaItems[safeCurrentIndex];
     if (!item) return;
 
     // For videos the advance is driven by the onEnded callback
@@ -148,19 +151,19 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
     const ms = (item.duration || interval) * 1000;
     const timer = setTimeout(advance, ms);
     return () => clearTimeout(timer);
-  }, [currentIndex, mediaItems, interval, advance, imageLoaded]);
+  }, [safeCurrentIndex, mediaItems, interval, advance, imageLoaded]);
 
   // --- Video timer fallback (in case onEnded doesn't fire) ---
   useEffect(() => {
     if (mediaItems.length <= 1) return;
 
-    const item = mediaItems[currentIndex];
+    const item = mediaItems[safeCurrentIndex];
     if (item?.type !== "video") return;
 
     const ms = (item.duration || interval) * 1000;
     const timer = setTimeout(advance, ms);
     return () => clearTimeout(timer);
-  }, [currentIndex, mediaItems, interval, advance]);
+  }, [safeCurrentIndex, mediaItems, interval, advance]);
 
   // Reset preload cache when the media list changes
   useEffect(() => {
@@ -175,6 +178,9 @@ export function MediaSlider({ mediaItems, interval = 5, objectFit = "contain" }:
     );
   }
   const fitClass = objectFit === "cover" ? "object-cover" : "object-contain";
+  if (!current) {
+    return null;
+  }
 
   return (
     <div className="relative isolate h-full w-full overflow-hidden bg-black">

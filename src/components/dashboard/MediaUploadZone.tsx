@@ -9,7 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import {
+  ScheduleControls,
+  sanitizeScheduleMap,
+} from "@/components/dashboard/BoardSchedulePanel";
 import { planLimitMessageKey } from "@/lib/plan-limit";
+import {
+  getScheduleMap,
+  normalizeDisplaySchedule,
+  type DisplaySchedule,
+  type ScheduleCapability,
+} from "@/lib/scheduling";
 import { thumbUrl } from "@/lib/utils";
 import type { MediaItem } from "@/types";
 
@@ -17,6 +27,9 @@ interface MediaUploadZoneProps {
   boardId: string;
   mediaItems: MediaItem[];
   onUpdate: () => Promise<void>;
+  scheduleConfig?: Record<string, unknown>;
+  scheduling?: ScheduleCapability;
+  onScheduleConfigChange?: (config: Record<string, unknown>) => void;
 }
 
 interface UploadProgress {
@@ -118,6 +131,9 @@ export default function MediaUploadZone({
   boardId,
   mediaItems,
   onUpdate,
+  scheduleConfig,
+  scheduling = "none",
+  onScheduleConfigChange,
 }: MediaUploadZoneProps) {
   const { t } = useLocale();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -302,6 +318,36 @@ export default function MediaUploadZone({
   const sortedMedia = [...mediaItems].sort(
     (a, b) => a.displayOrder - b.displayOrder,
   );
+  const mediaSchedules = getScheduleMap(scheduleConfig?.mediaSchedules);
+  const canEditSchedules = Boolean(
+    scheduleConfig && onScheduleConfigChange && scheduling !== "none",
+  );
+
+  function updateMediaSchedule(id: string, schedule: DisplaySchedule) {
+    if (!scheduleConfig || !onScheduleConfigChange) return;
+
+    const nextMap = sanitizeScheduleMap({
+      ...getScheduleMap(scheduleConfig.mediaSchedules),
+      [id]: schedule,
+    });
+
+    onScheduleConfigChange({
+      ...scheduleConfig,
+      mediaSchedules: nextMap,
+    });
+  }
+
+  function mediaNumberLabel(item: MediaItem, index: number) {
+    if (item.type === "image") {
+      const number =
+        sortedMedia.slice(0, index + 1).filter((media) => media.type === "image").length;
+      return t("schedule.imageNumber", { number });
+    }
+
+    const number =
+      sortedMedia.slice(0, index + 1).filter((media) => media.type === "video").length;
+    return t("schedule.videoNumber", { number });
+  }
 
   return (
     <div className="space-y-4">
@@ -426,7 +472,7 @@ export default function MediaUploadZone({
                     ) : (
                       <Film className="mr-1 size-3" />
                     )}
-                    {item.type}
+                    {mediaNumberLabel(item, index)}
                   </Badge>
                   <span className="truncate font-mono text-xs text-muted-foreground">
                     {item.filePath.split("/").pop()}
@@ -458,6 +504,25 @@ export default function MediaUploadZone({
               >
                 <Trash2 className="size-3.5 text-destructive" />
               </Button>
+
+              {canEditSchedules && (
+                <div className="basis-full border-t pt-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      {t("schedule.mediaSchedule")}
+                    </Label>
+                  </div>
+                  <ScheduleControls
+                    idPrefix={`media-${item.id}`}
+                    schedule={normalizeDisplaySchedule(mediaSchedules[item.id])}
+                    capability={scheduling}
+                    allowHidden
+                    onChange={(nextSchedule) =>
+                      updateMediaSchedule(item.id, nextSchedule)
+                    }
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

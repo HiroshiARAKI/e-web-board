@@ -49,6 +49,7 @@ export async function GET(
     ...normalizeConfig(board),
     boardPlan: {
       watermark: effectivePlan.plan.limits.watermark,
+      scheduling: effectivePlan.plan.limits.scheduling,
     },
     mediaItems: media,
     messages: boardMessages,

@@ -79,7 +79,10 @@ export default async function BoardPage({
       board={normalizedBoard}
       mediaItems={media}
       messages={activeMessages}
-      boardPlan={{ watermark: effectivePlan.plan.limits.watermark }}
+      boardPlan={{
+        watermark: effectivePlan.plan.limits.watermark,
+        scheduling: effectivePlan.plan.limits.scheduling,
+      }}
       TemplateComponent={template.component}
     />
   );

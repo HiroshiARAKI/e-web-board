@@ -18,6 +18,7 @@ export type NewMessage = InferInsertModel<typeof messages>;
 // Public board payload includes only safe display flags derived server-side.
 export interface PublicBoardPlan {
   watermark: boolean;
+  scheduling: "none" | "time_weekday" | "full";
 }
 
 // Template types
@@ -35,4 +36,5 @@ export interface BoardTemplateProps {
   board: Board;
   mediaItems: MediaItem[];
   messages: Message[];
+  boardPlan?: PublicBoardPlan;
 }
