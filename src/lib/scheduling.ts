@@ -4,7 +4,7 @@
 import type { MediaItem, Message } from "@/types";
 
 export type ScheduleCapability = "none" | "time_weekday" | "full";
-export type ScheduleMode = "always" | "scheduled";
+export type ScheduleMode = "always" | "scheduled" | "hidden";
 
 export interface DisplaySchedule {
   mode: ScheduleMode;
@@ -43,7 +43,10 @@ function readObject(raw: unknown): Record<string, unknown> {
 
 export function normalizeDisplaySchedule(raw: unknown): DisplaySchedule {
   const value = readObject(raw);
-  const mode = value.mode === "scheduled" ? "scheduled" : "always";
+  const mode =
+    value.mode === "scheduled" || value.mode === "hidden"
+      ? value.mode
+      : "always";
   const rawDays = Array.isArray(value.daysOfWeek) ? value.daysOfWeek : [];
   const daysOfWeek = Array.from(
     new Set(
@@ -92,6 +95,13 @@ export function sanitizeScheduleForCapability(
   if (capability === "none") return null;
 
   const normalized = normalizeDisplaySchedule(schedule);
+  if (normalized.mode === "hidden") {
+    return {
+      ...DEFAULT_DISPLAY_SCHEDULE,
+      mode: "hidden",
+    };
+  }
+
   if (normalized.mode !== "scheduled") {
     return { ...DEFAULT_DISPLAY_SCHEDULE };
   }
@@ -135,6 +145,7 @@ export function isScheduleActive(
   if (capability === "none") return true;
 
   const schedule = normalizeDisplaySchedule(raw);
+  if (schedule.mode === "hidden") return false;
   if (schedule.mode !== "scheduled") return true;
 
   if (!isInTimeRange(now, schedule.startTime, schedule.endTime)) {
@@ -215,7 +226,9 @@ export function sanitizeSchedulingConfig(input: {
   for (const [id, schedule] of Object.entries(mediaSchedules)) {
     if (!input.mediaIds.has(id)) continue;
     const sanitized = sanitizeScheduleForCapability(schedule, input.capability);
-    if (sanitized?.mode === "scheduled") sanitizedMediaSchedules[id] = sanitized;
+    if (sanitized?.mode === "scheduled" || sanitized?.mode === "hidden") {
+      sanitizedMediaSchedules[id] = sanitized;
+    }
   }
 
   const messageSchedules = getScheduleMap(next.messageSchedules);

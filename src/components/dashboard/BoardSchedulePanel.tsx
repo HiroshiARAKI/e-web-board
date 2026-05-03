@@ -55,12 +55,15 @@ export function planLabel(capability: ScheduleCapability) {
 }
 
 function scheduleModeLabel(schedule: DisplaySchedule) {
+  if (schedule.mode === "hidden") return "表示しない";
   return schedule.mode === "scheduled" ? "指定する" : "常に表示";
 }
 
 export function sanitizeScheduleMap(map: ScheduleMap) {
   return Object.fromEntries(
-    Object.entries(map).filter(([, schedule]) => schedule.mode === "scheduled"),
+    Object.entries(map).filter(([, schedule]) =>
+      schedule.mode === "scheduled" || schedule.mode === "hidden",
+    ),
   );
 }
 
@@ -79,6 +82,7 @@ interface ScheduleControlsProps {
   schedule: DisplaySchedule;
   capability: ScheduleCapability;
   onChange: (schedule: DisplaySchedule) => void;
+  allowHidden?: boolean;
 }
 
 export function ScheduleControls({
@@ -86,6 +90,7 @@ export function ScheduleControls({
   schedule,
   capability,
   onChange,
+  allowHidden = false,
 }: ScheduleControlsProps) {
   const disabled = capability === "none";
   const isScheduled = schedule.mode === "scheduled";
@@ -108,9 +113,17 @@ export function ScheduleControls({
           value={schedule.mode}
           disabled={disabled}
           onValueChange={(value) => {
+            const mode =
+              value === "hidden" && allowHidden
+                ? "hidden"
+                : value === "scheduled"
+                  ? "scheduled"
+                  : "always";
             update({
-              ...(value === "scheduled" ? DEFAULT_DISPLAY_SCHEDULE : schedule),
-              mode: value === "scheduled" ? "scheduled" : "always",
+              ...(mode === "scheduled" || mode === "hidden"
+                ? DEFAULT_DISPLAY_SCHEDULE
+                : schedule),
+              mode,
             });
           }}
         >
@@ -120,12 +133,20 @@ export function ScheduleControls({
           <SelectContent>
             <SelectItem value="always">常に表示</SelectItem>
             <SelectItem value="scheduled">指定する</SelectItem>
+            {allowHidden && (
+              <SelectItem value="hidden">表示しない（フォールバック用）</SelectItem>
+            )}
           </SelectContent>
         </Select>
         {schedule.mode === "scheduled" && (
           <Badge variant="secondary" className="gap-1">
             <Clock3 className="size-3" />
             スケジュール中
+          </Badge>
+        )}
+        {schedule.mode === "hidden" && (
+          <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">
+            通常表示しない
           </Badge>
         )}
       </div>
@@ -157,14 +178,15 @@ export function ScheduleControls({
             <Label>曜日</Label>
             <div className="flex flex-wrap gap-2">
               {WEEKDAYS.map((day) => {
-                const checked = schedule.daysOfWeek.includes(day.value);
+                const everyDay = schedule.daysOfWeek.length === 0;
+                const checked = everyDay || schedule.daysOfWeek.includes(day.value);
                 return (
                   <label
                     key={day.value}
-                    className={`inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-md border px-2 text-sm transition-colors ${
+                    className={`inline-flex min-w-14 cursor-pointer flex-col items-center justify-center rounded-md border px-2 py-1 text-xs transition-colors ${
                       checked
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "bg-background hover:bg-accent"
+                        ? "border-emerald-500/70 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "border-muted-foreground/25 bg-background text-muted-foreground hover:bg-accent"
                     } ${disabled ? "pointer-events-none opacity-50" : ""}`}
                   >
                     <input
@@ -174,7 +196,10 @@ export function ScheduleControls({
                       disabled={disabled}
                       onChange={() => toggleDay(day.value)}
                     />
-                    {day.label}
+                    <span className="text-sm font-semibold">{day.label}</span>
+                    <span className="text-[0.65rem] leading-none">
+                      {checked ? "表示" : "除外"}
+                    </span>
                   </label>
                 );
               })}
@@ -185,9 +210,12 @@ export function ScheduleControls({
                 disabled={disabled}
                 onClick={() => update({ daysOfWeek: [] })}
               >
-                毎日
+                毎日に戻す
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              未選択の状態では毎日表示します。曜日を選ぶと、選択した曜日だけ表示します。
+            </p>
           </div>
 
           {capability === "full" && (

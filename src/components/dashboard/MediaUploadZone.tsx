@@ -516,6 +516,7 @@ export default function MediaUploadZone({
                     idPrefix={`media-${item.id}`}
                     schedule={normalizeDisplaySchedule(mediaSchedules[item.id])}
                     capability={scheduling}
+                    allowHidden
                     onChange={(nextSchedule) =>
                       updateMediaSchedule(item.id, nextSchedule)
                     }
