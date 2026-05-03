@@ -43,6 +43,7 @@ export interface PlanLimits {
   videoEnabled: boolean;
   watermark: boolean;
   maxUploadBytes: number | null;
+  scheduling: "none" | "time_weekday" | "full";
 }
 
 export interface PlanDefinition {
@@ -66,6 +67,7 @@ export const PLAN_DEFINITIONS = {
       videoEnabled: true,
       watermark: false,
       maxUploadBytes: null,
+      scheduling: "full",
     },
   },
   free: {
@@ -79,6 +81,7 @@ export const PLAN_DEFINITIONS = {
       videoEnabled: false,
       watermark: true,
       maxUploadBytes: 5 * MB,
+      scheduling: "none",
     },
   },
   lite: {
@@ -92,6 +95,7 @@ export const PLAN_DEFINITIONS = {
       videoEnabled: true,
       watermark: false,
       maxUploadBytes: 20 * MB,
+      scheduling: "time_weekday",
     },
   },
   standard: {
@@ -105,6 +109,7 @@ export const PLAN_DEFINITIONS = {
       videoEnabled: true,
       watermark: false,
       maxUploadBytes: 500 * MB,
+      scheduling: "full",
     },
   },
   standard_plus: {
@@ -118,6 +123,7 @@ export const PLAN_DEFINITIONS = {
       videoEnabled: true,
       watermark: false,
       maxUploadBytes: 2 * GB,
+      scheduling: "full",
     },
   },
   unlimited: {
@@ -131,6 +137,7 @@ export const PLAN_DEFINITIONS = {
       videoEnabled: true,
       watermark: false,
       maxUploadBytes: null,
+      scheduling: "full",
     },
   },
 } as const satisfies Record<PlanCode, PlanDefinition>;

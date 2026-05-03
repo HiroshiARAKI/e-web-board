@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { getEffectivePlanForOwner } from "@/lib/billing";
+import { sanitizeSchedulingConfig } from "@/lib/scheduling";
 import { updateBoardSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
 import { findOwnedBoard, resolveOwnerUserId } from "@/lib/ownership";
@@ -43,9 +45,14 @@ export async function GET(
     .select()
     .from(messages)
     .where(eq(messages.boardId, id));
+  const effectivePlan = await getEffectivePlanForOwner(board.ownerUserId);
 
   return NextResponse.json({
     ...normalizeConfig(board),
+    boardPlan: {
+      watermark: effectivePlan.plan.limits.watermark,
+      scheduling: effectivePlan.plan.limits.scheduling,
+    },
     mediaItems: media,
     messages: boardMessages,
   });
@@ -88,7 +95,36 @@ export async function PATCH(
   if (result.data.name !== undefined) updates.name = result.data.name;
   if (result.data.templateId !== undefined) updates.templateId = result.data.templateId;
   if (result.data.visibility !== undefined) updates.visibility = result.data.visibility;
-  if (result.data.config !== undefined) updates.config = result.data.config;
+  if (result.data.config !== undefined) {
+    const [boardMedia, boardMessages, effectivePlan] = await Promise.all([
+      db
+        .select({
+          id: mediaItems.id,
+          type: mediaItems.type,
+        })
+        .from(mediaItems)
+        .where(eq(mediaItems.boardId, id)),
+      db
+        .select({
+          id: messages.id,
+        })
+        .from(messages)
+        .where(eq(messages.boardId, id)),
+      getEffectivePlanForOwner(existing.ownerUserId),
+    ]);
+
+    updates.config = sanitizeSchedulingConfig({
+      config: result.data.config,
+      capability: effectivePlan.plan.limits.scheduling,
+      mediaIds: new Set(boardMedia.map((item) => item.id)),
+      imageIds: new Set(
+        boardMedia
+          .filter((item) => item.type === "image")
+          .map((item) => item.id),
+      ),
+      messageIds: new Set(boardMessages.map((message) => message.id)),
+    });
+  }
   if (result.data.isActive !== undefined) updates.isActive = result.data.isActive;
 
   const previousSlideInterval = readSlideInterval(normalizedExisting.config);

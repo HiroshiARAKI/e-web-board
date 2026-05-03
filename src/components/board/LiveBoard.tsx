@@ -27,6 +27,7 @@ interface LiveBoardProps {
 
 const DEFAULT_PUBLIC_BOARD_PLAN: PublicBoardPlan = {
   watermark: false,
+  scheduling: "full",
 };
 
 function parsePublicBoardPlan(raw: unknown): PublicBoardPlan {
@@ -36,6 +37,12 @@ function parsePublicBoardPlan(raw: unknown): PublicBoardPlan {
 
   return {
     watermark: (raw as Partial<PublicBoardPlan>).watermark === true,
+    scheduling:
+      (raw as Partial<PublicBoardPlan>).scheduling === "none" ||
+      (raw as Partial<PublicBoardPlan>).scheduling === "time_weekday" ||
+      (raw as Partial<PublicBoardPlan>).scheduling === "full"
+        ? (raw as PublicBoardPlan).scheduling
+        : DEFAULT_PUBLIC_BOARD_PLAN.scheduling,
   };
 }
 
@@ -142,7 +149,12 @@ export default function LiveBoard({
       className="relative h-screen w-screen"
       style={{ cursor: cursorVisible ? "auto" : "none" }}
     >
-      <TemplateComponent board={board} mediaItems={mediaItems} messages={messages} />
+      <TemplateComponent
+        board={board}
+        mediaItems={mediaItems}
+        messages={messages}
+        boardPlan={boardPlan}
+      />
       {boardPlan.watermark && <WatermarkOverlay />}
 
       {/* Expand / Restore button */}

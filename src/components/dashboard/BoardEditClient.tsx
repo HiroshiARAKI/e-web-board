@@ -45,12 +45,19 @@ import { templates } from "@/lib/templates";
 import { TemplateConfigEditor } from "@/components/dashboard/config-editors";
 import MediaUploadZone from "@/components/dashboard/MediaUploadZone";
 import CallScreenAdmin from "@/components/dashboard/CallScreenAdmin";
-import type { Board, MediaItem, Message } from "@/types";
+import { BoardSchedulePanel } from "@/components/dashboard/BoardSchedulePanel";
+import type { Board, MediaItem, Message, PublicBoardPlan } from "@/types";
 
 interface BoardDetail extends Board {
   mediaItems: MediaItem[];
   messages: Message[];
+  boardPlan?: PublicBoardPlan;
 }
+
+const DEFAULT_BOARD_PLAN: PublicBoardPlan = {
+  watermark: false,
+  scheduling: "full",
+};
 
 export default function BoardEditClient({ boardId }: { boardId: string }) {
   const router = useRouter();
@@ -329,6 +336,17 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
               boardId={boardId}
               config={config}
               onUpdateConfig={setConfig}
+            />
+          )}
+
+          {(board.templateId === "simple" || board.templateId === "photo-clock") && (
+            <BoardSchedulePanel
+              templateId={board.templateId}
+              config={config}
+              mediaItems={board.mediaItems}
+              messages={board.messages}
+              scheduling={(board.boardPlan ?? DEFAULT_BOARD_PLAN).scheduling}
+              onChange={setConfig}
             />
           )}
 
