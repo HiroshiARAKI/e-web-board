@@ -18,6 +18,8 @@ export class PlanLimitError extends Error {
       planCode: PlanCode;
       limit: number | boolean | null;
       usage?: number;
+      width?: number;
+      height?: number;
     },
   ) {
     super(code);
@@ -41,11 +43,14 @@ function throwLimit(
   plan: PlanDefinition,
   limit: number | boolean | null,
   usage?: number,
+  dimensions?: { width: number; height: number },
 ): never {
   throw new PlanLimitError(code, PLAN_LIMIT_MESSAGE_KEYS[code], {
     planCode: plan.code,
     limit,
     usage,
+    width: dimensions?.width,
+    height: dimensions?.height,
   });
 }
 
@@ -61,6 +66,8 @@ export function planLimitErrorBody(error: PlanLimitError) {
     planCode: error.details.planCode,
     limit: error.details.limit,
     usage: error.details.usage,
+    width: error.details.width,
+    height: error.details.height,
     upgradeRequired: true,
   };
 }
@@ -156,5 +163,29 @@ export async function assertImageResolutionAllowed(input: {
   const limit = plan.limits.maxResolution;
   if (limit !== null && input.longEdge > limit) {
     throwLimit("plan_limit_resolution", plan, limit, input.longEdge);
+  }
+}
+
+export async function assertVideoResolutionAllowed(input: {
+  ownerUserId: string;
+  width: number;
+  height: number;
+}) {
+  const { plan } = await getEffectivePlanForOwner(input.ownerUserId);
+  const limit = plan.limits.maxResolution;
+  if (limit === null) return;
+
+  const longEdge = Math.max(input.width, input.height);
+  const shortEdge = Math.min(input.width, input.height);
+  const maxShortEdge = limit <= 1920 ? 1080 : 2160;
+
+  if (longEdge > limit || shortEdge > maxShortEdge) {
+    throwLimit(
+      "plan_limit_resolution",
+      plan,
+      limit,
+      longEdge,
+      { width: input.width, height: input.height },
+    );
   }
 }

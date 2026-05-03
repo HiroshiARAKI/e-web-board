@@ -26,11 +26,13 @@ import { resolveOwnerUserId } from "@/lib/ownership";
 import {
   assertCanUploadMedia,
   assertImageResolutionAllowed,
+  assertVideoResolutionAllowed,
   getEffectiveImageMaxLongEdge,
   isPlanLimitError,
   planLimitErrorBody,
 } from "@/lib/plan-enforcement";
 import { parseJsonObject } from "@/lib/utils";
+import { probeVideoMetadataFromBuffer } from "@/lib/video-metadata";
 import path from "path";
 import { randomUUID } from "crypto";
 
@@ -54,6 +56,17 @@ function planLimitResponse(error: unknown) {
 function readSlideInterval(config: unknown): number | undefined {
   const raw = parseJsonObject(config).slideInterval;
   return typeof raw === "number" && Number.isFinite(raw) && raw >= 1 ? raw : undefined;
+}
+
+function videoMetadataResponse(error: unknown) {
+  console.error("[media] Failed to read video metadata", error);
+  return NextResponse.json(
+    {
+      error: "動画メタデータを取得できませんでした",
+      code: "video_metadata_unavailable",
+    },
+    { status: 400 },
+  );
 }
 
 export async function GET() {
@@ -182,6 +195,27 @@ export async function POST(request: NextRequest) {
       }
     }
     buffer = Buffer.from(await resizeImage(buffer, sanitizedExt, maxLongEdge));
+  }
+
+  if (mediaType === "video") {
+    let metadata;
+    try {
+      metadata = await probeVideoMetadataFromBuffer(buffer, sanitizedExt);
+    } catch (error) {
+      return videoMetadataResponse(error);
+    }
+
+    try {
+      await assertVideoResolutionAllowed({
+        ownerUserId: board.ownerUserId,
+        width: metadata.width,
+        height: metadata.height,
+      });
+    } catch (error) {
+      const response = planLimitResponse(error);
+      if (response) return response;
+      throw error;
+    }
   }
 
   let thumbnail =
