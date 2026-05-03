@@ -5,13 +5,6 @@
 import { CalendarDays, Clock3, Image as ImageIcon, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -74,6 +67,12 @@ function sanitizeMap(map: ScheduleMap) {
 
 function itemName(item: MediaItem) {
   return item.filePath.split("/").pop() ?? item.filePath;
+}
+
+function numberedImageLabel(item: MediaItem, imageItems: MediaItem[]) {
+  const index = imageItems.findIndex((image) => image.id === item.id);
+  const number = index >= 0 ? index + 1 : 0;
+  return number > 0 ? `画像${number}: ${itemName(item)}` : itemName(item);
 }
 
 interface ScheduleControlsProps {
@@ -238,6 +237,10 @@ export function BoardSchedulePanel({
   const imageItems = sortedMedia.filter((item) => item.type === "image");
   const fallbackMediaId =
     typeof config.fallbackMediaId === "string" ? config.fallbackMediaId : "";
+  const selectedFallbackImage = imageItems.find((item) => item.id === fallbackMediaId);
+  const fallbackLabel = selectedFallbackImage
+    ? numberedImageLabel(selectedFallbackImage, imageItems)
+    : "デフォルト（黒画にKeinageロゴ）";
 
   function updateSchedule(kind: "mediaSchedules" | "messageSchedules", id: string, schedule: DisplaySchedule) {
     const currentMap = getScheduleMap(config[kind]);
@@ -252,15 +255,14 @@ export function BoardSchedulePanel({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <div className="space-y-5">
+      <div className="space-y-1">
+        <h4 className="flex items-center gap-2 text-sm font-semibold">
           <CalendarDays className="size-4" />
           スケジュール
-        </CardTitle>
-        <CardDescription>{planLabel(scheduling)}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+        </h4>
+        <p className="text-sm text-muted-foreground">{planLabel(scheduling)}</p>
+      </div>
         {scheduling !== "none" && (
           <div className="space-y-1.5">
             <Label htmlFor="schedule-fallback">表示対象がない時の画像</Label>
@@ -274,13 +276,15 @@ export function BoardSchedulePanel({
               }
             >
               <SelectTrigger id="schedule-fallback" className="w-full max-w-md">
-                <SelectValue placeholder="デフォルト（黒画にKeinageロゴ）" />
+                <span data-slot="select-value" className="min-w-0 flex-1 truncate text-left">
+                  {fallbackLabel}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">デフォルト（黒画にKeinageロゴ）</SelectItem>
                 {imageItems.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
-                    {itemName(item)}
+                    {numberedImageLabel(item, imageItems)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -377,7 +381,6 @@ export function BoardSchedulePanel({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }

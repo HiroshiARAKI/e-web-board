@@ -339,17 +339,6 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             />
           )}
 
-          {(board.templateId === "simple" || board.templateId === "photo-clock") && (
-            <BoardSchedulePanel
-              templateId={board.templateId}
-              config={config}
-              mediaItems={board.mediaItems}
-              messages={board.messages}
-              scheduling={(board.boardPlan ?? DEFAULT_BOARD_PLAN).scheduling}
-              onChange={setConfig}
-            />
-          )}
-
           {/* Messages (not used by photo-clock or call-number template) */}
           {board.templateId !== "photo-clock" && board.templateId !== "call-number" && (
           <Card>
@@ -487,12 +476,25 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 {t("boardEdit.mediaCount", { count: board.mediaItems.length })}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <MediaUploadZone
                 boardId={boardId}
                 mediaItems={board.mediaItems}
                 onUpdate={fetchBoard}
               />
+              {(board.templateId === "simple" || board.templateId === "photo-clock") && (
+                <>
+                  <Separator />
+                  <BoardSchedulePanel
+                    templateId={board.templateId}
+                    config={config}
+                    mediaItems={board.mediaItems}
+                    messages={board.messages}
+                    scheduling={(board.boardPlan ?? DEFAULT_BOARD_PLAN).scheduling}
+                    onChange={setConfig}
+                  />
+                </>
+              )}
             </CardContent>
           </Card>
           )}
