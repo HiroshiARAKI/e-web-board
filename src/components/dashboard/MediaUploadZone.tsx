@@ -341,12 +341,12 @@ export default function MediaUploadZone({
     if (item.type === "image") {
       const number =
         sortedMedia.slice(0, index + 1).filter((media) => media.type === "image").length;
-      return `画像${number}`;
+      return t("schedule.imageNumber", { number });
     }
 
     const number =
       sortedMedia.slice(0, index + 1).filter((media) => media.type === "video").length;
-    return `動画${number}`;
+    return t("schedule.videoNumber", { number });
   }
 
   return (
@@ -509,7 +509,7 @@ export default function MediaUploadZone({
                 <div className="basis-full border-t pt-3">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-xs font-medium text-muted-foreground">
-                      表示スケジュール
+                      {t("schedule.mediaSchedule")}
                     </Label>
                   </div>
                   <ScheduleControls

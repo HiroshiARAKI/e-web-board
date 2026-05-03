@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
-import { CalendarDays, Clock3, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, ChevronDown, ChevronUp, Clock3, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   Select,
   SelectContent,
@@ -34,29 +36,29 @@ interface BoardSchedulePanelProps {
 }
 
 const WEEKDAYS = [
-  { value: 0, label: "日" },
-  { value: 1, label: "月" },
-  { value: 2, label: "火" },
-  { value: 3, label: "水" },
-  { value: 4, label: "木" },
-  { value: 5, label: "金" },
-  { value: 6, label: "土" },
+  { value: 0, labelKey: "schedule.weekday.sun" },
+  { value: 1, labelKey: "schedule.weekday.mon" },
+  { value: 2, labelKey: "schedule.weekday.tue" },
+  { value: 3, labelKey: "schedule.weekday.wed" },
+  { value: 4, labelKey: "schedule.weekday.thu" },
+  { value: 5, labelKey: "schedule.weekday.fri" },
+  { value: 6, labelKey: "schedule.weekday.sat" },
 ] as const;
 
-export function planLabel(capability: ScheduleCapability) {
+export function planLabelKey(capability: ScheduleCapability) {
   switch (capability) {
     case "none":
-      return "このプランではスケジュール機能は利用できません";
+      return "schedule.plan.none";
     case "time_weekday":
-      return "時間帯と曜日を指定できます。日付期間は Standard 以上で利用できます";
+      return "schedule.plan.timeWeekday";
     case "full":
-      return "時間帯、曜日、日付期間を指定できます";
+      return "schedule.plan.full";
   }
 }
 
-function scheduleModeLabel(schedule: DisplaySchedule) {
-  if (schedule.mode === "hidden") return "表示しない";
-  return schedule.mode === "scheduled" ? "指定する" : "常に表示";
+function scheduleModeLabelKey(schedule: DisplaySchedule) {
+  if (schedule.mode === "hidden") return "schedule.mode.hidden";
+  return schedule.mode === "scheduled" ? "schedule.mode.scheduled" : "schedule.mode.always";
 }
 
 export function sanitizeScheduleMap(map: ScheduleMap) {
@@ -74,7 +76,7 @@ export function itemName(item: MediaItem) {
 export function numberedImageLabel(item: MediaItem, imageItems: MediaItem[]) {
   const index = imageItems.findIndex((image) => image.id === item.id);
   const number = index >= 0 ? index + 1 : 0;
-  return number > 0 ? `画像${number}: ${itemName(item)}` : itemName(item);
+  return { number, name: itemName(item) };
 }
 
 interface ScheduleControlsProps {
@@ -92,6 +94,8 @@ export function ScheduleControls({
   onChange,
   allowHidden = false,
 }: ScheduleControlsProps) {
+  const { t } = useLocale();
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const disabled = capability === "none";
   const isScheduled = schedule.mode === "scheduled";
 
@@ -119,6 +123,9 @@ export function ScheduleControls({
                 : value === "scheduled"
                   ? "scheduled"
                   : "always";
+            if (mode === "scheduled") {
+              setDetailsOpen(true);
+            }
             update({
               ...(mode === "scheduled" || mode === "hidden"
                 ? DEFAULT_DISPLAY_SCHEDULE
@@ -128,33 +135,49 @@ export function ScheduleControls({
           }}
         >
           <SelectTrigger id={`${idPrefix}-mode`} className="w-40">
-            <SelectValue>{scheduleModeLabel(schedule)}</SelectValue>
+            <SelectValue>{t(scheduleModeLabelKey(schedule))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="always">常に表示</SelectItem>
-            <SelectItem value="scheduled">指定する</SelectItem>
+            <SelectItem value="always">{t("schedule.mode.always")}</SelectItem>
+            <SelectItem value="scheduled">{t("schedule.mode.scheduled")}</SelectItem>
             {allowHidden && (
-              <SelectItem value="hidden">表示しない（フォールバック用）</SelectItem>
+              <SelectItem value="hidden">{t("schedule.mode.hiddenOption")}</SelectItem>
             )}
           </SelectContent>
         </Select>
         {schedule.mode === "scheduled" && (
           <Badge variant="secondary" className="gap-1">
             <Clock3 className="size-3" />
-            スケジュール中
+            {t("schedule.badge.scheduled")}
           </Badge>
         )}
         {schedule.mode === "hidden" && (
           <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground">
-            通常表示しない
+            {t("schedule.badge.hidden")}
           </Badge>
+        )}
+        {isScheduled && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setDetailsOpen((value) => !value)}
+            className="ml-auto"
+          >
+            {detailsOpen ? (
+              <ChevronUp data-icon="inline-start" />
+            ) : (
+              <ChevronDown data-icon="inline-start" />
+            )}
+            {detailsOpen ? t("schedule.details.collapse") : t("schedule.details.expand")}
+          </Button>
         )}
       </div>
 
-      {isScheduled && (
+      {isScheduled && detailsOpen && (
         <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor={`${idPrefix}-start-time`}>開始時刻</Label>
+            <Label htmlFor={`${idPrefix}-start-time`}>{t("schedule.startTime")}</Label>
             <Input
               id={`${idPrefix}-start-time`}
               type="time"
@@ -164,7 +187,7 @@ export function ScheduleControls({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${idPrefix}-end-time`}>終了時刻</Label>
+            <Label htmlFor={`${idPrefix}-end-time`}>{t("schedule.endTime")}</Label>
             <Input
               id={`${idPrefix}-end-time`}
               type="time"
@@ -175,7 +198,7 @@ export function ScheduleControls({
           </div>
 
           <div className="space-y-1.5 sm:col-span-2">
-            <Label>曜日</Label>
+            <Label>{t("schedule.weekdays")}</Label>
             <div className="flex flex-wrap gap-2">
               {WEEKDAYS.map((day) => {
                 const everyDay = schedule.daysOfWeek.length === 0;
@@ -196,9 +219,9 @@ export function ScheduleControls({
                       disabled={disabled}
                       onChange={() => toggleDay(day.value)}
                     />
-                    <span className="text-sm font-semibold">{day.label}</span>
+                    <span className="text-sm font-semibold">{t(day.labelKey)}</span>
                     <span className="text-[0.65rem] leading-none">
-                      {checked ? "表示" : "除外"}
+                      {checked ? t("schedule.weekdays.show") : t("schedule.weekdays.exclude")}
                     </span>
                   </label>
                 );
@@ -210,18 +233,18 @@ export function ScheduleControls({
                 disabled={disabled}
                 onClick={() => update({ daysOfWeek: [] })}
               >
-                毎日に戻す
+                {t("schedule.weekdays.reset")}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              未選択の状態では毎日表示します。曜日を選ぶと、選択した曜日だけ表示します。
+              {t("schedule.weekdaysHint")}
             </p>
           </div>
 
           {capability === "full" && (
             <>
               <div className="space-y-1.5">
-                <Label htmlFor={`${idPrefix}-start-date`}>開始日</Label>
+                <Label htmlFor={`${idPrefix}-start-date`}>{t("schedule.startDate")}</Label>
                 <Input
                   id={`${idPrefix}-start-date`}
                   type="date"
@@ -230,7 +253,7 @@ export function ScheduleControls({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor={`${idPrefix}-end-date`}>終了日</Label>
+                <Label htmlFor={`${idPrefix}-end-date`}>{t("schedule.endDate")}</Label>
                 <Input
                   id={`${idPrefix}-end-date`}
                   type="date"
@@ -254,6 +277,7 @@ export function BoardSchedulePanel({
   scheduling,
   onChange,
 }: BoardSchedulePanelProps) {
+  const { t } = useLocale();
   const isSimple = templateId === "simple";
   const isPhotoClock = templateId === "photo-clock";
   if (!isSimple && !isPhotoClock) return null;
@@ -264,9 +288,15 @@ export function BoardSchedulePanel({
   const fallbackMediaId =
     typeof config.fallbackMediaId === "string" ? config.fallbackMediaId : "";
   const selectedFallbackImage = imageItems.find((item) => item.id === fallbackMediaId);
-  const fallbackLabel = selectedFallbackImage
+  const selectedFallback = selectedFallbackImage
     ? numberedImageLabel(selectedFallbackImage, imageItems)
-    : "デフォルト（黒画にKeinageロゴ）";
+    : null;
+  const fallbackLabel = selectedFallbackImage
+    ? t("schedule.imageOption", {
+      number: selectedFallback?.number ?? 0,
+      name: selectedFallback?.name ?? "",
+    })
+    : t("schedule.fallbackDefault");
 
   function updateSchedule(kind: "mediaSchedules" | "messageSchedules", id: string, schedule: DisplaySchedule) {
     const currentMap = getScheduleMap(config[kind]);
@@ -285,13 +315,13 @@ export function BoardSchedulePanel({
       <div className="space-y-1">
         <h4 className="flex items-center gap-2 text-sm font-semibold">
           <CalendarDays className="size-4" />
-          スケジュール
+          {t("schedule.title")}
         </h4>
-        <p className="text-sm text-muted-foreground">{planLabel(scheduling)}</p>
+        <p className="text-sm text-muted-foreground">{t(planLabelKey(scheduling))}</p>
       </div>
       {scheduling !== "none" && (
         <div className="space-y-1.5">
-          <Label htmlFor="schedule-fallback">表示対象がない時の画像</Label>
+          <Label htmlFor="schedule-fallback">{t("schedule.fallbackImage")}</Label>
           <Select
             value={fallbackMediaId || "__none__"}
             onValueChange={(value) =>
@@ -307,10 +337,10 @@ export function BoardSchedulePanel({
               </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">デフォルト（黒画にKeinageロゴ）</SelectItem>
+              <SelectItem value="__none__">{t("schedule.fallbackDefault")}</SelectItem>
               {imageItems.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
-                  {numberedImageLabel(item, imageItems)}
+                  {t("schedule.imageOption", numberedImageLabel(item, imageItems))}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -320,10 +350,10 @@ export function BoardSchedulePanel({
 
       {isSimple && scheduling !== "none" && (
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold">メッセージ</h4>
+          <h4 className="text-sm font-semibold">{t("schedule.messageSection")}</h4>
           {messages.length === 0 ? (
             <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
-              メッセージを追加すると、ここで表示スケジュールを設定できます。
+              {t("schedule.messageEmpty")}
             </p>
           ) : (
             <div className="space-y-2">
