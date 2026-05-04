@@ -129,8 +129,6 @@ export function ClinicHoursConfigEditor({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <FontNumber id="cfg-titleFontSize" label={t("configEditor.titleFontSize")} value={numberValue(config.titleFontSize, 54)} onChange={(value) => update("titleFontSize", value)} />
-        <FontNumber id="cfg-bodyFontSize" label={t("configEditor.bodyFontSize")} value={numberValue(config.bodyFontSize, 28)} onChange={(value) => update("bodyFontSize", value)} />
         <ColorInput id="cfg-titleColor" label={t("configEditor.titleColor")} value={(config.titleColor as string) ?? "#0f172a"} onChange={(value) => update("titleColor", value)} />
         <ColorInput id="cfg-bodyColor" label={t("configEditor.bodyColor")} value={(config.bodyColor as string) ?? "#1e293b"} onChange={(value) => update("bodyColor", value)} />
       </div>
@@ -193,32 +191,6 @@ function normalizeDays(value: unknown): ClinicDayConfig[] {
       afternoon: raw?.afternoon ?? fallback.afternoon,
     };
   });
-}
-
-function FontNumber({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type="number"
-        min={12}
-        max={120}
-        value={value}
-        onChange={(e) => onChange(Math.max(12, parseInt(e.target.value, 10) || value))}
-      />
-    </div>
-  );
 }
 
 function ColorInput({

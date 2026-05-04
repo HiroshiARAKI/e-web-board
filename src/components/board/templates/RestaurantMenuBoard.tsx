@@ -118,18 +118,18 @@ export default function RestaurantMenuBoard({ board, boardPlan }: BoardTemplateP
             </h2>
             <div className="space-y-4">
               {column.items.map((item, itemIndex) => (
-                <div key={itemIndex} className="rounded-md bg-black/20 p-3">
+                <div key={itemIndex} className="flex min-h-20 items-center gap-3 rounded-md bg-black/20 p-3">
                   {canShowImages && item.imageUrl && (
                     <img
                       src={item.imageUrl}
                       alt=""
-                      className={`mb-3 w-full object-cover ${
-                        config.imageShape === "square" ? "aspect-square" : "aspect-[16/9]"
-                      } rounded`}
+                      className={`shrink-0 rounded object-cover ${
+                        config.imageShape === "square" ? "size-16" : "h-16 w-24"
+                      }`}
                     />
                   )}
-                  <div className="flex items-baseline justify-between gap-4">
-                    <span className="min-w-0 text-2xl font-semibold">{item.name || "—"}</span>
+                  <div className="flex min-w-0 flex-1 items-baseline justify-between gap-4">
+                    <span className="min-w-0 truncate text-2xl font-semibold">{item.name || "—"}</span>
                     <span className="shrink-0 text-2xl font-bold text-amber-200">{item.price}</span>
                   </div>
                 </div>
