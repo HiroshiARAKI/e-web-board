@@ -214,7 +214,6 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   const boardPlan = board.boardPlan ?? DEFAULT_BOARD_PLAN;
   const supportsMessages =
     board.templateId === "simple" ||
-    board.templateId === "retro" ||
     board.templateId === "message";
   const supportsMedia =
     board.templateId === "simple" ||

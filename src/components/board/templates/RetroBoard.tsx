@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { WeatherDisplay } from "@/components/board/WeatherDisplay";
 import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
 import type { BoardTemplateProps } from "@/types";
+
+interface RetroRowContent {
+  left: string;
+  right: string;
+}
 
 /** Default config for the Retro Board template */
 export const retroBoardDefaultConfig = {
@@ -21,6 +26,7 @@ export const retroBoardDefaultConfig = {
   fontFamily: "",
   columnMode: "single" as "single" | "two",
   leftColumnPercent: 50,
+  rowContents: [] as RetroRowContent[],
 };
 
 type RetroBoardConfig = typeof retroBoardDefaultConfig;
@@ -31,6 +37,7 @@ function clamp(value: number, min: number, max: number) {
 
 function parseConfig(raw: unknown): RetroBoardConfig {
   const cfg = (raw && typeof raw === "object" ? raw : {}) as Partial<RetroBoardConfig>;
+  const rows = typeof cfg.rows === "number" ? cfg.rows : retroBoardDefaultConfig.rows;
   const fontSize = typeof cfg.fontSize === "number" ? cfg.fontSize : retroBoardDefaultConfig.fontSize;
   const leftColumnPercent =
     typeof cfg.leftColumnPercent === "number"
@@ -40,10 +47,33 @@ function parseConfig(raw: unknown): RetroBoardConfig {
   return {
     ...retroBoardDefaultConfig,
     ...cfg,
+    rows: clamp(rows, 1, 20),
     fontSize: clamp(fontSize, 18, 96),
     leftColumnPercent: clamp(leftColumnPercent, 20, 80),
     columnMode: cfg.columnMode === "two" ? "two" : "single",
+    rowContents: normalizeRowContents(cfg.rowContents, clamp(rows, 1, 20)),
   };
+}
+
+function normalizeRowContents(value: unknown, rows: number): RetroRowContent[] {
+  const rawRows = Array.isArray(value) ? value : [];
+  return Array.from({ length: rows }, (_, index) => {
+    const row = rawRows[index];
+    if (!row || typeof row !== "object") {
+      return { left: "", right: "" };
+    }
+
+    const raw = row as { left?: unknown; right?: unknown; text?: unknown };
+    return {
+      left:
+        typeof raw.left === "string"
+          ? raw.left
+          : typeof raw.text === "string"
+            ? raw.text
+            : "",
+      right: typeof raw.right === "string" ? raw.right : "",
+    };
+  });
 }
 
 const COLOR_MAP: Record<string, { text: string; glow: string }> = {
@@ -90,7 +120,7 @@ function FlipChar({
 
 /** A single row that flips in character-by-character */
 function RetroRow({
-  text,
+  row,
   color,
   glow,
   flipSpeed,
@@ -98,7 +128,7 @@ function RetroRow({
   columnMode,
   leftColumnPercent,
 }: {
-  text: string;
+  row: RetroRowContent;
   color: string;
   glow: string;
   flipSpeed: number;
@@ -106,14 +136,16 @@ function RetroRow({
   columnMode: "single" | "two";
   leftColumnPercent: number;
 }) {
-  const [leftText, rightText] = splitRetroColumns(text);
+  const leftText = row.left || "—";
+  const rightText = row.right;
   const rightColumnPercent = 100 - leftColumnPercent;
+  const animationKey = `${leftText}|${rightText}`;
 
   return (
     <div className="flex items-center border-b border-white/5 px-6 py-3">
       <AnimatePresence mode="wait">
         <motion.div
-          key={text}
+          key={animationKey}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -141,7 +173,7 @@ function RetroRow({
                   color={color}
                   glow={glow}
                   flipSpeed={flipSpeed}
-                  keyPrefix={`${text}-left`}
+                  keyPrefix={`${animationKey}-left`}
                 />
               </div>
               <div className="min-w-0 overflow-hidden whitespace-nowrap text-right">
@@ -150,17 +182,17 @@ function RetroRow({
                   color={color}
                   glow={glow}
                   flipSpeed={flipSpeed}
-                  keyPrefix={`${text}-right`}
+                  keyPrefix={`${animationKey}-right`}
                 />
               </div>
             </>
           ) : (
             <FlipText
-              text={text}
+              text={leftText}
               color={color}
               glow={glow}
               flipSpeed={flipSpeed}
-              keyPrefix={text}
+              keyPrefix={leftText}
             />
           )}
         </motion.div>
@@ -212,38 +244,42 @@ function splitRetroColumns(text: string): [string, string] {
   return [text, ""];
 }
 
+function messageToRowContent(content: string): RetroRowContent {
+  const [left, right] = splitRetroColumns(content);
+  return { left, right };
+}
+
 export default function RetroBoard({
   board,
   messages,
 }: BoardTemplateProps) {
   const config = parseConfig(board.config);
   const { text: color, glow } = COLOR_MAP[config.displayColor] ?? COLOR_MAP.green;
+  const hasConfiguredRows = config.rowContents.some(
+    (row) => row.left.trim() || row.right.trim(),
+  );
 
   const sorted = [...messages].sort((a, b) => b.priority - a.priority);
-  const totalMessages = sorted.length;
+  const totalMessages = hasConfiguredRows ? 0 : sorted.length;
 
   const [offset, setOffset] = useState(0);
 
-  const advance = useCallback(() => {
-    if (totalMessages <= config.rows) return;
-    setOffset((prev) => (prev + config.rows) % totalMessages);
-  }, [totalMessages, config.rows]);
-
   useEffect(() => {
     if (totalMessages <= config.rows) return;
-    const timer = setInterval(advance, config.switchInterval * 1000);
+    const timer = setInterval(() => {
+      setOffset((prev) => (prev + config.rows) % totalMessages);
+    }, config.switchInterval * 1000);
     return () => clearInterval(timer);
-  }, [totalMessages, config.rows, config.switchInterval, advance]);
+  }, [totalMessages, config.rows, config.switchInterval]);
 
   // Build visible rows (circular)
-  const visibleRows: string[] = [];
-  for (let i = 0; i < config.rows; i++) {
-    if (totalMessages === 0) {
-      visibleRows.push("");
-    } else {
-      visibleRows.push(sorted[(offset + i) % totalMessages].content);
-    }
-  }
+  const visibleRows: RetroRowContent[] = hasConfiguredRows
+    ? config.rowContents
+    : Array.from({ length: config.rows }, (_, index) =>
+        totalMessages === 0
+          ? { left: "", right: "" }
+          : messageToRowContent(sorted[(offset + index) % totalMessages].content),
+      );
 
   return (
     <div className="flex h-screen w-screen flex-col bg-[#0a0a0a]" style={{ fontFamily: config.fontFamily || "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
@@ -309,10 +345,10 @@ export default function RetroBoard({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            {visibleRows.map((text, i) => (
+            {visibleRows.map((row, i) => (
               <RetroRow
                 key={`${offset}-${i}`}
-                text={text || "—"}
+                row={row}
                 color={color}
                 glow={glow}
                 flipSpeed={config.flipSpeed}

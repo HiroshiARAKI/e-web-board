@@ -16,6 +16,11 @@ import {
 import { GOOGLE_FONTS, buildGoogleFontsUrl } from "@/lib/fonts";
 import { useEffect } from "react";
 
+interface RetroRowContent {
+  left: string;
+  right: string;
+}
+
 /** Load ALL Google Fonts so the dropdown and preview can display them */
 function useLoadAllGoogleFonts() {
   useEffect(() => {
@@ -56,6 +61,7 @@ export function RetroBoardConfigEditor({
   const fontFamily = (config.fontFamily as string) ?? "";
   const columnMode = ((config.columnMode as string) ?? "single") === "two" ? "two" : "single";
   const leftColumnPercent = (config.leftColumnPercent as number) ?? 50;
+  const rowContents = normalizeRowContents(config.rowContents, rows);
 
   const colorLabels: Record<string, string> = {
     green: t("configEditor.green"),
@@ -65,6 +71,24 @@ export function RetroBoardConfigEditor({
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
+  }
+
+  function updateRows(value: number) {
+    const nextRows = Math.min(20, Math.max(1, value || 5));
+    onChange({
+      ...config,
+      rows: nextRows,
+      rowContents: normalizeRowContents(config.rowContents, nextRows),
+    });
+  }
+
+  function updateRowContent(index: number, key: keyof RetroRowContent, value: string) {
+    onChange({
+      ...config,
+      rowContents: rowContents.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, [key]: value } : row,
+      ),
+    });
   }
 
   return (
@@ -107,7 +131,7 @@ export function RetroBoardConfigEditor({
           max={20}
           value={rows}
           onChange={(e) =>
-            update("rows", Math.max(1, parseInt(e.target.value, 10) || 5))
+            updateRows(parseInt(e.target.value, 10))
           }
           className="w-24"
         />
@@ -167,6 +191,48 @@ export function RetroBoardConfigEditor({
           />
         </div>
       )}
+
+      <div className="space-y-3 rounded-lg border p-4">
+        <div className="space-y-1">
+          <h4 className="text-sm font-semibold">{t("configEditor.retroMessages")}</h4>
+          <p className="text-xs text-muted-foreground">
+            {t("configEditor.retroMessagesHint")}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {rowContents.map((row, index) => (
+            <div
+              key={index}
+              className={
+                columnMode === "two"
+                  ? "grid gap-2 md:grid-cols-[88px_1fr_1fr]"
+                  : "grid gap-2 md:grid-cols-[88px_1fr]"
+              }
+            >
+              <div className="flex items-center text-sm font-medium text-muted-foreground">
+                {t("configEditor.retroRowLabel", { number: index + 1 })}
+              </div>
+              <Input
+                value={row.left}
+                placeholder={
+                  columnMode === "two"
+                    ? t("configEditor.retroLeftColumn")
+                    : t("configEditor.retroSingleColumnContent")
+                }
+                onChange={(e) => updateRowContent(index, "left", e.target.value)}
+              />
+              {columnMode === "two" && (
+                <Input
+                  value={row.right}
+                  placeholder={t("configEditor.retroRightColumn")}
+                  onChange={(e) => updateRowContent(index, "right", e.target.value)}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="cfg-flipSpeed">{t("configEditor.flipSpeed")}</Label>
@@ -248,4 +314,25 @@ export function RetroBoardConfigEditor({
       </div>
     </div>
   );
+}
+
+function normalizeRowContents(value: unknown, rows: number): RetroRowContent[] {
+  const rawRows = Array.isArray(value) ? value : [];
+  return Array.from({ length: rows }, (_, index) => {
+    const row = rawRows[index];
+    if (!row || typeof row !== "object") {
+      return { left: "", right: "" };
+    }
+
+    const raw = row as { left?: unknown; right?: unknown; text?: unknown };
+    return {
+      left:
+        typeof raw.left === "string"
+          ? raw.left
+          : typeof raw.text === "string"
+            ? raw.text
+            : "",
+      right: typeof raw.right === "string" ? raw.right : "",
+    };
+  });
 }
