@@ -57,6 +57,7 @@ interface BoardDetail extends Board {
 const DEFAULT_BOARD_PLAN: PublicBoardPlan = {
   watermark: false,
   scheduling: "full",
+  menuItemImages: true,
 };
 
 export default function BoardEditClient({ boardId }: { boardId: string }) {
@@ -211,6 +212,13 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
   const supportsScheduleTemplate =
     board.templateId === "simple" || board.templateId === "photo-clock";
   const boardPlan = board.boardPlan ?? DEFAULT_BOARD_PLAN;
+  const supportsMessages =
+    board.templateId === "simple" ||
+    board.templateId === "message";
+  const supportsMedia =
+    board.templateId === "simple" ||
+    board.templateId === "photo-clock" ||
+    board.templateId === "restaurant-menu";
 
   return (
     <div>
@@ -329,6 +337,8 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
                 templateId={board.templateId}
                 config={config}
                 onChange={setConfig}
+                mediaItems={board.mediaItems}
+                boardPlan={boardPlan}
               />
             </CardContent>
           </Card>
@@ -342,8 +352,8 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
             />
           )}
 
-          {/* Messages (not used by photo-clock or call-number template) */}
-          {board.templateId !== "photo-clock" && board.templateId !== "call-number" && (
+          {/* Messages */}
+          {supportsMessages && (
           <Card>
             <CardHeader>
               <CardTitle>{t("boardEdit.messagesTitle")}</CardTitle>
@@ -470,8 +480,8 @@ export default function BoardEditClient({ boardId }: { boardId: string }) {
           </Card>
           )}
 
-          {/* Media items (not used by call-number template) */}
-          {board.templateId !== "call-number" && (
+          {/* Media items */}
+          {supportsMedia && (
           <Card>
             <CardHeader>
               <CardTitle>{t("boardEdit.mediaTitle")}</CardTitle>

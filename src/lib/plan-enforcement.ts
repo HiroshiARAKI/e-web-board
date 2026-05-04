@@ -6,6 +6,12 @@ import { getOwnerBoardCount, getOwnerUsage, type OwnerUsage } from "@/lib/owner-
 import { PLAN_LIMIT_MESSAGE_KEYS, type PlanLimitCode } from "@/lib/plan-limit";
 import type { PlanCode, PlanDefinition } from "@/lib/plans";
 
+export const EXTENDED_TEMPLATE_IDS = [
+  "clinic-hours",
+  "restaurant-menu",
+  "qr-info",
+] as const;
+
 export type OwnerPlanUsage = OwnerUsage;
 export { getOwnerBoardCount, getOwnerUsage };
 export const getOwnerPlanUsage = getOwnerUsage;
@@ -80,6 +86,29 @@ export async function assertCanCreateBoard(ownerUserId: string) {
   const boardCount = await getOwnerBoardCount(ownerUserId);
   if (boardCount >= limit) {
     throwLimit("plan_limit_board_count", effectivePlan.plan, limit, boardCount);
+  }
+
+  return effectivePlan;
+}
+
+export function isExtendedTemplateId(templateId: string): boolean {
+  return EXTENDED_TEMPLATE_IDS.includes(templateId as (typeof EXTENDED_TEMPLATE_IDS)[number]);
+}
+
+export async function assertCanUseTemplate(input: {
+  ownerUserId: string;
+  templateId: string;
+}) {
+  const effectivePlan = await getEffectivePlanForOwner(input.ownerUserId);
+  if (
+    isExtendedTemplateId(input.templateId)
+    && !effectivePlan.plan.limits.extendedTemplates
+  ) {
+    throwLimit(
+      "plan_limit_template_disabled",
+      effectivePlan.plan,
+      true,
+    );
   }
 
   return effectivePlan;

@@ -272,6 +272,8 @@ flowchart LR
 
 テンプレート追加時は、表示コンポーネント、既定 config、必要な dashboard editor、i18n 文字列、registry 登録を追加します。
 
+標準テンプレートは `simple`、`photo-clock`、`retro`、`message`、`call-number` の5種類です。拡張テンプレートは `clinic-hours`、`restaurant-menu`、`qr-info` で、`PlanLimits.extendedTemplates` によって Free では作成・変更を制限します。`restaurant-menu` の料理画像は `PlanLimits.menuItemImages` と公開ボード payload の `boardPlan.menuItemImages` で表示可否を制御します。
+
 `simple` / `photo-clock` のスケジュール設定は `boards.config` に保持します。主なキーは `mediaSchedules`、`messageSchedules`、`fallbackMediaId` です。表示判定は `src/lib/scheduling.ts` に集約し、表示端末のブラウザが持つローカルタイムゾーンの `Date` で評価します。
 
 プラン制限は `PlanLimits.scheduling` で表現します。管理 API は保存時に `sanitizeSchedulingConfig` を通し、Free ではスケジュール設定を保存せず、Lite では日付期間を除外します。公開ボード API は `boardPlan.scheduling` を返し、表示コンポーネント側でもプランに応じて判定します。
