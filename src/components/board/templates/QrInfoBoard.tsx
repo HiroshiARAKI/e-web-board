@@ -20,6 +20,7 @@ interface QrInfoConfig {
   bodyColor: string;
   labelFontSize: number;
   labelColor: string;
+  qrSize: number;
   qrPosition: "left" | "right";
   qrLayout: "horizontal" | "vertical";
   fontFamily: string;
@@ -35,6 +36,7 @@ export const qrInfoDefaultConfig: QrInfoConfig = {
   bodyColor: "#374151",
   labelFontSize: 26,
   labelColor: "#0f172a",
+  qrSize: 220,
   qrPosition: "right",
   qrLayout: "horizontal",
   fontFamily: "",
@@ -52,7 +54,12 @@ function parseConfig(raw: unknown): QrInfoConfig {
       value: typeof qr.value === "string" ? qr.value.slice(0, 512) : "",
       label: typeof qr.label === "string" ? qr.label : "",
     }));
-  return { ...qrInfoDefaultConfig, ...cfg, qrs };
+  return {
+    ...qrInfoDefaultConfig,
+    ...cfg,
+    qrSize: Math.min(420, Math.max(120, Number(cfg.qrSize) || qrInfoDefaultConfig.qrSize)),
+    qrs,
+  };
 }
 
 export default function QrInfoBoard({ board }: BoardTemplateProps) {
@@ -66,7 +73,7 @@ export default function QrInfoBoard({ board }: BoardTemplateProps) {
     >
       {activeQrs.map((qr, index) => (
         <div key={index} className="flex flex-col items-center gap-3 rounded-xl bg-white p-6 shadow-lg">
-          <QRCodeSVG value={qr.value} size={220} marginSize={2} />
+          <QRCodeSVG value={qr.value} size={config.qrSize} marginSize={2} />
           {qr.label && (
             <div
               className="text-center font-bold"

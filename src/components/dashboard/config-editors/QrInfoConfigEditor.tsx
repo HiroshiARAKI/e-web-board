@@ -33,6 +33,8 @@ export function QrInfoConfigEditor({
   const { t } = useLocale();
   const qrs = normalizeQrs(config.qrs);
   const fontFamily = (config.fontFamily as string) ?? "";
+  const qrPosition = ((config.qrPosition as string) ?? "left") === "right" ? "right" : "left";
+  const qrLayout = ((config.qrLayout as string) ?? "horizontal") === "vertical" ? "vertical" : "horizontal";
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -77,14 +79,18 @@ export function QrInfoConfigEditor({
         <div className="space-y-1.5">
           <Label htmlFor="cfg-qr-position">{t("configEditor.qrPosition")}</Label>
           <Select
-            value={(config.qrPosition as string) ?? "left"}
+            value={qrPosition}
             onValueChange={(value) => {
               if (!value) return;
               update("qrPosition", value);
             }}
           >
             <SelectTrigger id="cfg-qr-position">
-              <SelectValue />
+              <SelectValue>
+                {qrPosition === "right"
+                  ? t("configEditor.qrPositionRight")
+                  : t("configEditor.qrPositionLeft")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="left">{t("configEditor.qrPositionLeft")}</SelectItem>
@@ -95,14 +101,18 @@ export function QrInfoConfigEditor({
         <div className="space-y-1.5">
           <Label htmlFor="cfg-qr-layout">{t("configEditor.qrLayout")}</Label>
           <Select
-            value={(config.qrLayout as string) ?? "horizontal"}
+            value={qrLayout}
             onValueChange={(value) => {
               if (!value) return;
               update("qrLayout", value);
             }}
           >
             <SelectTrigger id="cfg-qr-layout">
-              <SelectValue />
+              <SelectValue>
+                {qrLayout === "vertical"
+                  ? t("configEditor.qrLayoutVertical")
+                  : t("configEditor.qrLayoutHorizontal")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="horizontal">{t("configEditor.qrLayoutHorizontal")}</SelectItem>
@@ -116,6 +126,7 @@ export function QrInfoConfigEditor({
         <FontNumber id="cfg-qr-titleFontSize" label={t("configEditor.titleFontSize")} value={numberValue(config.titleFontSize, 62)} onChange={(value) => update("titleFontSize", value)} />
         <FontNumber id="cfg-qr-bodyFontSize" label={t("configEditor.bodyFontSize")} value={numberValue(config.bodyFontSize, 34)} onChange={(value) => update("bodyFontSize", value)} />
         <FontNumber id="cfg-qr-labelFontSize" label={t("configEditor.labelFontSize")} value={numberValue(config.labelFontSize, 26)} onChange={(value) => update("labelFontSize", value)} />
+        <FontNumber id="cfg-qr-size" label={t("configEditor.qrSize")} value={numberValue(config.qrSize, 220)} min={120} max={420} onChange={(value) => update("qrSize", value)} />
         <ColorInput id="cfg-qr-titleColor" label={t("configEditor.titleColor")} value={(config.titleColor as string) ?? "#111827"} onChange={(value) => update("titleColor", value)} />
         <ColorInput id="cfg-qr-bodyColor" label={t("configEditor.bodyColor")} value={(config.bodyColor as string) ?? "#374151"} onChange={(value) => update("bodyColor", value)} />
         <ColorInput id="cfg-qr-labelColor" label={t("configEditor.labelColor")} value={(config.labelColor as string) ?? "#0f172a"} onChange={(value) => update("labelColor", value)} />
@@ -176,11 +187,15 @@ function FontNumber({
   id,
   label,
   value,
+  min = 12,
+  max = 120,
   onChange,
 }: {
   id: string;
   label: string;
   value: number;
+  min?: number;
+  max?: number;
   onChange: (value: number) => void;
 }) {
   return (
@@ -189,10 +204,10 @@ function FontNumber({
       <Input
         id={id}
         type="number"
-        min={12}
-        max={120}
+        min={min}
+        max={max}
         value={value}
-        onChange={(e) => onChange(Math.max(12, parseInt(e.target.value, 10) || value))}
+        onChange={(e) => onChange(Math.min(max, Math.max(min, parseInt(e.target.value, 10) || value)))}
       />
     </div>
   );

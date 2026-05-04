@@ -49,6 +49,7 @@ export function RestaurantMenuConfigEditor({
   const fontFamily = (config.fontFamily as string) ?? "";
   const canUseImages = boardPlan?.menuItemImages !== false;
   const imageMedia = mediaItems.filter((item) => item.type === "image");
+  const imageShape = ((config.imageShape as string) ?? "wide") === "square" ? "square" : "wide";
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -103,7 +104,7 @@ export function RestaurantMenuConfigEditor({
             }}
           >
             <SelectTrigger id="cfg-menu-columnCount">
-              <SelectValue />
+              <SelectValue>{String(columnCount)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="1">1</SelectItem>
@@ -120,14 +121,18 @@ export function RestaurantMenuConfigEditor({
         <div className="space-y-1.5">
           <Label htmlFor="cfg-menu-imageShape">{t("configEditor.imageShape")}</Label>
           <Select
-            value={(config.imageShape as string) ?? "wide"}
+            value={imageShape}
             onValueChange={(value) => {
               if (!value) return;
               update("imageShape", value);
             }}
           >
             <SelectTrigger id="cfg-menu-imageShape">
-              <SelectValue />
+              <SelectValue>
+                {imageShape === "square"
+                  ? t("configEditor.imageShapeSquare")
+                  : t("configEditor.imageShapeWide")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="wide">{t("configEditor.imageShapeWide")}</SelectItem>
@@ -162,8 +167,13 @@ export function RestaurantMenuConfigEditor({
               />
             </div>
             <div className="space-y-2">
-              {column.items.map((item, itemIndex) => (
-                <div key={itemIndex} className="grid gap-2 md:grid-cols-[1fr_120px_180px]">
+              {column.items.map((item, itemIndex) => {
+                const selectedImageLabel = item.imageUrl
+                  ? imageOptionLabel(item.imageUrl, imageMedia, t)
+                  : t("configEditor.itemImageNone");
+
+                return (
+                  <div key={itemIndex} className="grid gap-2 md:grid-cols-[1fr_120px_180px]">
                   <Input
                     value={item.name}
                     placeholder={t("configEditor.itemName")}
@@ -185,7 +195,9 @@ export function RestaurantMenuConfigEditor({
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={t("configEditor.itemImage")} />
+                      <SelectValue placeholder={t("configEditor.itemImage")}>
+                        {selectedImageLabel}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">{t("configEditor.itemImageNone")}</SelectItem>
@@ -196,14 +208,29 @@ export function RestaurantMenuConfigEditor({
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+function imageOptionLabel(
+  filePath: string,
+  imageMedia: MediaItem[],
+  t: ReturnType<typeof useLocale>["t"],
+) {
+  const index = imageMedia.findIndex((media) => media.filePath === filePath);
+  if (index < 0) return filePath.split("/").pop() ?? filePath;
+  const media = imageMedia[index];
+  return t("schedule.imageOption", {
+    number: index + 1,
+    name: media.filePath.split("/").pop() ?? media.id,
+  });
 }
 
 function normalizeColumns(value: unknown): MenuColumnConfig[] {

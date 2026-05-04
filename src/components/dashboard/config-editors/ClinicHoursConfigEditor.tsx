@@ -56,6 +56,7 @@ export function ClinicHoursConfigEditor({
   const days = normalizeDays(config.days);
   const daysToShow = numberValue(config.daysToShow, 14);
   const fontFamily = (config.fontFamily as string) ?? "";
+  const weekStartsOn = ((config.weekStartsOn as string) ?? "sun") === "mon" ? "mon" : "sun";
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
@@ -106,14 +107,18 @@ export function ClinicHoursConfigEditor({
         <div className="space-y-1.5">
           <Label htmlFor="cfg-weekStartsOn">{t("configEditor.weekStartsOn")}</Label>
           <Select
-            value={(config.weekStartsOn as string) ?? "sun"}
+            value={weekStartsOn}
             onValueChange={(value) => {
               if (!value) return;
               update("weekStartsOn", value);
             }}
           >
             <SelectTrigger id="cfg-weekStartsOn">
-              <SelectValue />
+              <SelectValue>
+                {weekStartsOn === "mon"
+                  ? t("configEditor.weekStartsMonday")
+                  : t("configEditor.weekStartsSunday")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="sun">{t("configEditor.weekStartsSunday")}</SelectItem>
