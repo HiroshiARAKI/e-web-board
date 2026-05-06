@@ -281,6 +281,8 @@ flowchart LR
 
 ボード数制限は `boards.status` で管理します。`active` は現在のプランで利用可能なボード、`inactive_due_to_plan` はダウングレードなどで上限外になったボードです。`inactive_due_to_plan` のボードは表示・編集 API からは 404 として扱い、ボード一覧から削除だけを許可します。再アップグレードまたは空き枠がある場合は Billing 画面の有効ボード選択 UI で `active` に戻せます。
 
+Stripe Billing のダウングレードは請求期間終了時適用を前提に扱います。下位プランへの変更を検知した場合、`owner_subscriptions.plan_code` は現在期間のプランとして維持し、`pending_plan_code`、`pending_billing_interval`、`pending_plan_effective_at`、`pending_active_board_ids` に予約内容を保存します。Billing 画面では pending plan の上限に対して事前に有効ボードを選択でき、現在期間中は全ボードを引き続き利用できます。`pending_plan_effective_at` 到来後の webhook で pending plan を `plan_code` に昇格し、事前選択されなかったボードを `inactive_due_to_plan` にします。
+
 ## 8. メディア保存と配信
 
 `src/lib/media-storage.ts` がローカル保存と S3 互換ストレージを抽象化します。

@@ -143,9 +143,10 @@ export function BillingClient({
   const [boardSelectionState, setBoardSelectionState] = useState(boardSelection);
   const [selectedBoardIds, setSelectedBoardIds] = useState<Set<string>>(
     () => new Set(
-      boardSelection.boards
-        .filter((board) => board.status === "active")
-        .map((board) => board.id),
+      boardSelection.pendingActiveBoardIds
+        ?? boardSelection.boards
+          .filter((board) => board.status === "active")
+          .map((board) => board.id),
     ),
   );
   const [boardSelectionMessage, setBoardSelectionMessage] = useState<string | null>(null);
@@ -186,7 +187,8 @@ export function BillingClient({
     boardLimit !== null
     && boardSelectionState.totalBoards > 0
     && (
-      boardSelectionState.totalBoards > boardLimit
+      boardSelectionState.selectionMode === "pending"
+      || boardSelectionState.totalBoards > boardLimit
       || boardSelectionState.inactiveDueToPlanBoards > 0
     );
   const boardSelectionOverLimit =
@@ -281,9 +283,10 @@ export function BillingClient({
       const nextState = data as PlanBoardSelectionState;
       setBoardSelectionState(nextState);
       setSelectedBoardIds(new Set(
-        nextState.boards
-          .filter((board) => board.status === "active")
-          .map((board) => board.id),
+        nextState.pendingActiveBoardIds
+          ?? nextState.boards
+            .filter((board) => board.status === "active")
+            .map((board) => board.id),
       ));
       setBoardSelectionMessage(t("billing.boardSelectionSaved"));
     } catch (caught) {
@@ -404,11 +407,28 @@ export function BillingClient({
                 )}
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                {t("billing.boardSelectionDescription", {
-                  limit: boardLimit,
-                  total: boardSelectionState.totalBoards,
-                })}
+                {boardSelectionState.selectionMode === "pending"
+                  ? t("billing.boardSelectionPendingDescription", {
+                    plan: boardSelectionState.selectionPlanName,
+                    limit: boardLimit,
+                    total: boardSelectionState.totalBoards,
+                  })
+                  : t("billing.boardSelectionDescription", {
+                    limit: boardLimit,
+                    total: boardSelectionState.totalBoards,
+                  })}
               </p>
+              {boardSelectionState.selectionMode === "pending" && boardSelectionState.pendingPlanEffectiveAt && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("billing.boardSelectionPendingEffectiveAt", {
+                    date: formatDate(boardSelectionState.pendingPlanEffectiveAt, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    }),
+                  })}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button

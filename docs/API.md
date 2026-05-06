@@ -183,7 +183,7 @@ Owner user は削除できません。
 
 `BILLING_MODE=disabled` では `/billing` 導線は表示されず、`/api/billing/webhook` は 404 を返します。webhook は raw body と `STRIPE_WEBHOOK_SECRET` で署名検証し、event id を保存して重複処理を避けます。
 
-Plan 制限に到達した場合、ボード作成・更新やメディア追加 API は `403` と machine readable な `code` を返します。主な code は `plan_limit_board_count`、`plan_limit_storage`、`plan_limit_image_count`、`plan_limit_video_disabled`、`plan_limit_resolution`、`plan_limit_upload_size`、`plan_limit_template_disabled` です。ダウングレード後に有効ボード数が上限を超える場合は Billing 画面で有効ボードを選択し、未選択ボードは `inactive_due_to_plan` になります。この状態のボードは表示・編集不可ですが、削除はできます。`PLAN_ENFORCEMENT_MODE=unlimited` では制限を適用しません。
+Plan 制限に到達した場合、ボード作成・更新やメディア追加 API は `403` と machine readable な `code` を返します。主な code は `plan_limit_board_count`、`plan_limit_storage`、`plan_limit_image_count`、`plan_limit_video_disabled`、`plan_limit_resolution`、`plan_limit_upload_size`、`plan_limit_template_disabled` です。ダウングレード予約中は `owner_subscriptions.pending_plan_code` の上限に対して Billing 画面で有効ボードを事前選択します。この時点では現在期間の `plan_code` を維持するため、既存ボードは引き続き表示・編集できます。`pending_plan_effective_at` 到来後の webhook で pending plan を適用し、未選択ボードを `inactive_due_to_plan` にします。この状態のボードは表示・編集不可ですが、削除はできます。`PLAN_ENFORCEMENT_MODE=unlimited` では制限を適用しません。
 
 ## 11. 設定・補助 API
 

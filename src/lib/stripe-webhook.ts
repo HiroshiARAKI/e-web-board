@@ -4,8 +4,11 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { ownerSubscriptions, stripeEvents } from "@/db/schema";
+import { applyPendingPlanBoardSelection } from "@/lib/plan-board-selection";
 import {
+  getPlanDefinition,
   resolveStripePriceId,
+  type PlanCode,
   type BillingInterval,
   type PaidPlanCode,
   type SubscriptionStatus,
@@ -52,6 +55,15 @@ interface ResolvedSubscriptionState {
   cancelAtPeriodEnd: boolean;
 }
 
+const PLAN_ORDER: Record<PlanCode, number> = {
+  free: 0,
+  lite: 1,
+  standard: 2,
+  standard_plus: 3,
+  self_hosted: 10,
+  unlimited: 10,
+};
+
 function asObject(value: unknown): StripeObject | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as StripeObject
@@ -74,6 +86,34 @@ function stripeId(value: unknown): string | null {
 function toIsoFromStripeSeconds(value: unknown): string | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return new Date(value * 1000).toISOString();
+}
+
+function isFutureIso(value: string | null): boolean {
+  if (!value) return false;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && time > Date.now();
+}
+
+function isDueIso(value: string | null): boolean {
+  if (!value) return false;
+  const time = Date.parse(value);
+  return Number.isFinite(time) && time <= Date.now();
+}
+
+function isDowngradePlan(currentPlanCode: string, nextPlanCode: PlanCode): boolean {
+  return (PLAN_ORDER[currentPlanCode as PlanCode] ?? 0) > PLAN_ORDER[nextPlanCode];
+}
+
+function parsePendingActiveBoardIds(value: string | null): string[] | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function metadataOwnerUserId(object: StripeObject | null): string | null {
@@ -257,7 +297,7 @@ async function upsertOwnerSubscription(state: ResolvedSubscriptionState) {
   const existing = await db.query.ownerSubscriptions.findFirst({
     where: eq(ownerSubscriptions.ownerUserId, state.ownerUserId),
   });
-  const values = {
+  const values: Partial<typeof ownerSubscriptions.$inferInsert> = {
     billingMode: "stripe",
     planCode: state.planCode,
     billingInterval: state.billingInterval,
@@ -270,9 +310,65 @@ async function upsertOwnerSubscription(state: ResolvedSubscriptionState) {
   };
 
   if (existing) {
+    if (
+      existing.pendingPlanCode === state.planCode
+      && isDueIso(existing.pendingPlanEffectiveAt)
+    ) {
+      await applyPendingPlanBoardSelection({
+        ownerUserId: state.ownerUserId,
+        limit: getPlanDefinition(state.planCode).limits.boards,
+        selectedBoardIds: parsePendingActiveBoardIds(existing.pendingActiveBoardIds),
+      });
+      await db
+        .update(ownerSubscriptions)
+        .set({
+          ...values,
+          pendingPlanCode: null,
+          pendingBillingInterval: null,
+          pendingPlanEffectiveAt: null,
+          pendingActiveBoardIds: null,
+        })
+        .where(eq(ownerSubscriptions.ownerUserId, state.ownerUserId));
+      return;
+    }
+
+    if (
+      isDowngradePlan(existing.planCode, state.planCode)
+      && ["trialing", "active", "past_due"].includes(state.status)
+      && isFutureIso(state.currentPeriodEnd)
+    ) {
+      await db
+        .update(ownerSubscriptions)
+        .set({
+          billingMode: "stripe",
+          status: state.status,
+          stripeCustomerId: state.stripeCustomerId,
+          stripeSubscriptionId: state.stripeSubscriptionId,
+          currentPeriodEnd: state.currentPeriodEnd,
+          cancelAtPeriodEnd: state.cancelAtPeriodEnd,
+          pendingPlanCode: state.planCode,
+          pendingBillingInterval: state.billingInterval,
+          pendingPlanEffectiveAt: state.currentPeriodEnd,
+          pendingActiveBoardIds:
+            existing.pendingPlanCode === state.planCode
+            && existing.pendingPlanEffectiveAt === state.currentPeriodEnd
+              ? existing.pendingActiveBoardIds
+              : null,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(ownerSubscriptions.ownerUserId, state.ownerUserId));
+      return;
+    }
+
     await db
       .update(ownerSubscriptions)
-      .set(values)
+      .set({
+        ...values,
+        pendingPlanCode: null,
+        pendingBillingInterval: null,
+        pendingPlanEffectiveAt: null,
+        pendingActiveBoardIds: null,
+      })
       .where(eq(ownerSubscriptions.ownerUserId, state.ownerUserId));
     return;
   }
@@ -445,6 +541,30 @@ async function handleInvoiceEvent(eventType: string, object: StripeObject) {
       updatedAt: new Date().toISOString(),
     })
     .where(eq(ownerSubscriptions.ownerUserId, existing.ownerUserId));
+
+  if (
+    eventType === "invoice.payment_succeeded"
+    && existing.pendingPlanCode
+    && isDueIso(existing.pendingPlanEffectiveAt)
+  ) {
+    await applyPendingPlanBoardSelection({
+      ownerUserId: existing.ownerUserId,
+      limit: getPlanDefinition(existing.pendingPlanCode).limits.boards,
+      selectedBoardIds: parsePendingActiveBoardIds(existing.pendingActiveBoardIds),
+    });
+    await db
+      .update(ownerSubscriptions)
+      .set({
+        planCode: existing.pendingPlanCode,
+        billingInterval: existing.pendingBillingInterval,
+        pendingPlanCode: null,
+        pendingBillingInterval: null,
+        pendingPlanEffectiveAt: null,
+        pendingActiveBoardIds: null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(ownerSubscriptions.ownerUserId, existing.ownerUserId));
+  }
 
   return "processed" as const;
 }

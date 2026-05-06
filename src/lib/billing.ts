@@ -27,6 +27,10 @@ export interface OwnerSubscriptionState {
   planCode: PlanCode;
   billingInterval: BillingInterval | null;
   status: SubscriptionStatus;
+  pendingPlanCode: PlanCode | null;
+  pendingBillingInterval: BillingInterval | null;
+  pendingPlanEffectiveAt: string | null;
+  pendingActiveBoardIds: string[] | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   currentPeriodEnd: string | null;
@@ -44,6 +48,18 @@ export interface EffectivePlan {
 function normalizeSubscription(
   row: typeof ownerSubscriptions.$inferSelect,
 ): OwnerSubscriptionState {
+  let pendingActiveBoardIds: string[] | null = null;
+  if (row.pendingActiveBoardIds) {
+    try {
+      const parsed = JSON.parse(row.pendingActiveBoardIds) as unknown;
+      pendingActiveBoardIds = Array.isArray(parsed)
+        ? parsed.filter((value): value is string => typeof value === "string")
+        : null;
+    } catch {
+      pendingActiveBoardIds = null;
+    }
+  }
+
   return {
     id: row.id,
     ownerUserId: row.ownerUserId,
@@ -51,6 +67,12 @@ function normalizeSubscription(
     planCode: isPlanCode(row.planCode) ? row.planCode : "free",
     billingInterval: isBillingInterval(row.billingInterval) ? row.billingInterval : null,
     status: isSubscriptionStatus(row.status) ? row.status : "none",
+    pendingPlanCode: isPlanCode(row.pendingPlanCode) ? row.pendingPlanCode : null,
+    pendingBillingInterval: isBillingInterval(row.pendingBillingInterval)
+      ? row.pendingBillingInterval
+      : null,
+    pendingPlanEffectiveAt: row.pendingPlanEffectiveAt,
+    pendingActiveBoardIds,
     stripeCustomerId: row.stripeCustomerId,
     stripeSubscriptionId: row.stripeSubscriptionId,
     currentPeriodEnd: row.currentPeriodEnd,

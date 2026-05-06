@@ -6,6 +6,7 @@ import { getAdminSessionUser } from "@/lib/auth";
 import {
   applyPlanBoardSelection,
   getPlanBoardSelectionState,
+  savePendingPlanBoardSelection,
 } from "@/lib/plan-board-selection";
 import { resolveOwnerUserId } from "@/lib/ownership";
 
@@ -65,7 +66,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const ownerUserId = resolveOwnerUserId(session.user);
-    const state = await applyPlanBoardSelection({
+    const currentState = await getPlanBoardSelectionState(ownerUserId);
+    const state = await (
+      currentState.selectionMode === "pending"
+        ? savePendingPlanBoardSelection
+        : applyPlanBoardSelection
+    )({
       ownerUserId,
       selectedBoardIds: result.data.selectedBoardIds,
     });
