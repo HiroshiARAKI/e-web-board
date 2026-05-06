@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isBoardAccessible } from "@/lib/board-status";
 import { getEffectivePlanForOwner } from "@/lib/billing";
 import { sanitizeSchedulingConfig } from "@/lib/scheduling";
 import {
@@ -36,7 +37,7 @@ export async function GET(
   const { id } = await params;
 
   const board = await findOwnedBoard(id, resolveOwnerUserId(session.user));
-  if (!board) {
+  if (!board || !isBoardAccessible(board)) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
 
@@ -76,7 +77,7 @@ export async function PATCH(
   const { id } = await params;
 
   const existing = await findOwnedBoard(id, resolveOwnerUserId(session.user));
-  if (!existing) {
+  if (!existing || !isBoardAccessible(existing)) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
 

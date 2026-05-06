@@ -17,6 +17,7 @@ import { UsageDashboard } from "@/components/dashboard/UsageDashboard";
 import type { EffectivePlan } from "@/lib/billing";
 import type { MessageKey } from "@/lib/i18n";
 import type { OwnerUsage } from "@/lib/owner-usage";
+import type { PlanBoardSelectionState } from "@/lib/plan-board-selection";
 import type { BillingInterval, PaidPlanCode, PlanCode } from "@/lib/plans";
 
 type BillingNotice =
@@ -128,15 +129,26 @@ function formatYearlyPrice(plan: PlanDisplay, t: (key: MessageKey, vars?: Record
 export function BillingClient({
   effectivePlan,
   usage,
+  boardSelection,
   billingNotice,
 }: {
   effectivePlan: EffectivePlan;
   usage: OwnerUsage;
+  boardSelection: PlanBoardSelectionState;
   billingNotice: BillingNotice;
 }) {
   const { t, formatDate } = useLocale();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [boardSelectionState, setBoardSelectionState] = useState(boardSelection);
+  const [selectedBoardIds, setSelectedBoardIds] = useState<Set<string>>(
+    () => new Set(
+      boardSelection.boards
+        .filter((board) => board.status === "active")
+        .map((board) => board.id),
+    ),
+  );
+  const [boardSelectionMessage, setBoardSelectionMessage] = useState<string | null>(null);
   const currentPlanCode = effectivePlan.plan.code;
   const subscription = effectivePlan.subscription;
   const isBillingActive =
@@ -168,6 +180,17 @@ export function BillingClient({
 
   const notice = billingNotice ? t(`billing.notice.${billingNotice}` as MessageKey) : null;
   const statusKey = STATUS_LABEL_KEYS[subscription?.status ?? "none"] ?? "billing.status.none";
+  const boardLimit = boardSelectionState.limit;
+  const selectedBoardCount = selectedBoardIds.size;
+  const shouldShowBoardSelection =
+    boardLimit !== null
+    && boardSelectionState.totalBoards > 0
+    && (
+      boardSelectionState.totalBoards > boardLimit
+      || boardSelectionState.inactiveDueToPlanBoards > 0
+    );
+  const boardSelectionOverLimit =
+    boardLimit !== null && selectedBoardCount > boardLimit;
 
   async function redirectFromApi(
     url: string,
@@ -206,6 +229,68 @@ export function BillingClient({
       await redirectFromApi("/api/billing/portal");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("billing.error.portalFailed"));
+      setLoadingAction(null);
+    }
+  }
+
+  function toggleBoardSelection(boardId: string) {
+    setBoardSelectionMessage(null);
+    setSelectedBoardIds((current) => {
+      const next = new Set(current);
+      if (next.has(boardId)) {
+        next.delete(boardId);
+      } else {
+        next.add(boardId);
+      }
+      return next;
+    });
+  }
+
+  function autoSelectBoards() {
+    if (boardLimit === null) return;
+    setBoardSelectionMessage(null);
+    setSelectedBoardIds(new Set(
+      boardSelectionState.boards.slice(0, boardLimit).map((board) => board.id),
+    ));
+  }
+
+  async function saveBoardSelection() {
+    if (boardLimit !== null && selectedBoardIds.size > boardLimit) {
+      setBoardSelectionMessage(t("billing.boardSelectionLimitError", { limit: boardLimit }));
+      return;
+    }
+
+    setLoadingAction("board-selection");
+    setError(null);
+    setBoardSelectionMessage(null);
+    try {
+      const response = await fetch("/api/billing/board-activation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedBoardIds: Array.from(selectedBoardIds) }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const code = typeof data.code === "string" ? data.code : "unknown";
+        if (code === "board_selection_limit_exceeded" && boardLimit !== null) {
+          throw new Error(t("billing.boardSelectionLimitError", { limit: boardLimit }));
+        }
+        throw new Error(t("billing.boardSelectionSaveFailed"));
+      }
+
+      const nextState = data as PlanBoardSelectionState;
+      setBoardSelectionState(nextState);
+      setSelectedBoardIds(new Set(
+        nextState.boards
+          .filter((board) => board.status === "active")
+          .map((board) => board.id),
+      ));
+      setBoardSelectionMessage(t("billing.boardSelectionSaved"));
+    } catch (caught) {
+      setBoardSelectionMessage(
+        caught instanceof Error ? caught.message : t("billing.boardSelectionSaveFailed"),
+      );
+    } finally {
       setLoadingAction(null);
     }
   }
@@ -306,6 +391,114 @@ export function BillingClient({
         usage={usage}
         showUpgradeAction
       />
+
+      {shouldShowBoardSelection && boardLimit !== null && (
+        <section className="rounded-lg border bg-card p-5 text-card-foreground">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <AlertCircle className="size-4 text-amber-600" />
+                <h2 className="font-semibold">{t("billing.boardSelectionTitle")}</h2>
+                {boardSelectionState.requiresSelection && (
+                  <Badge variant="destructive">{t("billing.boardSelectionRequired")}</Badge>
+                )}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t("billing.boardSelectionDescription", {
+                  limit: boardLimit,
+                  total: boardSelectionState.totalBoards,
+                })}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={autoSelectBoards}
+                disabled={loadingAction === "board-selection"}
+              >
+                {t("billing.boardSelectionAuto")}
+              </Button>
+              <Button
+                type="button"
+                onClick={saveBoardSelection}
+                disabled={loadingAction === "board-selection" || boardSelectionOverLimit}
+              >
+                {loadingAction === "board-selection"
+                  ? t("common.saving")
+                  : t("billing.boardSelectionSave")}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant={boardSelectionOverLimit ? "destructive" : "outline"}>
+              {t("billing.boardSelectionCount", {
+                selected: selectedBoardCount,
+                limit: boardLimit,
+              })}
+            </Badge>
+            {boardSelectionState.inactiveDueToPlanBoards > 0 && (
+              <Badge variant="secondary">
+                {t("billing.boardSelectionInactiveCount", {
+                  count: boardSelectionState.inactiveDueToPlanBoards,
+                })}
+              </Badge>
+            )}
+          </div>
+
+          {(boardSelectionOverLimit || boardSelectionMessage) && (
+            <div className={`mt-4 rounded-lg border px-4 py-3 text-sm ${
+              boardSelectionOverLimit
+                ? "border-destructive/30 bg-destructive/10 text-destructive"
+                : "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100"
+            }`}
+            >
+              {boardSelectionOverLimit
+                ? t("billing.boardSelectionLimitError", { limit: boardLimit })
+                : boardSelectionMessage}
+            </div>
+          )}
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {boardSelectionState.boards.map((board) => {
+              const checked = selectedBoardIds.has(board.id);
+              const inactiveDueToPlan = board.status === "inactive_due_to_plan";
+              return (
+                <label
+                  key={board.id}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    checked
+                      ? "border-primary bg-primary/5"
+                      : "bg-card hover:bg-muted/40"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-4 accent-primary"
+                    checked={checked}
+                    onChange={() => toggleBoardSelection(board.id)}
+                    disabled={loadingAction === "board-selection"}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-medium">{board.name}</span>
+                      {inactiveDueToPlan && (
+                        <Badge variant="secondary">
+                          {t("billing.boardStatusInactiveDueToPlan")}
+                        </Badge>
+                      )}
+                    </span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {t("common.updatedAt")}: {formatDate(board.updatedAt)}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {recommendedPlan && isBillingActive && (
         <section className="rounded-lg border bg-card p-5 text-card-foreground">

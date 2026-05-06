@@ -14,6 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { BoardDeleteButton } from "@/components/dashboard/BoardDeleteButton";
+import { isBoardAccessible } from "@/lib/board-status";
 import { templates } from "@/lib/templates";
 import { getSessionUser } from "@/lib/auth";
 import { getRequestI18n } from "@/lib/i18n-server";
@@ -72,12 +74,23 @@ export default async function BoardsPage() {
           {allBoards.map((board) => {
             const template = templates[board.templateId as keyof typeof templates];
             const templateCopy = getTemplateCopy(board.templateId);
+            const boardAccessible = isBoardAccessible(board);
             return (
-              <Card key={board.id} className="transition-shadow hover:shadow-md">
+              <Card
+                key={board.id}
+                className={`transition-shadow hover:shadow-md ${
+                  boardAccessible ? "" : "border-amber-300 bg-amber-50/60 dark:border-amber-900/60 dark:bg-amber-950/20"
+                }`}
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <CardTitle className="text-base">{board.name}</CardTitle>
                     <div className="flex flex-wrap items-center justify-end gap-2">
+                      {!boardAccessible && (
+                        <Badge variant="secondary">
+                          {t("boards.inactiveDueToPlanBadge")}
+                        </Badge>
+                      )}
                       <Badge variant={board.isActive ? "default" : "secondary"}>
                         {board.isActive ? t("common.enabled") : t("common.disabled")}
                       </Badge>
@@ -106,29 +119,61 @@ export default async function BoardsPage() {
                       {t("common.createdAt")}: {formatDate(board.createdAt)}
                     </div>
                     <div>
-                      {board.visibility === "public"
-                        ? t("boards.publicHint")
-                        : t("boards.privateHint")}
+                      {!boardAccessible
+                        ? t("boards.inactiveDueToPlanHint")
+                        : board.visibility === "public"
+                          ? t("boards.publicHint")
+                          : t("boards.privateHint")}
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={`/boards/${board.id}`}
-                      className={buttonVariants({ variant: "outline", size: "sm" })}
-                    >
-                      <Settings2 data-icon="inline-start" />
-                      {t("common.manage")}
-                    </Link>
-                    <a
-                      href={`/${board.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={buttonVariants({ size: "sm" })}
-                    >
-                      <ExternalLink data-icon="inline-start" />
-                      {t("common.display")}
-                    </a>
+                    {boardAccessible ? (
+                      <>
+                        <Link
+                          href={`/boards/${board.id}`}
+                          className={buttonVariants({ variant: "outline", size: "sm" })}
+                        >
+                          <Settings2 data-icon="inline-start" />
+                          {t("common.manage")}
+                        </Link>
+                        <a
+                          href={`/${board.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={buttonVariants({ size: "sm" })}
+                        >
+                          <ExternalLink data-icon="inline-start" />
+                          {t("common.display")}
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        <span
+                          aria-disabled="true"
+                          className={buttonVariants({
+                            variant: "outline",
+                            size: "sm",
+                            className: "pointer-events-none opacity-50",
+                          })}
+                        >
+                          <Settings2 data-icon="inline-start" />
+                          {t("common.manage")}
+                        </span>
+                        <span
+                          aria-disabled="true"
+                          className={buttonVariants({
+                            variant: "secondary",
+                            size: "sm",
+                            className: "pointer-events-none opacity-50",
+                          })}
+                        >
+                          <ExternalLink data-icon="inline-start" />
+                          {t("common.display")}
+                        </span>
+                      </>
+                    )}
+                    <BoardDeleteButton boardId={board.id} boardName={board.name} />
                   </div>
                 </CardContent>
               </Card>

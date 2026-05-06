@@ -5,7 +5,10 @@ import { db } from "@/db";
 import { boards, mediaItems } from "@/db/schema";
 
 export interface OwnerUsage {
+  /** Boards usable under the current plan. Boards inactive due to plan limits are excluded. */
   boards: number;
+  totalBoards: number;
+  inactiveDueToPlanBoards: number;
   mediaItems: number;
   images: number;
   videos: number;
@@ -27,14 +30,23 @@ export async function getOwnerBoardCount(ownerUserId: string): Promise<number> {
   const [row] = await db
     .select({ count: count() })
     .from(boards)
-    .where(eq(boards.ownerUserId, ownerUserId));
+    .where(
+      sql`${boards.ownerUserId} = ${ownerUserId} and ${boards.status} = 'active'`,
+    );
 
   return aggregateNumber(row?.count);
 }
 
 export async function getOwnerUsage(ownerUserId: string): Promise<OwnerUsage> {
-  const [boardCount, mediaUsage] = await Promise.all([
-    getOwnerBoardCount(ownerUserId),
+  const [boardUsage, mediaUsage] = await Promise.all([
+    db
+      .select({
+        boards: sql<number>`count(*) filter (where ${boards.status} = 'active')`,
+        totalBoards: count(),
+        inactiveDueToPlanBoards: sql<number>`count(*) filter (where ${boards.status} = 'inactive_due_to_plan')`,
+      })
+      .from(boards)
+      .where(eq(boards.ownerUserId, ownerUserId)),
     db
       .select({
         mediaItems: count(),
@@ -48,8 +60,11 @@ export async function getOwnerUsage(ownerUserId: string): Promise<OwnerUsage> {
   ]);
 
   const [row] = mediaUsage;
+  const [boardRow] = boardUsage;
   return {
-    boards: boardCount,
+    boards: aggregateNumber(boardRow?.boards),
+    totalBoards: aggregateNumber(boardRow?.totalBoards),
+    inactiveDueToPlanBoards: aggregateNumber(boardRow?.inactiveDueToPlanBoards),
     mediaItems: aggregateNumber(row?.mediaItems),
     images: aggregateNumber(row?.images),
     videos: aggregateNumber(row?.videos),

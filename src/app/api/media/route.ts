@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { mediaItems, boards } from "@/db/schema";
 import { and, eq, asc, inArray } from "drizzle-orm";
 import { getAdminSessionUser, getSessionUser } from "@/lib/auth";
+import { isBoardAccessible } from "@/lib/board-status";
 import { updateMediaOrderSchema } from "@/lib/validators";
 import { emitSSE } from "@/lib/sse";
 import {
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
   const board = await db.query.boards.findFirst({
     where: eq(boards.id, boardId),
   });
-  if (!board) {
+  if (!board || !isBoardAccessible(board)) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
   if (board.ownerUserId !== resolveOwnerUserId(session.user)) {
@@ -329,13 +330,14 @@ export async function PATCH(request: NextRequest) {
       .select({
         id: mediaItems.id,
         boardId: mediaItems.boardId,
+        status: boards.status,
       })
       .from(mediaItems)
       .innerJoin(boards, eq(mediaItems.boardId, boards.id))
       .where(and(eq(mediaItems.id, item.id), eq(boards.ownerUserId, ownerUserId)))
       .limit(1);
 
-    if (scopedItem.length === 0) {
+    if (scopedItem.length === 0 || !isBoardAccessible(scopedItem[0])) {
       return NextResponse.json({ error: "Media item not found" }, { status: 404 });
     }
 

@@ -118,6 +118,7 @@ export default function LiveBoard({
         name: data.name,
         ownerUserId: data.ownerUserId,
         visibility: data.visibility,
+        status: data.status,
         templateId: data.templateId,
         config: parseJsonObject(data.config),
         isActive: data.isActive,

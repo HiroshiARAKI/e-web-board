@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, mediaItems, messages } from "@/db/schema";
 import { eq, asc, and, or, isNull, gt } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isBoardDisplayable } from "@/lib/board-status";
 import { getEffectivePlanForOwner } from "@/lib/billing";
 import { publicDeliveryUrlForPublicPath } from "@/lib/media-storage";
 import { isInOwnerScope } from "@/lib/ownership";
@@ -25,7 +26,7 @@ export default async function BoardPage({
     where: eq(boards.id, boardId),
   });
 
-  if (!board || !board.isActive) {
+  if (!board || !isBoardDisplayable(board)) {
     notFound();
   }
 
@@ -33,6 +34,7 @@ export default async function BoardPage({
     boardId,
     visibility: board.visibility,
     isActive: board.isActive,
+    status: board.status,
   });
 
   if (board.visibility === "private") {

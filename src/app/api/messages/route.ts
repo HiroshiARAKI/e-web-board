@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isBoardAccessible } from "@/lib/board-status";
 import { createMessageSchema } from "@/lib/validators";
 import { resolveOwnerUserId } from "@/lib/ownership";
 import { emitSSE } from "@/lib/sse";
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
   const board = await db.query.boards.findFirst({
     where: eq(boards.id, boardId),
   });
-  if (!board) {
+  if (!board || !isBoardAccessible(board)) {
     return NextResponse.json({ error: "Board not found" }, { status: 404 });
   }
   if (board.ownerUserId !== resolveOwnerUserId(session.user)) {

@@ -148,6 +148,7 @@ erDiagram
     text owner_user_id FK
     text name
     text visibility
+    text status
     text template_id
     text config
     boolean is_active
@@ -190,7 +191,7 @@ erDiagram
 | `google_oauth_flows` | Google OAuth/OIDC の state、PKCE verifier、nonce、mode、redirectTo |
 | `pin_reset_tokens` | PIN リセット用トークン |
 | `account_deletion_requests` | Owner アカウント削除用トークン |
-| `boards` | ボード本体。テンプレート ID と JSON config を保持 |
+| `boards` | ボード本体。テンプレート ID、JSON config、プラン上の状態を保持 |
 | `media_items` | ボードに紐づく画像・動画 |
 | `messages` | ボードに紐づくメッセージ |
 | `settings` | Owner 単位の KV 設定 |
@@ -277,6 +278,8 @@ flowchart LR
 `simple` / `photo-clock` のスケジュール設定は `boards.config` に保持します。主なキーは `mediaSchedules`、`messageSchedules`、`fallbackMediaId` です。表示判定は `src/lib/scheduling.ts` に集約し、表示端末のブラウザが持つローカルタイムゾーンの `Date` で評価します。
 
 プラン制限は `PlanLimits.scheduling` で表現します。管理 API は保存時に `sanitizeSchedulingConfig` を通し、Free ではスケジュール設定を保存せず、Lite では日付期間を除外します。公開ボード API は `boardPlan.scheduling` を返し、表示コンポーネント側でもプランに応じて判定します。
+
+ボード数制限は `boards.status` で管理します。`active` は現在のプランで利用可能なボード、`inactive_due_to_plan` はダウングレードなどで上限外になったボードです。`inactive_due_to_plan` のボードは表示・編集 API からは 404 として扱い、ボード一覧から削除だけを許可します。再アップグレードまたは空き枠がある場合は Billing 画面の有効ボード選択 UI で `active` に戻せます。
 
 ## 8. メディア保存と配信
 

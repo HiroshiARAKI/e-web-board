@@ -175,13 +175,15 @@ Owner user は削除できません。
 | Method | Path | 内容 | 認証 |
 | --- | --- | --- | --- |
 | `GET` | `/api/billing/plan` | Owner の有効プラン状態を取得 | `admin` |
+| `GET` | `/api/billing/board-activation` | プラン上限に対するボード有効化状態を取得 | `admin` |
+| `POST` | `/api/billing/board-activation` | 有効化するボードを保存し、未選択ボードを `inactive_due_to_plan` にする | `admin` |
 | `POST` | `/api/billing/checkout` | 有料プランの Checkout Session を作成 | `admin` |
 | `POST` | `/api/billing/portal` | 支払い管理 Session を作成 | `admin` |
 | `POST` | `/api/billing/webhook` | 決済 webhook を署名検証し、Owner subscription を同期 | webhook signature |
 
 `BILLING_MODE=disabled` では `/billing` 導線は表示されず、`/api/billing/webhook` は 404 を返します。webhook は raw body と `STRIPE_WEBHOOK_SECRET` で署名検証し、event id を保存して重複処理を避けます。
 
-Plan 制限に到達した場合、ボード作成・更新やメディア追加 API は `403` と machine readable な `code` を返します。主な code は `plan_limit_board_count`、`plan_limit_storage`、`plan_limit_image_count`、`plan_limit_video_disabled`、`plan_limit_resolution`、`plan_limit_upload_size`、`plan_limit_template_disabled` です。`PLAN_ENFORCEMENT_MODE=unlimited` では制限を適用しません。
+Plan 制限に到達した場合、ボード作成・更新やメディア追加 API は `403` と machine readable な `code` を返します。主な code は `plan_limit_board_count`、`plan_limit_storage`、`plan_limit_image_count`、`plan_limit_video_disabled`、`plan_limit_resolution`、`plan_limit_upload_size`、`plan_limit_template_disabled` です。ダウングレード後に有効ボード数が上限を超える場合は Billing 画面で有効ボードを選択し、未選択ボードは `inactive_due_to_plan` になります。この状態のボードは表示・編集不可ですが、削除はできます。`PLAN_ENFORCEMENT_MODE=unlimited` では制限を適用しません。
 
 ## 11. 設定・補助 API
 

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { boards, messages } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth";
+import { isBoardAccessible } from "@/lib/board-status";
 import { emitSSE } from "@/lib/sse";
 import { resolveOwnerUserId } from "@/lib/ownership";
 import { updateMessageSchema } from "@/lib/validators";
@@ -40,11 +41,12 @@ export async function PATCH(
       id: messages.id,
       boardId: messages.boardId,
       ownerUserId: boards.ownerUserId,
+      status: boards.status,
     })
     .from(messages)
     .innerJoin(boards, eq(messages.boardId, boards.id))
     .where(and(eq(messages.id, id), eq(boards.ownerUserId, resolveOwnerUserId(session.user))));
-  if (!existing) {
+  if (!existing || !isBoardAccessible(existing)) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
@@ -75,11 +77,12 @@ export async function DELETE(
       id: messages.id,
       boardId: messages.boardId,
       ownerUserId: boards.ownerUserId,
+      status: boards.status,
     })
     .from(messages)
     .innerJoin(boards, eq(messages.boardId, boards.id))
     .where(and(eq(messages.id, id), eq(boards.ownerUserId, resolveOwnerUserId(session.user))));
-  if (!existing) {
+  if (!existing || !isBoardAccessible(existing)) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
