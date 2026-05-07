@@ -11,6 +11,9 @@ export interface OwnerUsage {
   mediaItems: number;
   images: number;
   videos: number;
+  maxMediaFileSizeBytes: number;
+  videosOverFhd: number;
+  videosOver4k: number;
   /** Sum of DB media file metadata in bytes. Orphaned storage objects are intentionally excluded. */
   storageBytes: number;
 }
@@ -49,6 +52,25 @@ export async function getOwnerUsage(ownerUserId: string): Promise<OwnerUsage> {
         mediaItems: count(),
         images: sql<number>`count(*) filter (where ${mediaItems.type} = 'image')`,
         videos: sql<number>`count(*) filter (where ${mediaItems.type} = 'video')`,
+        maxMediaFileSizeBytes: sql<number>`coalesce(max(${mediaItems.fileSizeBytes}), 0)`,
+        videosOverFhd: sql<number>`count(*) filter (
+          where ${mediaItems.type} = 'video'
+            and ${mediaItems.width} is not null
+            and ${mediaItems.height} is not null
+            and (
+              greatest(${mediaItems.width}, ${mediaItems.height}) > 1920
+              or least(${mediaItems.width}, ${mediaItems.height}) > 1080
+            )
+        )`,
+        videosOver4k: sql<number>`count(*) filter (
+          where ${mediaItems.type} = 'video'
+            and ${mediaItems.width} is not null
+            and ${mediaItems.height} is not null
+            and (
+              greatest(${mediaItems.width}, ${mediaItems.height}) > 3840
+              or least(${mediaItems.width}, ${mediaItems.height}) > 2160
+            )
+        )`,
         storageBytes: sql<number>`coalesce(sum(${mediaItems.fileSizeBytes} + ${mediaItems.thumbnailSizeBytes}), 0)`,
       })
       .from(mediaItems)
@@ -65,6 +87,9 @@ export async function getOwnerUsage(ownerUserId: string): Promise<OwnerUsage> {
     mediaItems: aggregateNumber(row?.mediaItems),
     images: aggregateNumber(row?.images),
     videos: aggregateNumber(row?.videos),
+    maxMediaFileSizeBytes: aggregateNumber(row?.maxMediaFileSizeBytes),
+    videosOverFhd: aggregateNumber(row?.videosOverFhd),
+    videosOver4k: aggregateNumber(row?.videosOver4k),
     storageBytes: aggregateNumber(row?.storageBytes),
   };
 }

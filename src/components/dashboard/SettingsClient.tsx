@@ -1217,7 +1217,7 @@ export function SettingsClient({
       )}
 
       {/* Media Management - admin only */}
-      {role === "admin" && <div className="rounded-lg border border-red-200 p-6">
+      {role === "admin" && <div id="media-management" className="rounded-lg border border-red-200 p-6">
         <h2 className="mb-4 text-lg font-semibold">{t("settings.mediaManagementTitle")}</h2>
 
         {/* Individual media list */}

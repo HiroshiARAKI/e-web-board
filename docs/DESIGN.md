@@ -284,6 +284,8 @@ flowchart LR
 
 Stripe のダウングレード予約またはキャンセル予約を検知した場合、`owner_subscriptions.pending_plan_code`、`pending_billing_interval`、`pending_plan_effective_at`、`pending_active_board_ids` を保存します。`pending_active_board_ids` は `last_viewed_at`、`updated_at`、`created_at` の降順で、移行先プランの `PlanLimits.boards` 件まで自動生成します。実際の切替時は pending 候補だけを `active` とし、それ以外を `inactive_due_to_plan` にします。pending 候補が空または不正な場合も同じ順序で再選択します。
 
+ダウングレード影響の表示は `src/lib/plan-impact.ts` に集約します。`OwnerUsage` と対象 `PlanDefinition` を比較し、ボード数、画像数、ストレージ、動画可否、動画解像度、1ファイル上限の超過候補を `PlanImpact` として返します。Billing 画面は予約中プランの影響警告、現在プランの over-limit 解消案内、プラン比較カードの事前警告に同じ判定を使います。
+
 ## 8. メディア保存と配信
 
 `src/lib/media-storage.ts` がローカル保存と S3 互換ストレージを抽象化します。

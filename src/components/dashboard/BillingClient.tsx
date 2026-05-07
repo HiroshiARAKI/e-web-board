@@ -19,8 +19,14 @@ import { UsageDashboard } from "@/components/dashboard/UsageDashboard";
 import type { EffectivePlan } from "@/lib/billing";
 import type { MessageKey } from "@/lib/i18n";
 import type { OwnerUsage } from "@/lib/owner-usage";
+import { buildPlanImpacts, type PlanImpact } from "@/lib/plan-impact";
 import type { PlanBoardSelectionState } from "@/lib/plan-board-selection";
-import type { BillingInterval, PaidPlanCode, PlanCode } from "@/lib/plans";
+import {
+  getPlanDefinition,
+  type BillingInterval,
+  type PaidPlanCode,
+  type PlanCode,
+} from "@/lib/plans";
 
 type BillingNotice =
   | "checkout-success"
@@ -103,6 +109,15 @@ const NEXT_PLAN: Partial<Record<PlanCode, PaidPlanCode>> = {
   standard: "standard_plus",
 };
 
+const PLAN_RANK: Record<PlanCode, number> = {
+  free: 0,
+  lite: 1,
+  standard: 2,
+  standard_plus: 3,
+  self_hosted: 10,
+  unlimited: 10,
+};
+
 const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
   none: "billing.status.none",
   incomplete: "billing.status.incomplete",
@@ -114,8 +129,84 @@ const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
   paused: "billing.status.paused",
 };
 
-function getPlanName(planCode: PaidPlanCode) {
+function getPlanName(planCode: PlanCode) {
   return PLAN_DISPLAYS.find((plan) => plan.code === planCode)?.name ?? planCode;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatBytes(value: number) {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let amount = Math.max(0, value);
+  let unitIndex = 0;
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024;
+    unitIndex += 1;
+  }
+  const maximumFractionDigits = unitIndex === 0 || amount >= 10 ? 0 : 1;
+  return `${new Intl.NumberFormat(undefined, { maximumFractionDigits }).format(amount)} ${units[unitIndex]}`;
+}
+
+function formatImpactUsed(impact: PlanImpact) {
+  if (
+    impact.code === "storage"
+    || impact.code === "max_upload"
+  ) {
+    return formatBytes(impact.used);
+  }
+  return formatNumber(impact.used);
+}
+
+function formatImpactLimit(impact: PlanImpact) {
+  const value = impact.limit;
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (
+    impact.code === "storage"
+    || impact.code === "max_upload"
+  ) {
+    return formatBytes(value);
+  }
+  if (impact.code === "video_resolution") {
+    return `${formatNumber(value)}px`;
+  }
+  return formatNumber(value);
+}
+
+function PlanImpactList({
+  impacts,
+  t,
+}: {
+  impacts: PlanImpact[];
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+}) {
+  if (impacts.length === 0) return null;
+
+  return (
+    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+      {impacts.map((impact) => (
+        <div key={impact.code} className="rounded-lg border bg-background px-3 py-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={impact.severity === "over" ? "destructive" : "secondary"}>
+              {impact.severity === "over"
+                ? t("usage.overLimitBadge")
+                : t("usage.reachedLimitBadge")}
+            </Badge>
+            <span className="font-medium">
+              {t(impact.labelKey, {
+                used: formatImpactUsed(impact),
+                limit: formatImpactLimit(impact),
+              })}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t(impact.guidanceKey)}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function formatMonthlyPrice(plan: PlanDisplay, t: (key: MessageKey, vars?: Record<string, string | number>) => string) {
@@ -188,6 +279,24 @@ export function BillingClient({
   const selectionLimit = boardSelectionState.limit;
   const isSelectionOverLimit =
     selectionLimit !== null && selectedBoardIds.length > selectionLimit;
+  const pendingPlanDefinition = boardSelectionState.pendingPlanCode
+    ? getPlanDefinition(boardSelectionState.pendingPlanCode)
+    : null;
+  const pendingPlanImpacts = pendingPlanDefinition
+    ? buildPlanImpacts({
+        usage,
+        plan: pendingPlanDefinition,
+        boardUsage: "total",
+      })
+    : [];
+  const currentPlanImpacts = buildPlanImpacts({
+    usage,
+    plan: effectivePlan.plan,
+    boardUsage: "active",
+  });
+  const shouldShowCurrentGuidance =
+    currentPlanImpacts.length > 0
+    || usage.inactiveDueToPlanBoards > 0;
 
   async function redirectFromApi(
     url: string,
@@ -382,6 +491,88 @@ export function BillingClient({
         showUpgradeAction
       />
 
+      {pendingPlanDefinition && pendingPlanImpacts.length > 0 && (
+        <section className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="size-4" />
+                <h2 className="font-semibold">
+                  {t("billing.downgradeImpactTitle", { plan: pendingPlanDefinition.name })}
+                </h2>
+              </div>
+              <p className="mt-2 text-sm">
+                {t("billing.downgradeImpactDescription", { plan: pendingPlanDefinition.name })}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { window.location.href = "/boards"; }}
+              >
+                {t("billing.resolveBoardsAction")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { window.location.href = "/settings#media-management"; }}
+              >
+                {t("billing.resolveMediaAction")}
+              </Button>
+            </div>
+          </div>
+          <PlanImpactList impacts={pendingPlanImpacts} t={t} />
+        </section>
+      )}
+
+      {shouldShowCurrentGuidance && (
+        <section className="rounded-lg border border-destructive/30 bg-destructive/10 p-5 text-destructive">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="size-4" />
+                <h2 className="font-semibold">{t("billing.overLimitGuidanceTitle")}</h2>
+              </div>
+              <p className="mt-2 text-sm">{t("billing.overLimitGuidanceDescription")}</p>
+              {usage.inactiveDueToPlanBoards > 0 && (
+                <p className="mt-2 text-sm">
+                  {t("billing.inactiveBoardsGuidance", {
+                    count: usage.inactiveDueToPlanBoards,
+                  })}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { window.location.href = "/boards"; }}
+              >
+                {t("billing.resolveBoardsAction")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { window.location.href = "/settings#media-management"; }}
+              >
+                {t("billing.resolveMediaAction")}
+              </Button>
+              {isBillingActive && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { window.location.href = "/billing#plan-comparison"; }}
+                >
+                  {t("usage.upgradeButton")}
+                </Button>
+              )}
+            </div>
+          </div>
+          <PlanImpactList impacts={currentPlanImpacts} t={t} />
+        </section>
+      )}
+
       {shouldShowBoardSelection && (
         <section id="board-activation" className="rounded-lg border bg-card p-5 text-card-foreground">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -539,6 +730,15 @@ export function BillingClient({
             const isCurrentPlan = plan.code === currentPlanCode;
             const paidCode = plan.code === "free" ? null : plan.code;
             const isRecommended = plan.code === recommendedPlan;
+            const isDowngradeTarget =
+              PLAN_RANK[plan.code] < PLAN_RANK[currentPlanCode];
+            const planImpacts = isDowngradeTarget
+              ? buildPlanImpacts({
+                  usage,
+                  plan: getPlanDefinition(plan.code),
+                  boardUsage: "total",
+                })
+              : [];
             return (
               <article
                 key={plan.code}
@@ -585,6 +785,16 @@ export function BillingClient({
                     <dd className="font-medium">{t(plan.watermarkKey)}</dd>
                   </div>
                 </dl>
+
+                {planImpacts.length > 0 && (
+                  <div className="mt-5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+                    <div className="flex items-center gap-2 font-medium">
+                      <AlertCircle className="size-4" />
+                      {t("billing.planImpactCardTitle")}
+                    </div>
+                    <PlanImpactList impacts={planImpacts} t={t} />
+                  </div>
+                )}
 
                 <div className="mt-5 flex flex-wrap gap-2">
                   {isCurrentPlan && (
