@@ -15,6 +15,12 @@ import {
   DEFAULT_IMAGE_MAX_LONG_EDGE,
 } from "@/lib/image";
 import {
+  ALLOWED_TYPES,
+  ALLOWED_VIDEO_POSTER_TYPES,
+  mediaTypeFromContentType,
+  uploadExtensionFromFilename,
+} from "@/lib/media-upload";
+import {
   deleteStoredObject,
   publicPathForStorageKey,
   scopedMediaStorageKey,
@@ -35,18 +41,8 @@ import {
 } from "@/lib/plan-enforcement";
 import { parseJsonObject } from "@/lib/utils";
 import { probeVideoMetadataFromBuffer } from "@/lib/video-metadata";
-import path from "path";
 import { randomUUID } from "crypto";
-
-const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-];
-const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
-const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
-const ALLOWED_VIDEO_POSTER_TYPES = ["image/jpeg", "image/png", "image/webp"];
+import path from "path";
 
 function planLimitResponse(error: unknown) {
   if (isPlanLimitError(error)) {
@@ -141,7 +137,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate file type
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!(ALLOWED_TYPES as readonly string[]).includes(file.type)) {
     return NextResponse.json(
       {
         error: `Unsupported file type: ${file.type}. Allowed: JPEG, PNG, WebP, GIF, MP4, WebM`,
@@ -151,9 +147,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Determine media type
-  const mediaType = ALLOWED_IMAGE_TYPES.includes(file.type)
-    ? "image"
-    : "video";
+  const mediaType = mediaTypeFromContentType(file.type);
+  if (!mediaType) {
+    return NextResponse.json(
+      { error: `Unsupported file type: ${file.type}` },
+      { status: 400 },
+    );
+  }
   const ownerUserId = resolveOwnerUserId(session.user);
 
   try {
@@ -169,8 +169,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Generate owner/board scoped storage key.
-  const ext = path.extname(file.name) || `.${file.type.split("/")[1]}`;
-  const sanitizedExt = ext.replace(/[^a-zA-Z0-9.]/g, "");
+  const sanitizedExt = uploadExtensionFromFilename(file.name, file.type);
   const mediaId = randomUUID();
   const storageKey = scopedMediaStorageKey({
     ownerUserId: board.ownerUserId,
@@ -239,7 +238,7 @@ export async function POST(request: NextRequest) {
     mediaType === "image" ? await generateThumbnail(buffer, path.basename(storageKey)) : null;
 
   if (mediaType === "video" && poster instanceof File && poster.size > 0) {
-    if (!ALLOWED_VIDEO_POSTER_TYPES.includes(poster.type)) {
+    if (!(ALLOWED_VIDEO_POSTER_TYPES as readonly string[]).includes(poster.type)) {
       return NextResponse.json(
         { error: "Unsupported poster image type" },
         { status: 400 },
