@@ -33,7 +33,8 @@ ENV NODE_ENV=production
 
 # ffprobe is used at upload time to enforce video resolution limits.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get install -y --no-install-recommends ffmpeg ca-certificates openssl && \
+    update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
