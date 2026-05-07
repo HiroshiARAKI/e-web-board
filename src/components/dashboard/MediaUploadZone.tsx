@@ -37,6 +37,24 @@ interface UploadProgress {
   progress: number;
 }
 
+type JsonRecord = Record<string, unknown>;
+
+type VideoUploadAssets = {
+  poster: File | null;
+  width: number | null;
+  height: number | null;
+};
+
+type DirectUploadInitResponse = {
+  mediaId: string;
+  objectKey: string;
+  uploadUrl: string;
+  posterUpload?: {
+    objectKey: string;
+    uploadUrl: string;
+  } | null;
+};
+
 const VIDEO_TYPES = new Set(["video/mp4", "video/webm"]);
 const VIDEO_POSTER_MIME_TYPE = "image/jpeg";
 const VIDEO_POSTER_EXTENSION = ".jpg";
@@ -75,7 +93,7 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   });
 }
 
-async function createVideoPoster(file: File): Promise<File | null> {
+async function createVideoUploadAssets(file: File): Promise<VideoUploadAssets | null> {
   if (!VIDEO_TYPES.has(file.type)) return null;
 
   const objectUrl = URL.createObjectURL(file);
@@ -100,31 +118,80 @@ async function createVideoPoster(file: File): Promise<File | null> {
 
     const width = video.videoWidth;
     const height = video.videoHeight;
-    if (width <= 0 || height <= 0) return null;
+    if (width <= 0 || height <= 0) {
+      return { poster: null, width: null, height: null };
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) return null;
+    if (!context) return { poster: null, width, height };
     context.drawImage(video, 0, 0, width, height);
 
     const blob = await canvasToBlob(canvas);
-    if (!blob) return null;
+    if (!blob) return { poster: null, width, height };
 
     const baseName = file.name.replace(/\.[^.]+$/, "");
-    return new File([blob], `${baseName}${VIDEO_POSTER_EXTENSION}`, {
-      type: VIDEO_POSTER_MIME_TYPE,
-    });
+    return {
+      poster: new File([blob], `${baseName}${VIDEO_POSTER_EXTENSION}`, {
+        type: VIDEO_POSTER_MIME_TYPE,
+      }),
+      width,
+      height,
+    };
   } catch (error) {
     console.error("[MediaUploadZone] Failed to generate video poster", {
       filename: file.name,
       error,
     });
-    return null;
+    return { poster: null, width: null, height: null };
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
+}
+
+async function parseJsonResponse(response: Response): Promise<JsonRecord> {
+  const text = await response.text();
+  if (!text) return {};
+
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as JsonRecord
+      : {};
+  } catch {
+    return { error: text.slice(0, 500) };
+  }
+}
+
+function uploadWithProgress(
+  url: string,
+  file: File,
+  onProgress: (progress: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+      reject(new Error(`S3 upload failed: ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error("S3 upload failed"));
+    xhr.send(file);
+  });
+}
+
+function isDirectUploadCandidate(file: File): boolean {
+  return VIDEO_TYPES.has(file.type);
 }
 
 export default function MediaUploadZone({
@@ -152,6 +219,154 @@ export default function MediaUploadZone({
     return () => window.clearTimeout(timeout);
   }, [uploadNotice]);
 
+  const showUploadError = useCallback(
+    (data: JsonRecord) => {
+      const messageKey = planLimitMessageKey(
+        typeof data.code === "string" ? data.code : undefined,
+        typeof data.messageKey === "string" ? data.messageKey : undefined,
+      );
+      setUploadNotice(
+        messageKey
+          ? t(messageKey)
+          : typeof data.error === "string"
+            ? data.error
+            : t("error.network"),
+      );
+    },
+    [t],
+  );
+
+  const completeServerUpload = useCallback(
+    async (file: File, poster: File | null, index: number) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("boardId", boardId);
+      if (poster) {
+        formData.append("poster", poster);
+      }
+
+      const res = await fetch("/api/media", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await parseJsonResponse(res);
+
+      if (!res.ok) {
+        showUploadError(data);
+        console.error(`Upload failed for ${file.name}:`, data.error);
+        return;
+      }
+
+      setUploading((prev) =>
+        prev.map((p, idx) =>
+          idx === index ? { ...p, progress: 100 } : p,
+        ),
+      );
+    },
+    [boardId, showUploadError],
+  );
+
+  const completeDirectUpload = useCallback(
+    async (
+      file: File,
+      assets: VideoUploadAssets | null,
+      index: number,
+    ): Promise<boolean> => {
+      if (!isDirectUploadCandidate(file)) return false;
+
+      const initRes = await fetch("/api/media/direct/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boardId,
+          fileName: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+          width: assets?.width ?? null,
+          height: assets?.height ?? null,
+          poster: assets?.poster
+            ? {
+                contentType: assets.poster.type,
+                sizeBytes: assets.poster.size,
+              }
+            : undefined,
+        }),
+      });
+      const initData = await parseJsonResponse(initRes);
+
+      if (
+        initRes.status === 409
+        && initData.code === "direct_upload_unavailable"
+      ) {
+        return false;
+      }
+
+      if (!initRes.ok) {
+        showUploadError(initData);
+        return true;
+      }
+
+      const direct = initData as JsonRecord & DirectUploadInitResponse;
+      await uploadWithProgress(direct.uploadUrl, file, (progress) => {
+        setUploading((prev) =>
+          prev.map((p, idx) =>
+            idx === index
+              ? { ...p, progress: Math.min(90, Math.max(1, Math.round(progress * 0.9))) }
+              : p,
+          ),
+        );
+      });
+
+      if (assets?.poster && direct.posterUpload) {
+        await uploadWithProgress(direct.posterUpload.uploadUrl, assets.poster, (progress) => {
+          setUploading((prev) =>
+            prev.map((p, idx) =>
+              idx === index
+                ? { ...p, progress: 90 + Math.min(5, Math.round(progress * 0.05)) }
+                : p,
+            ),
+          );
+        });
+      }
+
+      const completeRes = await fetch("/api/media/direct/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          boardId,
+          mediaId: direct.mediaId,
+          fileName: file.name,
+          objectKey: direct.objectKey,
+          contentType: file.type,
+          sizeBytes: file.size,
+          width: assets?.width ?? null,
+          height: assets?.height ?? null,
+          poster: assets?.poster && direct.posterUpload
+            ? {
+                objectKey: direct.posterUpload.objectKey,
+                contentType: assets.poster.type,
+                sizeBytes: assets.poster.size,
+              }
+            : undefined,
+        }),
+      });
+      const completeData = await parseJsonResponse(completeRes);
+
+      if (!completeRes.ok) {
+        showUploadError(completeData);
+        return true;
+      }
+
+      setUploading((prev) =>
+        prev.map((p, idx) =>
+          idx === index ? { ...p, progress: 100 } : p,
+        ),
+      );
+      return true;
+    },
+    [boardId, showUploadError],
+  );
+
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
       const fileArray = Array.from(files);
@@ -161,40 +376,15 @@ export default function MediaUploadZone({
 
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("boardId", boardId);
-        const poster = await createVideoPoster(file);
-        if (poster) {
-          formData.append("poster", poster);
-        }
+        const assets = await createVideoUploadAssets(file);
 
         try {
-          const res = await fetch("/api/media", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (!res.ok) {
-            const err = await res.json();
-            const messageKey = planLimitMessageKey(err.code, err.messageKey);
-            setUploadNotice(
-              messageKey
-                ? t(messageKey)
-                : typeof err.error === "string"
-                  ? err.error
-                  : t("error.network"),
-            );
-            console.error(`Upload failed for ${file.name}:`, err.error);
+          const handledDirectly = await completeDirectUpload(file, assets, i);
+          if (!handledDirectly) {
+            await completeServerUpload(file, assets?.poster ?? null, i);
           }
-
-          setUploading((prev) =>
-            prev.map((p, idx) =>
-              idx === i ? { ...p, progress: 100 } : p,
-            ),
-          );
         } catch (err) {
-          setUploadNotice(t("error.network"));
+          setUploadNotice(err instanceof Error ? err.message : t("error.network"));
           console.error(`Upload error for ${file.name}:`, err);
         }
       }
@@ -202,7 +392,7 @@ export default function MediaUploadZone({
       await onUpdate();
       setUploading([]);
     },
-    [boardId, onUpdate, t],
+    [completeDirectUpload, completeServerUpload, onUpdate, t],
   );
 
   const handleDrop = useCallback(

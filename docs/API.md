@@ -132,6 +132,8 @@ flowchart TB
 | --- | --- | --- | --- |
 | `GET` | `/api/media` | DB 登録済みメディア一覧 | 必要 |
 | `POST` | `/api/media` | メディアアップロード | 必要 |
+| `POST` | `/api/media/direct/init` | S3 Presigned PUT URL 発行 | 必要 |
+| `POST` | `/api/media/direct/complete` | S3 direct upload 完了登録 | 必要 |
 | `PATCH` | `/api/media` | メディア並び順・表示時間更新 | 必要 |
 | `DELETE` | `/api/media` | DB 登録済みメディアを一括削除 | `admin` |
 | `PATCH` | `/api/media/<id>` | 1 件の表示時間などを更新 | 必要 |
@@ -144,7 +146,9 @@ flowchart TB
 
 新規アップロードの storage key は Owner / board scope を含みます。`STORAGE_DELIVERY_MODE=cloudfront-signed-url` の場合、board API のメディアURLは `/uploads/<mediaId>` 形式になり、`/uploads/<mediaId>` が認可後に CloudFront Signed URL へ 302 redirect します。署名付き配信を使わない public board のメディアは `S3_PUBLIC_BASE_URL`、`STORAGE_PUBLIC_BASE_URL`、`CLOUDFRONT_BASE_URL` のいずれかが設定されている場合に CDN URL として返されます。private board のメディアは `/uploads/<path>` route 経由の認可配信を維持します。
 
-動画は正式保存前に一時ファイルへ書き出し、`ffprobe` で width / height / rotation を取得して plan の解像度制限を判定します。一時ファイルは判定後に削除され、制限超過時は正式保存されません。Lite は FHD 以下、Standard / Standard+ は 4K 以下を許可します。S3 direct upload / multipart upload と未完了 multipart cleanup は大容量アップロード最適化の後続課題です。
+S3 storage 利用時の動画アップロードは、ブラウザが `/api/media/direct/init` で Presigned PUT URL を取得し、S3 へ直接 PUT した後に `/api/media/direct/complete` で DB 登録します。Keinage API は署名発行前と完了登録前に Owner / board / plan / 容量 / 動画解像度を確認し、完了時は `HeadObject` で実体サイズを検証します。S3 未設定時は既存の `/api/media` にフォールバックします。Multipart Upload と未完了 multipart cleanup は大容量アップロード最適化の後続課題です。
+
+サーバー経由アップロードでは、動画は正式保存前に一時ファイルへ書き出し、`ffprobe` で width / height / rotation を取得して plan の解像度制限を判定します。一時ファイルは判定後に削除され、制限超過時は正式保存されません。Lite は FHD 以下、Standard / Standard+ は 4K 以下を許可します。
 
 アップロード時に画像・動画の `width` / `height` を `media_items` に保存します。既存メディアはダウングレード時に削除・変換しませんが、現在プランで動画が許可されない場合や保存済み寸法が解像度上限を超える場合、公開ボード API は対象メディアに `playbackStatus` を付与し、表示側は動画再生の代わりに案内 UI を表示します。ストレージ使用量や画像数が現在プランの上限を超えている場合、新規アップロードは Plan limit error として拒否されます。
 

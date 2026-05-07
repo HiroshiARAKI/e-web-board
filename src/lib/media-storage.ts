@@ -3,10 +3,12 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
 import path from "path";
 import {
@@ -53,6 +55,11 @@ export type StoredObject = {
 
 export type StoredObjectBody = {
   body: Buffer;
+  contentLength: number;
+  contentType: string;
+};
+
+export type StoredObjectMetadata = {
   contentLength: number;
   contentType: string;
 };
@@ -343,6 +350,38 @@ export function mediaStorageDriver(): StorageDriver {
   return getStorageDriver();
 }
 
+export function presignedUploadExpiresAt(): Date {
+  const configured = Number(process.env.S3_PRESIGNED_UPLOAD_EXPIRES_SECONDS ?? "");
+  const expiresInSeconds = Number.isFinite(configured) && configured > 0
+    ? Math.floor(configured)
+    : 900;
+  return new Date(Date.now() + expiresInSeconds * 1000);
+}
+
+export async function createPresignedPutObjectUrl(
+  key: string,
+  contentType: string,
+): Promise<{ uploadUrl: string; expiresAt: string }> {
+  const safeKey = sanitizeStorageKey(key);
+  if (getStorageDriver() !== "s3") {
+    throw new Error("S3 storage is not configured");
+  }
+
+  const expiresAt = presignedUploadExpiresAt();
+  const expiresIn = Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+  const { client, config } = getS3Client();
+  const command = new PutObjectCommand({
+    Bucket: config.bucket,
+    Key: safeKey,
+    ContentType: contentType,
+  });
+
+  return {
+    uploadUrl: await getSignedUrl(client, command, { expiresIn }),
+    expiresAt: expiresAt.toISOString(),
+  };
+}
+
 export async function writeStoredObject(
   key: string,
   body: Buffer,
@@ -405,6 +444,43 @@ export async function readStoredObject(key: string): Promise<StoredObjectBody | 
     return {
       body,
       contentLength: Number(response.ContentLength ?? body.length),
+      contentType: response.ContentType ?? mimeTypeFromKey(safeKey),
+    };
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function headStoredObject(key: string): Promise<StoredObjectMetadata | null> {
+  const safeKey = sanitizeStorageKey(key);
+
+  if (getStorageDriver() === "local") {
+    const targetPath = resolveLocalPath(safeKey);
+    if (!fs.existsSync(targetPath)) {
+      return null;
+    }
+
+    const stat = fs.statSync(targetPath);
+    return {
+      contentLength: stat.size,
+      contentType: mimeTypeFromKey(safeKey),
+    };
+  }
+
+  const { client, config } = getS3Client();
+  try {
+    const response = await client.send(
+      new HeadObjectCommand({
+        Bucket: config.bucket,
+        Key: safeKey,
+      }),
+    );
+
+    return {
+      contentLength: Number(response.ContentLength ?? 0),
       contentType: response.ContentType ?? mimeTypeFromKey(safeKey),
     };
   } catch (error) {

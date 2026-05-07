@@ -102,6 +102,7 @@ environment:
   - S3_FORCE_PATH_STYLE=false
   - S3_ACCESS_KEY_ID=
   - S3_SECRET_ACCESS_KEY=
+  - S3_PRESIGNED_UPLOAD_EXPIRES_SECONDS=900
   - STORAGE_DELIVERY_MODE=cloudfront-signed-url
   - STORAGE_PUBLIC_BASE_URL=https://app.keinage.com/uploads
   - STORAGE_CDN_BASE_URL=https://storage.keinage.com
@@ -109,6 +110,8 @@ environment:
   - CLOUDFRONT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----
   - CLOUDFRONT_SIGNED_URL_EXPIRES_SECONDS=300
 ```
+
+S3 storage 利用時、動画アップロードはブラウザからS3へ直接PUTします。S3 bucket のCORSには、Keinageを開く origin からの `PUT` と `HEAD`、`Content-Type` header、`ETag` exposure を許可してください。
 
 ローカルPCから AWS S3 を検証する場合は、`S3_ACCESS_KEY_ID` と `S3_SECRET_ACCESS_KEY` を両方設定します。片方だけの設定はエラーになります。
 
