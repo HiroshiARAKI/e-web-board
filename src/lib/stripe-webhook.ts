@@ -768,15 +768,18 @@ async function resolveSubscriptionState(
     schedule,
     currentPlanCode: resolvedPrice.planCode,
   });
-  const pendingForCancel =
-    cancelAtPeriodEnd
+  const cancelEffectiveAt = cancelAt ?? currentPeriodEnd;
+  const isCancelScheduled =
+    (cancelAtPeriodEnd || isFutureIso(cancelAt))
     && isSubscriptionUsable(subscriptionStatus(subscription.status))
-    && isFutureIso(cancelAt ?? currentPeriodEnd)
+    && isFutureIso(cancelEffectiveAt);
+  const pendingForCancel =
+    isCancelScheduled
       ? {
           pendingPlanCode: "free" as const,
           pendingPriceId: null,
           pendingBillingInterval: null,
-          pendingPlanEffectiveAt: cancelAt ?? currentPeriodEnd,
+          pendingPlanEffectiveAt: cancelEffectiveAt,
         }
       : null;
   const pending = pendingForCancel ?? pendingFromSchedule;

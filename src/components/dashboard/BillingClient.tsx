@@ -308,13 +308,17 @@ export function BillingClient({
   const pendingPlanName = subscription?.pendingPlanCode
     ? getPlanName(subscription.pendingPlanCode)
     : null;
+  const isCancelScheduled =
+    subscription?.pendingPlanCode === "free"
+    && !!formattedPendingEffectiveDate
+    && (subscription.cancelAtPeriodEnd || !!subscription.cancelAt);
   const subscriptionAvailabilityNotice =
     subscription?.status === "canceled"
       ? t("billing.availability.canceled")
-      : subscription?.cancelAtPeriodEnd && formattedPendingEffectiveDate
+      : isCancelScheduled
         ? t("billing.availability.cancelScheduled", {
             plan: currentPlanDisplay.name,
-            date: formattedPendingEffectiveDate,
+            date: formattedPendingEffectiveDate ?? "",
           })
         : pendingPlanName && formattedPendingEffectiveDate
           ? t("billing.availability.changeScheduled", {
