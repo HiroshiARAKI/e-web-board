@@ -322,12 +322,7 @@ export function BillingClient({
               nextPlan: pendingPlanName,
               date: formattedPendingEffectiveDate,
             })
-          : isPaidPlan && formattedCurrentPeriodEnd
-            ? t("billing.availability.normal", {
-                plan: currentPlanDisplay.name,
-                date: formattedCurrentPeriodEnd,
-              })
-            : null;
+          : null;
   const pendingPlanImpacts = pendingPlanDefinition
     ? buildPlanImpacts({
         usage,
