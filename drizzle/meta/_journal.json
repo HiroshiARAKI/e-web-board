@@ -141,6 +141,20 @@
       "when": 1778295600000,
       "tag": "0019_admin_announcements",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778299200000,
+      "tag": "0020_owner_onboarding_acknowledgement",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778302800000,
+      "tag": "0021_message_kind",
+      "breakpoints": true
     }
   ]
 }

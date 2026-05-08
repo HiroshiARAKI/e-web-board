@@ -86,6 +86,8 @@ flowchart TB
 
 `GET /api/auth/google/start` は `mode=login|owner-signup|shared-signup`、`redirectTo`、`token` を受け付けます。Google OAuth/OIDC は Authorization Code + PKCE、nonce、opaque state、JWKS 署名検証を使います。
 
+Owner / Shared user の登録完了時は、`SMTP_HOST` などの既存SMTP設定を使って登録完了メールを送信します。本文は `Accept-Language` に従ってローカライズし、謝辞と `/pin/login` のログイン URL を含めます。SMTP 未設定または送信失敗時も、ユーザー作成やセッション発行は取り消しません。
+
 ### 5.2 ログイン・ログアウト
 
 | Method | Path | 内容 | 認証 |
@@ -96,6 +98,8 @@ flowchart TB
 | `GET` | `/api/auth/pin/status` | PIN ログイン対象ユーザーと期限情報を取得 | 任意 |
 
 `POST /api/auth/credentials/login` と `POST /api/auth/pin/verify` は失敗回数制限を行います。`TRUST_PROXY_HEADERS=true` のときだけ `x-forwarded-for` / `x-real-ip` を client IP として信用します。
+
+Owner signup、signup resend、Google OAuth start にも rate limit を適用します。Google OAuth / OIDC の失敗ログには authorization code、access token、ID token、client secret を出力せず、外部 provider の HTTP status のみ記録します。
 
 ### 5.3 アカウント設定
 
@@ -108,6 +112,7 @@ flowchart TB
 | `POST` | `/api/auth/account-deletion/request` | Owner アカウント削除 URL を送信 | Owner / `admin` |
 | `POST` | `/api/auth/account-deletion/complete` | Owner アカウント削除を確定。Stripe有効時はサブスクリプションを即時キャンセルしてから削除 | 削除 token |
 | `PATCH` | `/api/users/me` | 自分の表示テーマ・locale を更新 | 必要 |
+| `POST` | `/api/owner/onboarding/acknowledge` | Owner 初回オンボーディング確認済み日時を保存 | Owner |
 | `POST` | `/api/contact` | 問い合わせメール送信 | 必要 |
 
 `/contact` は plan に応じて導線を出し分けます。Self-hosted / unlimited は GitHub Issues / Discussions、Free は Upgrade 推奨 + GitHub Issues、Lite / Standard / Standard+ は SMTP 設定がある場合に問い合わせフォームを表示します。フォーム送信時の Owner 情報、送信ユーザー、現在の plan は server-side session から付与され、hidden input には持たせません。問い合わせ専用 SMTP は `CONTACT_SMTP_HOST`、`CONTACT_SMTP_PORT`、`CONTACT_SMTP_USER`、`CONTACT_SMTP_PASS`、`CONTACT_SMTP_FROM`、`CONTACT_TO_EMAIL` で設定します。未設定時は GitHub への fallback を表示します。送信 API は Owner + IP 単位で 1 時間 3 件までの rate limit を適用します。
@@ -132,6 +137,10 @@ Owner退会時、`BILLING_MODE=stripe` かつキャンセル可能な Stripe sub
 
 ボード更新・削除後は対象ボードへ SSE イベントが発行されます。
 
+### 6.1 Security Headers
+
+全 route で `X-Content-Type-Options`、`Referrer-Policy`、`X-Frame-Options`、`Permissions-Policy`、`Cross-Origin-Opener-Policy` を返します。production では `Strict-Transport-Security` も返します。CSP は S3 presigned upload / CloudFront / Google Fonts / 外部画像などデプロイ先ごとの allowlist 調整が必要なため、固定ヘッダではなく `docs/SECURITY.md` に運用方針を記載します。
+
 ## 7. メディア API
 
 | Method | Path | 内容 | 認証 |
@@ -148,9 +157,11 @@ Owner退会時、`BILLING_MODE=stripe` かつキャンセル可能な Stripe sub
 | `DELETE` | `/api/media/files` | ストレージ上のファイル削除 | `admin` |
 | `GET` | `/uploads/<path>` | アップロード済みファイル配信 | 不要 |
 
-アップロード対応形式は画像 JPEG/PNG/WebP/GIF、動画 MP4/WebM です。1 ファイルごとの最大サイズは effective plan の `maxUploadBytes` を優先して判定します。Self-hosted / unlimited では既定で無制限、`UPLOAD_MAX_BYTES` に正の整数を設定した場合は安全上限として適用します。`UPLOAD_MAX_BYTES=0` は無制限です。
+アップロード対応形式は画像 JPEG/PNG/WebP/GIF、動画 MP4/WebM です。Content-Type とファイル拡張子が一致しないアップロードは拒否します。1 ファイルごとの最大サイズは effective plan の `maxUploadBytes` を優先して判定します。Self-hosted / unlimited では既定で無制限、`UPLOAD_MAX_BYTES` に正の整数を設定した場合は安全上限として適用します。`UPLOAD_MAX_BYTES=0` は無制限です。サーバー経由アップロードと S3 direct upload init / complete は Owner 単位で rate limit を適用します。
 
 新規アップロードの storage key は Owner / board scope を含みます。`STORAGE_DELIVERY_MODE=cloudfront-signed-url` の場合、board API のメディアURLは `/uploads/<mediaId>` 形式になり、`/uploads/<mediaId>` が認可後に CloudFront Signed URL へ 302 redirect します。署名付き配信を使わない public board のメディアは `S3_PUBLIC_BASE_URL`、`STORAGE_PUBLIC_BASE_URL`、`CLOUDFRONT_BASE_URL` のいずれかが設定されている場合に CDN URL として返されます。private board のメディアは `/uploads/<path>` route 経由の認可配信を維持します。
+
+`GET /uploads/<path>` は動画のシークと自然なループ再生のために `Range: bytes=...` に対応し、部分配信時は `206 Partial Content`、`Content-Range`、`Accept-Ranges: bytes` を返します。範囲外の要求は `416 Range Not Satisfiable` を返します。
 
 S3 storage 利用時の動画アップロードは、ブラウザが `/api/media/direct/init` で Presigned PUT URL を取得し、S3 へ直接 PUT した後に `/api/media/direct/complete` で DB 登録します。Keinage API は署名発行前と完了登録前に Owner / board / plan / 容量 / 動画解像度を確認し、完了時は `HeadObject` で実体サイズを検証します。S3 未設定時は既存の `/api/media` にフォールバックします。Multipart Upload と未完了 multipart cleanup は大容量アップロード最適化の後続課題です。
 
@@ -169,7 +180,7 @@ S3 storage 利用時の動画アップロードは、ブラウザが `/api/media
 | `PATCH` | `/api/messages/<id>` | メッセージ更新 | 必要 |
 | `DELETE` | `/api/messages/<id>` | メッセージ削除 | 必要 |
 
-メッセージ変更後は対象ボードへ SSE イベントが発行されます。
+メッセージ作成・更新では `content`、`priority`、`expiresAt` に加え、種別 `kind` を指定できます。`kind` は `info`、`notice`、`alert` のいずれかで、省略時は `info` です。メッセージ変更後は対象ボードへ SSE イベントが発行されます。
 
 ## 9. ユーザー API
 

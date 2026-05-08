@@ -16,7 +16,7 @@ import {
   getDeviceAuthGrantByToken,
 } from "@/lib/device-auth";
 import { getOwnerSetting } from "@/lib/owner-settings";
-import { resolveOwnerUserId } from "@/lib/ownership";
+import { isOwnerUser, resolveOwnerUserId } from "@/lib/ownership";
 import { getBillingConfig } from "@/lib/plans";
 import { ThemeProvider } from "@/components/dashboard/ThemeProvider";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -31,10 +31,14 @@ export default async function DashboardLayout({
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_AUTH_COOKIE)?.value;
 
-  console.log("[dashboard/layout] Auth check", { hasSessionToken: !!sessionToken });
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[dashboard/layout] Auth check", { hasSessionToken: !!sessionToken });
+  }
 
   if (!sessionToken) {
-    console.log("[dashboard/layout] No session token → /pin");
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[dashboard/layout] No session token -> /pin");
+    }
     redirect("/pin");
   }
 
@@ -48,7 +52,9 @@ export default async function DashboardLayout({
   });
 
   if (!session) {
-    console.log("[dashboard/layout] Session not found or expired → /pin");
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[dashboard/layout] Session not found or expired -> /pin");
+    }
     redirect("/pin");
   }
 
@@ -65,21 +71,27 @@ export default async function DashboardLayout({
     ? deviceAuthGrant.lastFullAuthAt
     : null;
   const fullValid = isFullAuthValid(deviceAuthLastFullAuthAt, expireDays);
-  console.log("[dashboard/layout] Full auth check", {
-    userId: session.user.userId,
-    deviceAuthUserId: deviceAuthGrant?.user.userId ?? null,
-    lastFullAuthAt: deviceAuthLastFullAuthAt,
-    expireDays,
-    fullValid,
-  });
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[dashboard/layout] Full auth check", {
+      hasDeviceAuthGrant: !!deviceAuthGrant,
+      lastFullAuthAt: deviceAuthLastFullAuthAt,
+      expireDays,
+      fullValid,
+    });
+  }
 
   if (!fullValid) {
-    console.log("[dashboard/layout] Full auth expired for this device → /pin/login");
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[dashboard/layout] Full auth expired for this device -> /pin/login");
+    }
     redirect("/pin/login");
   }
 
   const { userId, role, colorTheme } = session.user;
   const { billingMode } = getBillingConfig();
+  const showOwnerOnboarding =
+    isOwnerUser(session.user)
+    && session.user.ownerOnboardingAcknowledgedAt === null;
 
   return (
     <ThemeProvider initialTheme={colorTheme as "system" | "light" | "dark"}>
@@ -89,6 +101,7 @@ export default async function DashboardLayout({
         isSuperOwner={session.user.isSuperOwner}
         billingEnabled={billingMode === "stripe"}
         initialTheme={colorTheme as "system" | "light" | "dark"}
+        showOwnerOnboarding={showOwnerOnboarding}
       >
         {children}
       </DashboardShell>

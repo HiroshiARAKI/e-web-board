@@ -107,6 +107,7 @@ export const messages = pgTable("messages", {
     .references(() => boards.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   priority: integer("priority").notNull().default(0),
+  kind: text("kind").notNull().default("info"),
   expiresAt: text("expires_at"),
   createdAt: text("created_at")
     .notNull()
@@ -349,6 +350,8 @@ export const users = pgTable(
     colorTheme: text("color_theme").notNull().default("system"),
     /** Preferred UI locale. Null means fallback to Accept-Language per request. */
     locale: text("locale"),
+    /** Timestamp when the owner welcome onboarding dialog was acknowledged */
+    ownerOnboardingAcknowledgedAt: text("owner_onboarding_acknowledged_at"),
     /** Timestamp of the last successful email+password login */
     lastFullAuthAt: text("last_full_auth_at"),
     createdAt: text("created_at")
