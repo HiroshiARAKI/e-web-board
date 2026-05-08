@@ -5,6 +5,7 @@
 import { useLocale } from "@/components/i18n/LocaleProvider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -14,12 +15,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FontSelect, numberValue, useLoadAllGoogleFonts } from "./shared";
+import { Trash2 } from "lucide-react";
 
 interface ClinicDayConfig {
   weekday: number;
   closed: boolean;
   morning: string;
   afternoon: string;
+}
+
+interface ClinicDateOverride extends ClinicDayConfig {
+  date: string;
 }
 
 const weekdays = [
@@ -54,6 +60,7 @@ export function ClinicHoursConfigEditor({
   useLoadAllGoogleFonts();
   const { t } = useLocale();
   const days = normalizeDays(config.days);
+  const specialDates = normalizeSpecialDates(config.specialDates);
   const daysToShow = numberValue(config.daysToShow, 14);
   const fontFamily = (config.fontFamily as string) ?? "";
   const weekStartsOn = ((config.weekStartsOn as string) ?? "sun") === "mon" ? "mon" : "sun";
@@ -67,6 +74,32 @@ export function ClinicHoursConfigEditor({
       "days",
       days.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day)),
     );
+  }
+
+  function updateSpecialDate(index: number, patch: Partial<ClinicDateOverride>) {
+    update(
+      "specialDates",
+      specialDates.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
+    );
+  }
+
+  function addSpecialDate() {
+    const today = new Date();
+    const value = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+    update("specialDates", [
+      ...specialDates,
+      { date: value, weekday: 0, closed: true, morning: "", afternoon: "" },
+    ]);
+  }
+
+  function removeSpecialDate(index: number) {
+    update("specialDates", specialDates.filter((_, itemIndex) => itemIndex !== index));
   }
 
   return (
@@ -173,6 +206,69 @@ export function ClinicHoursConfigEditor({
           })}
         </div>
       </div>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 className="text-sm font-semibold">{t("configEditor.clinicDateOverrides")}</h4>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("configEditor.clinicDateOverridesDescription")}
+            </p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={addSpecialDate}>
+            {t("configEditor.addDateOverride")}
+          </Button>
+        </div>
+        {specialDates.length > 0 && (
+          <div className="grid gap-3">
+            {specialDates.map((item, index) => (
+              <div
+                key={`${item.date}-${index}`}
+                className="grid gap-3 rounded-md border p-3 md:grid-cols-[150px_120px_1fr_1fr_auto] md:items-center"
+              >
+                <div className="space-y-1.5">
+                  <Label htmlFor={`clinic-special-${index}`}>{t("configEditor.overrideDate")}</Label>
+                  <Input
+                    id={`clinic-special-${index}`}
+                    type="date"
+                    value={item.date}
+                    onChange={(e) => updateSpecialDate(index, { date: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={!item.closed}
+                    onCheckedChange={(checked) => updateSpecialDate(index, { closed: !checked })}
+                  />
+                  <span className={item.closed ? "text-sm text-muted-foreground" : "text-sm font-medium text-primary"}>
+                    {item.closed ? t("configEditor.closed") : t("configEditor.open")}
+                  </span>
+                </div>
+                <Input
+                  value={item.morning}
+                  disabled={item.closed}
+                  placeholder={t("configEditor.morningHours")}
+                  onChange={(e) => updateSpecialDate(index, { morning: e.target.value })}
+                />
+                <Input
+                  value={item.afternoon}
+                  disabled={item.closed}
+                  placeholder={t("configEditor.afternoonHours")}
+                  onChange={(e) => updateSpecialDate(index, { afternoon: e.target.value })}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => removeSpecialDate(index)}
+                >
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -196,6 +292,22 @@ function normalizeDays(value: unknown): ClinicDayConfig[] {
       afternoon: raw?.afternoon ?? fallback.afternoon,
     };
   });
+}
+
+function normalizeSpecialDates(value: unknown): ClinicDateOverride[] {
+  const rawItems = Array.isArray(value) ? value : [];
+  return rawItems
+    .filter((item): item is Partial<ClinicDateOverride> & { date: string } =>
+      !!item && typeof item === "object" && typeof item.date === "string",
+    )
+    .map((item) => ({
+      date: item.date.slice(0, 10),
+      weekday: 0,
+      closed: Boolean(item.closed),
+      morning: typeof item.morning === "string" ? item.morning : "",
+      afternoon: typeof item.afternoon === "string" ? item.afternoon : "",
+    }))
+    .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.date));
 }
 
 function ColorInput({

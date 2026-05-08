@@ -11,6 +11,10 @@ interface ClinicDayConfig {
   afternoon: string;
 }
 
+interface ClinicDateOverride extends ClinicDayConfig {
+  date: string;
+}
+
 interface ClinicHoursConfig {
   title: string;
   body: string;
@@ -20,6 +24,7 @@ interface ClinicHoursConfig {
   bodyColor: string;
   fontFamily: string;
   days: ClinicDayConfig[];
+  specialDates: ClinicDateOverride[];
 }
 
 export const clinicHoursDefaultConfig: ClinicHoursConfig = {
@@ -39,6 +44,7 @@ export const clinicHoursDefaultConfig: ClinicHoursConfig = {
     { closed: false, morning: "09:00~12:00", afternoon: "14:00~18:00" },
     { closed: false, morning: "09:00~12:00", afternoon: "" },
   ],
+  specialDates: [],
 };
 
 function parseConfig(raw: unknown): ClinicHoursConfig {
@@ -52,7 +58,23 @@ function parseConfig(raw: unknown): ClinicHoursConfig {
     ...cfg,
     daysToShow: Math.min(31, Math.max(7, Number(cfg.daysToShow) || 14)),
     days,
+    specialDates: normalizeSpecialDates(cfg.specialDates),
   };
+}
+
+function normalizeSpecialDates(value: unknown): ClinicDateOverride[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Partial<ClinicDateOverride> & { date: string } =>
+      !!item && typeof item === "object" && typeof item.date === "string",
+    )
+    .map((item) => ({
+      date: item.date.slice(0, 10),
+      closed: Boolean(item.closed),
+      morning: typeof item.morning === "string" ? item.morning : "",
+      afternoon: typeof item.afternoon === "string" ? item.afternoon : "",
+    }))
+    .filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.date));
 }
 
 function addDays(date: Date, amount: number) {
@@ -63,6 +85,13 @@ function addDays(date: Date, amount: number) {
 
 function formatDay(date: Date) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function dateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
@@ -119,7 +148,8 @@ export default function ClinicHoursBoard({ board }: BoardTemplateProps) {
             return <div key={`blank-${index}`} aria-hidden="true" />;
           }
 
-          const day = config.days[date.getDay()] ?? clinicHoursDefaultConfig.days[date.getDay()];
+          const special = config.specialDates.find((item) => item.date === dateKey(date));
+          const day = special ?? config.days[date.getDay()] ?? clinicHoursDefaultConfig.days[date.getDay()];
           const isSunday = date.getDay() === 0;
           const isSaturday = date.getDay() === 6;
           return (
