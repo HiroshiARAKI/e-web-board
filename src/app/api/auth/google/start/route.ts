@@ -68,6 +68,7 @@ async function createAuthorization(input: {
   redirectTo?: string | null;
   sharedSignupToken?: string | null;
   organizationName?: string | null;
+  userAgent?: string | null;
 }) {
   const flow = createGoogleOAuthFlowContext(input);
   const authorizationUrl = await buildGoogleAuthorizationUrl({
@@ -184,6 +185,7 @@ export async function GET(request: NextRequest) {
     redirectTo: mode === "login" ? redirectTo : null,
     sharedSignupToken,
     organizationName: mode === "owner-signup" ? organizationName : null,
+    userAgent: request.headers.get("user-agent"),
   });
   if (!authorization) {
     return NextResponse.json(

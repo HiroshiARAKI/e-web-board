@@ -13,6 +13,7 @@ import {
   GOOGLE_OAUTH_STATE_COOKIE,
   fetchGoogleUserInfo,
   createSignedInResponse,
+  isGoogleOAuthStateBoundToBrowser,
 } from "@/lib/google-auth";
 import { DEVICE_AUTH_COOKIE } from "@/lib/device-auth";
 import { buildSuccessfulAuthState } from "@/lib/account-security";
@@ -84,7 +85,13 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const stateCookie = request.cookies.get(GOOGLE_OAUTH_STATE_COOKIE)?.value;
-  if (!code || !state || !stateCookie || state !== stateCookie) {
+  const browserBoundStateValid = state
+    ? isGoogleOAuthStateBoundToBrowser({
+        state,
+        userAgent: request.headers.get("user-agent"),
+      })
+    : false;
+  if (!code || !state || (stateCookie ? state !== stateCookie : !browserBoundStateValid)) {
     return errorRedirect(request, "/pin/login", "invalid-google-state");
   }
 
