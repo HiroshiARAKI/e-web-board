@@ -1,9 +1,9 @@
 // Copyright 2026 Hiroshi Araki (https://hiroshi.araki.tech)
 // SPDX-License-Identifier: Apache-2.0
 import { NextRequest, NextResponse } from "next/server";
+import { eq, or, and, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { users, pinAttempts, authSessions } from "@/db/schema";
-import { eq, or, and, gt } from "drizzle-orm";
 import {
   verifyPassword,
   AUTH_SESSION_COOKIE,
@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
     subject: normalizedIdentifier || "missing-identifier",
   });
 
-  // Rate-limit per client/subject bucket. Proxy headers are trusted only when configured.
   const blockThreshold = new Date(
     Date.now() - IP_BLOCK_DURATION_MS,
   ).toISOString();
@@ -102,7 +101,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Constant-time failure to prevent user enumeration
   if (!user) {
     await db.insert(pinAttempts).values({ ipAddress: rateLimitKey });
     return NextResponse.json(
@@ -195,14 +193,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Clear attempts for the successfully authenticated subject bucket.
   await db.delete(pinAttempts).where(eq(pinAttempts.ipAddress, rateLimitKey));
 
   if (process.env.NODE_ENV !== "production") {
     console.log("[credentials/login] Password verified OK");
   }
 
-  // Record full-auth timestamp
   await db
     .update(users)
     .set(buildSuccessfulAuthState(now))
@@ -221,7 +217,6 @@ export async function POST(request: NextRequest) {
     authenticatedAt: now,
   });
 
-  // Create session
   const sessionToken = generateSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString();
 
@@ -247,9 +242,9 @@ export async function POST(request: NextRequest) {
         ? "/passkey/verify"
         : null,
   });
-  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SESSION_MAX_AGE));
-  setDeviceAuthCookie(res, deviceToken);
+  res.cookies.set(AUTH_SESSION_COOKIE, sessionToken, buildAuthCookieOptions(SESSION_MAX_AGE, request));
+  setDeviceAuthCookie(res, deviceToken, request);
   setLocaleCookie(res, locale);
-  clearLegacyLastUserCookie(res);
+  clearLegacyLastUserCookie(res, request);
   return res;
 }
