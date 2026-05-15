@@ -5,7 +5,13 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { writeAuditLog } from "@/lib/audit-log";
-import { formatDateTime, resolvePreferredLocale, type SupportedLocale } from "@/lib/i18n";
+import {
+  formatDateTime,
+  resolvePreferredLocale,
+  translate,
+  type MessageKey,
+  type SupportedLocale,
+} from "@/lib/i18n";
 import { isSmtpConfigured, sendPlainTextEmail } from "@/lib/mail";
 import { getPlanDefinition, isPlanCode } from "@/lib/plans";
 import { serverLog } from "@/lib/server-log";
@@ -69,23 +75,28 @@ function formatMaybeDate(value: string | null, locale: SupportedLocale): string 
 }
 
 function appendFooter(locale: SupportedLocale, lines: string[]) {
-  if (locale === "ja-JP") {
-    return [
-      ...lines,
-      "",
-      "Keinage管理者",
-      `お問い合わせ: ${CONTACT_EMAIL}`,
-      `ホームページ: ${HOME_PAGE_URL}`,
-    ];
-  }
-
+  const t = (key: MessageKey, vars?: Record<string, string | number>) => translate(locale, key, vars);
   return [
     ...lines,
     "",
-    "Keinage Administrator",
-    `Contact: ${CONTACT_EMAIL}`,
-    `Website: ${HOME_PAGE_URL}`,
+    t("mail.security.footer.sender"),
+    t("mail.security.footer.contact", { email: CONTACT_EMAIL }),
+    t("mail.security.footer.homePage", { url: HOME_PAGE_URL }),
   ];
+}
+
+function simpleMailCopy(
+  locale: SupportedLocale,
+  subjectKey: MessageKey,
+  lineKeys: MessageKey[],
+): MailCopy {
+  const t = (key: MessageKey) => translate(locale, key);
+  return {
+    subject: t(subjectKey),
+    lines: lineKeys.flatMap((key, index) => (
+      index === 0 ? [t(key)] : ["", t(key)]
+    )),
+  };
 }
 
 function buildSecurityNotificationMail(
@@ -93,282 +104,106 @@ function buildSecurityNotificationMail(
   locale: SupportedLocale,
   metadata?: NotificationMetadata,
 ): MailCopy {
+  const t = (key: MessageKey, vars?: Record<string, string | number>) => translate(locale, key, vars);
   const oldPlan = planName(metadataString(metadata, "oldPlan"));
   const newPlan = planName(metadataString(metadata, "newPlan"));
   const effectiveAt = formatMaybeDate(metadataString(metadata, "effectiveAt"), locale);
-
-  if (locale === "ja-JP") {
-    switch (type) {
-      case "password_changed":
-        return {
-          subject: "Keinage パスワード変更のお知らせ",
-          lines: [
-            "Keinageアカウントのパスワードが変更されました。",
-            "",
-            "この操作に心当たりがない場合は、ただちにパスワードを再設定し、サポートまでお問い合わせください。",
-          ],
-        };
-      case "password_reset_completed":
-        return {
-          subject: "Keinage パスワード再設定完了のお知らせ",
-          lines: [
-            "Keinageアカウントのパスワード再設定が完了しました。",
-            "",
-            "この操作に心当たりがない場合は、ただちにサポートまでお問い合わせください。",
-          ],
-        };
-      case "email_changed":
-        return {
-          subject: "Keinage メールアドレス変更のお知らせ",
-          lines: [
-            "Keinageアカウントのメールアドレスが変更されました。",
-            "",
-            "この操作に心当たりがない場合は、ただちにアカウント設定をご確認ください。",
-          ],
-        };
-      case "passkey_registered":
-        return {
-          subject: "Keinage Passkey登録のお知らせ",
-          lines: [
-            "Keinageアカウントに新しいPasskeyが登録されました。",
-            "",
-            "この操作に心当たりがない場合は、アカウント設定を確認し、不要なPasskeyを削除してください。",
-          ],
-        };
-      case "passkey_deleted":
-        return {
-          subject: "Keinage Passkey削除のお知らせ",
-          lines: [
-            "KeinageアカウントからPasskeyが削除されました。",
-            "",
-            "この操作に心当たりがない場合は、ただちにアカウント設定をご確認ください。",
-          ],
-        };
-      case "account_locked":
-        return {
-          subject: "Keinage アカウントロックのお知らせ",
-          lines: [
-            "ログイン失敗が続いたため、Keinageアカウントが一時的にロックされました。",
-            "",
-            "この操作に心当たりがない場合は、サポートまでお問い合わせください。",
-          ],
-        };
-      case "account_unlocked":
-        return {
-          subject: "Keinage アカウントロック解除のお知らせ",
-          lines: [
-            "Keinageアカウントのロックが解除されました。",
-            "",
-            "この操作に心当たりがない場合は、サポートまでお問い合わせください。",
-          ],
-        };
-      case "plan_changed":
-        return {
-          subject: "Keinage プラン変更のお知らせ",
-          lines: [
-            "Keinageのプランが変更されました。",
-            "",
-            `変更前: ${oldPlan ?? "不明"}`,
-            `変更後: ${newPlan ?? "不明"}`,
-            `適用日時: ${effectiveAt ?? "即時"}`,
-            "",
-            "この操作に心当たりがない場合は、サポートまでお問い合わせください。",
-          ],
-        };
-      case "subscription_cancel_scheduled":
-        return {
-          subject: "Keinage サブスクリプション解約予約のお知らせ",
-          lines: [
-            "Keinageのサブスクリプション解約が予約されました。",
-            "",
-            `解約予定日時: ${effectiveAt ?? "未定"}`,
-            "",
-            "この操作に心当たりがない場合は、サポートまでお問い合わせください。",
-          ],
-        };
-      case "subscription_canceled":
-        return {
-          subject: "Keinage サブスクリプション解約完了のお知らせ",
-          lines: [
-            "Keinageのサブスクリプションが解約されました。",
-            "",
-            "この操作に心当たりがない場合は、サポートまでお問い合わせください。",
-          ],
-        };
-      case "payment_failed":
-        return {
-          subject: "Keinage お支払いに失敗しました",
-          lines: [
-            "Keinageのサブスクリプション料金のお支払いに失敗しました。",
-            "",
-            "サービスの利用を継続するには、支払い方法をご確認ください。",
-          ],
-        };
-      case "account_deleted":
-        return {
-          subject: "Keinage 退会完了のお知らせ",
-          lines: [
-            "Keinageの退会処理が完了しました。",
-            "",
-            "有料プランをご利用中だった場合、サブスクリプションは即時キャンセルされています。",
-            "退会後、作成済みボードやアップロード済みメディアは利用できません。",
-          ],
-        };
-      case "stripe_cancel_on_delete_failed":
-        return {
-          subject: "Keinage 退会時のサブスクリプション解約失敗のお知らせ",
-          lines: [
-            "退会処理中にStripeサブスクリプションのキャンセルに失敗しました。",
-            "",
-            "退会処理は完了していません。サポートまでお問い合わせください。",
-          ],
-        };
-      case "super_owner_granted":
-        return {
-          subject: "Keinage Super Owner付与のお知らせ",
-          lines: [
-            "KeinageアカウントにSuper Owner権限が付与されました。",
-            "",
-            "この操作に心当たりがない場合は、ただちにサポートまでお問い合わせください。",
-          ],
-        };
-    }
-  }
+  const unknown = t("mail.security.value.unknown");
 
   switch (type) {
     case "password_changed":
-      return {
-        subject: "Keinage password changed",
-        lines: [
-          "The password for your Keinage account has been changed.",
-          "",
-          "If you did not perform this action, reset your password immediately and contact support.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.passwordChanged.subject", [
+        "mail.security.passwordChanged.body",
+        "mail.security.passwordChanged.action",
+      ]);
     case "password_reset_completed":
-      return {
-        subject: "Keinage password reset completed",
-        lines: [
-          "The password reset for your Keinage account has been completed.",
-          "",
-          "If you did not perform this action, contact support immediately.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.passwordResetCompleted.subject", [
+        "mail.security.passwordResetCompleted.body",
+        "mail.security.passwordResetCompleted.action",
+      ]);
     case "email_changed":
-      return {
-        subject: "Keinage email address changed",
-        lines: [
-          "The email address for your Keinage account has been changed.",
-          "",
-          "If you did not perform this action, review your account settings immediately.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.emailChanged.subject", [
+        "mail.security.emailChanged.body",
+        "mail.security.emailChanged.action",
+      ]);
     case "passkey_registered":
-      return {
-        subject: "Keinage passkey registered",
-        lines: [
-          "A new passkey has been registered for your Keinage account.",
-          "",
-          "If you did not perform this action, review your account settings and delete unknown passkeys.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.passkeyRegistered.subject", [
+        "mail.security.passkeyRegistered.body",
+        "mail.security.passkeyRegistered.action",
+      ]);
     case "passkey_deleted":
-      return {
-        subject: "Keinage passkey deleted",
-        lines: [
-          "A passkey has been deleted from your Keinage account.",
-          "",
-          "If you did not perform this action, review your account settings immediately.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.passkeyDeleted.subject", [
+        "mail.security.passkeyDeleted.body",
+        "mail.security.passkeyDeleted.action",
+      ]);
     case "account_locked":
-      return {
-        subject: "Keinage account locked",
-        lines: [
-          "Your Keinage account has been temporarily locked due to repeated sign-in failures.",
-          "",
-          "If you did not perform this action, contact support.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.accountLocked.subject", [
+        "mail.security.accountLocked.body",
+        "mail.security.accountLocked.action",
+      ]);
     case "account_unlocked":
-      return {
-        subject: "Keinage account unlocked",
-        lines: [
-          "Your Keinage account has been unlocked.",
-          "",
-          "If you did not perform this action, contact support.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.accountUnlocked.subject", [
+        "mail.security.accountUnlocked.body",
+        "mail.security.accountUnlocked.action",
+      ]);
     case "plan_changed":
       return {
-        subject: "Keinage plan changed",
+        subject: t("mail.security.planChanged.subject"),
         lines: [
-          "Your Keinage plan has been changed.",
+          t("mail.security.planChanged.body"),
           "",
-          `Previous plan: ${oldPlan ?? "Unknown"}`,
-          `New plan: ${newPlan ?? "Unknown"}`,
-          `Effective at: ${effectiveAt ?? "Immediately"}`,
+          t("mail.security.planChanged.oldPlan", { plan: oldPlan ?? unknown }),
+          t("mail.security.planChanged.newPlan", { plan: newPlan ?? unknown }),
+          t("mail.security.planChanged.effectiveAt", {
+            value: effectiveAt ?? t("mail.security.value.immediate"),
+          }),
           "",
-          "If you did not perform this action, contact support.",
+          t("mail.security.planChanged.action"),
         ],
       };
     case "subscription_cancel_scheduled":
       return {
-        subject: "Keinage subscription cancellation scheduled",
+        subject: t("mail.security.subscriptionCancelScheduled.subject"),
         lines: [
-          "A cancellation has been scheduled for your Keinage subscription.",
+          t("mail.security.subscriptionCancelScheduled.body"),
           "",
-          `Scheduled cancellation: ${effectiveAt ?? "Not set"}`,
+          t("mail.security.subscriptionCancelScheduled.effectiveAt", {
+            value: effectiveAt ?? t("mail.security.value.notSet"),
+          }),
           "",
-          "If you did not perform this action, contact support.",
+          t("mail.security.subscriptionCancelScheduled.action"),
         ],
       };
     case "subscription_canceled":
-      return {
-        subject: "Keinage subscription canceled",
-        lines: [
-          "Your Keinage subscription has been canceled.",
-          "",
-          "If you did not perform this action, contact support.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.subscriptionCanceled.subject", [
+        "mail.security.subscriptionCanceled.body",
+        "mail.security.subscriptionCanceled.action",
+      ]);
     case "payment_failed":
-      return {
-        subject: "Keinage payment failed",
-        lines: [
-          "A payment for your Keinage subscription has failed.",
-          "",
-          "To keep using the service, please review your payment method.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.paymentFailed.subject", [
+        "mail.security.paymentFailed.body",
+        "mail.security.paymentFailed.action",
+      ]);
     case "account_deleted":
       return {
-        subject: "Keinage account deleted",
+        subject: t("mail.security.accountDeleted.subject"),
         lines: [
-          "Your Keinage account deletion has been completed.",
+          t("mail.security.accountDeleted.body"),
           "",
-          "If you had a paid plan, the subscription has been canceled immediately.",
-          "After deletion, your boards and uploaded media are no longer available.",
+          t("mail.security.accountDeleted.subscription"),
+          t("mail.security.accountDeleted.data"),
         ],
       };
     case "stripe_cancel_on_delete_failed":
-      return {
-        subject: "Keinage subscription cancellation failed during account deletion",
-        lines: [
-          "Stripe subscription cancellation failed during account deletion.",
-          "",
-          "The account deletion has not been completed. Please contact support.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.stripeCancelOnDeleteFailed.subject", [
+        "mail.security.stripeCancelOnDeleteFailed.body",
+        "mail.security.stripeCancelOnDeleteFailed.action",
+      ]);
     case "super_owner_granted":
-      return {
-        subject: "Keinage Super Owner granted",
-        lines: [
-          "Super Owner permission has been granted to your Keinage account.",
-          "",
-          "If you did not perform this action, contact support immediately.",
-        ],
-      };
+      return simpleMailCopy(locale, "mail.security.superOwnerGranted.subject", [
+        "mail.security.superOwnerGranted.body",
+        "mail.security.superOwnerGranted.action",
+      ]);
   }
 }
 
