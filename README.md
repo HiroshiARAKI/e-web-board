@@ -1,9 +1,11 @@
 # Keinage
 
 <p align="center">
-<img src="./screenshots/keinage.png" width="400">
+<img src="./doc-res/keinage.png" width="400">
 </p>
-
+<p align="center">
+<a href="https://keinage.com">keinage.com</a>
+</p>
 <p align="center">
 Web上で簡単にカスタマイズできる掲示板、案内板、デジタルサイネージ
 </p>
@@ -19,30 +21,7 @@ Keinage は、管理画面で作成したボードを表示端末へリアルタ
 - **公式SaaS対応の基盤**: Stripe Billing、S3 / CloudFront、Google OAuth/OIDC、監査ログ、Super Owner を設定できます。
 
 ## テンプレート例
-
-### シンプルな電子掲示板
-
-![Simple Board](./screenshots/keinage-simple-guide.png)
-
-画像や動画のスライドショーとテキストティッカーを表示します。
-
-### フォトクロック掲示板
-
-![Clock Board](./screenshots/keinage-photoclock.png)
-
-写真スライドショーに現在日時を重ねて表示します。
-
-### レトロな掲示板
-
-![Retro Board](./screenshots/keinage-retro.png)
-
-駅の案内板を模したドットマトリクス風の表示です。
-
-### 呼び出し番号
-
-![Message Board](./screenshots/keinage-ordercall.png)
-
-スマホなどから番号を追加し、表示画面へ呼び出し番号を出せます。
+![keinage template usages](doc-res/keinage-usages.png)
 
 ## 技術スタック
 
