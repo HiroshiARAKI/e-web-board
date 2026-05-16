@@ -10,6 +10,7 @@ import { MessageBoardConfigEditor } from "./MessageBoardConfigEditor";
 import { CallNumberConfigEditor } from "./CallNumberConfigEditor";
 import { ScheduleBoardConfigEditor } from "./ScheduleBoardConfigEditor";
 import { StaffBoardConfigEditor } from "./StaffBoardConfigEditor";
+import { SplitViewConfigEditor } from "./SplitViewConfigEditor";
 import { ClinicHoursConfigEditor } from "./ClinicHoursConfigEditor";
 import { RestaurantMenuConfigEditor } from "./RestaurantMenuConfigEditor";
 import { QrInfoConfigEditor } from "./QrInfoConfigEditor";
@@ -30,6 +31,7 @@ const editors: Record<string, React.ComponentType<ConfigEditorProps>> = {
   "call-number": CallNumberConfigEditor,
   "schedule-board": ScheduleBoardConfigEditor,
   "staff-board": StaffBoardConfigEditor,
+  "split-view": SplitViewConfigEditor,
   "clinic-hours": ClinicHoursConfigEditor,
   "restaurant-menu": RestaurantMenuConfigEditor,
   "qr-info": QrInfoConfigEditor,

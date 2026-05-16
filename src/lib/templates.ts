@@ -22,6 +22,9 @@ import ScheduleBoard, {
 import StaffBoard, {
   staffBoardDefaultConfig,
 } from "@/components/board/templates/StaffBoard";
+import SplitViewBoard, {
+  splitViewDefaultConfig,
+} from "@/components/board/templates/SplitViewBoard";
 import ClinicHoursBoard, {
   clinicHoursDefaultConfig,
 } from "@/components/board/templates/ClinicHoursBoard";
@@ -88,6 +91,14 @@ export const templates: Record<TemplateId, BoardTemplate> = {
       "スタッフ紹介や担当者プロフィールを自動レイアウトで表示するテンプレート",
     defaultConfig: staffBoardDefaultConfig as unknown as Record<string, unknown>,
     component: StaffBoard,
+  },
+  "split-view": {
+    id: "split-view",
+    name: "分割表示",
+    description:
+      "画像・動画・テキストを左右または上下に2分割表示するテンプレート",
+    defaultConfig: splitViewDefaultConfig as unknown as Record<string, unknown>,
+    component: SplitViewBoard,
   },
   "clinic-hours": {
     id: "clinic-hours",
