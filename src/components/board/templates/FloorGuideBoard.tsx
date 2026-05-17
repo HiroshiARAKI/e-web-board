@@ -214,16 +214,19 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
   const elevators = config.elevators.filter((elevator) => elevator.enabled);
   const rowCount = Math.max(1, floors.length);
   const floorIndexMap = new Map(floors.map((floor, index) => [floor.floorNumber, index]));
+  const elevatorCount = Math.max(1, elevators.length);
   const compactRows = rowCount >= 6;
   const denseRows = rowCount >= 8;
-  const boardPaddingRight = denseRows ? 88 : compactRows ? 108 : 144;
+  const elevatorLaneWidth = denseRows ? 28 : compactRows ? 34 : 40;
+  const elevatorLaneGap = denseRows ? 4 : compactRows ? 6 : 8;
+  const elevatorAreaWidth = elevatorCount * elevatorLaneWidth + Math.max(0, elevatorCount - 1) * elevatorLaneGap + (denseRows ? 20 : compactRows ? 24 : 28);
+  const boardPaddingRight = elevatorAreaWidth + (denseRows ? 16 : compactRows ? 20 : 24);
   const badgeColumn = denseRows ? "84px" : compactRows ? "92px" : "110px";
   const facilityColumn = denseRows ? "88px" : compactRows ? "100px" : "120px";
   const rowGap = denseRows ? "8px" : compactRows ? "10px" : "12px";
   const rowPaddingX = denseRows ? "12px" : compactRows ? "14px" : "16px";
   const rowPaddingY = denseRows ? "8px" : compactRows ? "10px" : "12px";
   const badgeFontSize = denseRows ? "22px" : compactRows ? "24px" : "28px";
-  const shopGridColumns = denseRows ? 1 : 2;
   const shopCardPaddingX = denseRows ? "10px" : compactRows ? "11px" : "12px";
   const shopCardPaddingY = denseRows ? "6px" : compactRows ? "7px" : "8px";
   const shopTextSize = denseRows ? "13px" : compactRows ? "14px" : "16px";
@@ -324,7 +327,10 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
                         <div
                           className="grid h-full overflow-hidden"
                           style={{
-                            gridTemplateColumns: `repeat(${shopGridColumns}, minmax(0, 1fr))`,
+                            gridTemplateColumns:
+                              shops.length > 1
+                                ? "repeat(2, minmax(0, 1fr))"
+                                : "minmax(0, 1fr)",
                             gap: rowGap,
                           }}
                         >
@@ -402,8 +408,8 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
             <div
               className="pointer-events-none absolute inset-y-4"
               style={{
-                right: denseRows ? "14px" : compactRows ? "18px" : "24px",
-                width: denseRows ? "64px" : compactRows ? "76px" : "96px",
+                right: denseRows ? "10px" : compactRows ? "14px" : "18px",
+                width: `${elevatorAreaWidth}px`,
               }}
             >
               {elevators.map((elevator, index) => (
@@ -416,6 +422,8 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
                   theme={theme}
                   compact={compactRows}
                   dense={denseRows}
+                  laneWidth={elevatorLaneWidth}
+                  laneGap={elevatorLaneGap}
                 />
               ))}
             </div>
@@ -462,6 +470,8 @@ function ElevatorOverlay({
   theme,
   compact,
   dense,
+  laneWidth,
+  laneGap,
 }: {
   elevator: ElevatorConfig;
   floorIndexMap: Map<number, number>;
@@ -470,6 +480,8 @@ function ElevatorOverlay({
   theme: FloorGuideThemePalette;
   compact: boolean;
   dense: boolean;
+  laneWidth: number;
+  laneGap: number;
 }) {
   const coveredFloors = Array.from(floorIndexMap.keys())
     .filter((floor) => floor >= elevator.startFloor && floor <= elevator.endFloor)
@@ -483,18 +495,16 @@ function ElevatorOverlay({
   const bottomIndex = floorIndexMap.get(lowestFloor);
   if (topIndex === undefined || bottomIndex === undefined) return null;
 
-  const laneWidth = dense ? 22 : compact ? 26 : 30;
-  const laneGap = dense ? 2 : compact ? 4 : 6;
   const laneLeft = laneIndex * (laneWidth + laneGap);
   const rowHeight = 100 / totalRows;
   const top = topIndex * rowHeight + rowHeight * 0.16;
   const bottom = (bottomIndex + 1) * rowHeight - rowHeight * 0.16;
   const height = Math.max(12, bottom - top);
   const labelFontSize = dense ? "8px" : compact ? "9px" : "10px";
-  const railInset = dense ? 7 : compact ? 8 : 10;
-  const carWidthInset = dense ? 1 : compact ? 1 : 2;
-  const carHeight = dense ? 24 : compact ? 28 : 34;
-  const carRadius = dense ? 8 : compact ? 10 : 12;
+  const railInset = dense ? 9 : compact ? 10 : 12;
+  const carWidthInset = dense ? 2 : compact ? 2 : 3;
+  const carHeight = dense ? 26 : compact ? 30 : 38;
+  const carRadius = dense ? 9 : compact ? 11 : 14;
 
   return (
     <div
@@ -511,6 +521,7 @@ function ElevatorOverlay({
           className="rounded-full px-2 py-0.5 font-bold shadow-sm"
           style={{
             fontSize: labelFontSize,
+            whiteSpace: "nowrap",
             backgroundColor: theme.elevatorLabelBackgroundColor,
             color: theme.elevatorLabelTextColor,
           }}
