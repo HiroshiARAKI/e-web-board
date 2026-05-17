@@ -14,6 +14,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  FLOOR_GUIDE_THEME_PRESETS,
+  applyFloorGuideThemePreset,
+  detectFloorGuideThemePreset,
+  isFloorGuideThemeKey,
+} from "@/lib/floor-guide-theme";
 import type { MediaItem } from "@/types";
 import { FontSelect, useLoadAllGoogleFonts } from "./shared";
 
@@ -139,6 +145,10 @@ export function FloorGuideConfigEditor({
   const elevators = normalizeElevators(config.elevators);
   const fontFamily = (config.fontFamily as string) ?? "";
   const showClock = (config.showClock as boolean) ?? false;
+  const activeTheme = detectFloorGuideThemePreset(config) ??
+    (isFloorGuideThemeKey(config.themePreset)
+      ? FLOOR_GUIDE_THEME_PRESETS.find((preset) => preset.key === config.themePreset) ?? null
+      : null);
   const imageMedia = mediaItems.filter(
     (item): item is MediaItem & { filePath: string } =>
       item.type === "image" && typeof item.filePath === "string" && item.filePath.length > 0,
@@ -146,6 +156,10 @@ export function FloorGuideConfigEditor({
 
   function update(key: string, value: unknown) {
     onChange({ ...config, [key]: value });
+  }
+
+  function applyPreset(presetKey: (typeof FLOOR_GUIDE_THEME_PRESETS)[number]["key"]) {
+    onChange(applyFloorGuideThemePreset(config, presetKey));
   }
 
   function updateFloor(index: number, patch: Partial<FloorConfig>) {
@@ -222,6 +236,37 @@ export function FloorGuideConfigEditor({
           onCheckedChange={(value) => update("showClock", value)}
         />
         <Label htmlFor="cfg-floor-showClock">{t("configEditor.showClock")}</Label>
+      </div>
+
+      <div>
+        <h4 className="mb-3 text-sm font-semibold">{t("configEditor.colorPresets")}</h4>
+        <div className="flex flex-wrap gap-2">
+          {FLOOR_GUIDE_THEME_PRESETS.map((preset) => (
+            <Button
+              key={preset.key}
+              type="button"
+              variant={activeTheme?.key === preset.key ? "default" : "outline"}
+              size="sm"
+              onClick={() => applyPreset(preset.key)}
+              className="gap-2"
+            >
+              <span
+                className="inline-flex items-center gap-1"
+                aria-hidden="true"
+              >
+                <span
+                  className="inline-block size-3 rounded-full border"
+                  style={{ backgroundColor: preset.backgroundColor }}
+                />
+                <span
+                  className="inline-block size-3 rounded-full border"
+                  style={{ backgroundColor: preset.floorBadgeColor }}
+                />
+              </span>
+              {t(preset.labelKey)}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -361,7 +406,7 @@ export function FloorGuideConfigEditor({
                               <SelectTrigger id={`cfg-floor-logo-${floorIndex}-${shopIndex}`}>
                                 <SelectValue>
                                   {shop.logoPath
-                                    ? mediaOptionLabel(shop.logoPath, imageMedia)
+                                    ? mediaOptionLabel(shop.logoPath, imageMedia, t)
                                     : "ロゴなし"}
                                 </SelectValue>
                               </SelectTrigger>
@@ -369,7 +414,7 @@ export function FloorGuideConfigEditor({
                                 <SelectItem value="__none__">ロゴなし</SelectItem>
                                 {imageMedia.map((media) => (
                                   <SelectItem key={media.id} value={media.filePath}>
-                                    {mediaOptionLabel(media.filePath, imageMedia)}
+                                    {mediaOptionLabel(media.filePath, imageMedia, t)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -471,9 +516,17 @@ export function FloorGuideConfigEditor({
   );
 }
 
-function mediaOptionLabel(filePath: string, items: Array<MediaItem & { filePath: string }>) {
-  const media = items.find((item) => item.filePath === filePath);
-  return media?.filePath.split("/").pop() ?? filePath.split("/").pop() ?? filePath;
+function mediaOptionLabel(
+  filePath: string,
+  items: Array<MediaItem & { filePath: string }>,
+  t: ReturnType<typeof useLocale>["t"],
+) {
+  const index = items.findIndex((item) => item.filePath === filePath);
+  if (index >= 0) {
+    return t("schedule.imageNumber", { number: index + 1 });
+  }
+
+  return filePath.split("/").pop() ?? filePath;
 }
 
 function FacilitySwitch({

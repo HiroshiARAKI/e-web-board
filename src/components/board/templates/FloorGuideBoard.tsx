@@ -2,6 +2,7 @@
 
 import { DateTimeClock } from "@/components/board/DateTimeClock";
 import { GoogleFontLoader } from "@/components/board/GoogleFontLoader";
+import { resolveFloorGuideTheme, type FloorGuideThemeKey, type FloorGuideThemePalette } from "@/lib/floor-guide-theme";
 import escPict from "@/resources/esc-pict.svg";
 import exitPict from "@/resources/exit-pict.svg";
 import femalePict from "@/resources/female-pict.svg";
@@ -33,6 +34,7 @@ interface FloorGuideConfig {
   title: string;
   body: string;
   fontFamily: string;
+  themePreset?: FloorGuideThemeKey | "";
   showClock: boolean;
   backgroundColor: string;
   panelColor: string;
@@ -73,6 +75,7 @@ export const floorGuideDefaultConfig: FloorGuideConfig = {
   title: "フロアガイド",
   body: "会場案内や店舗情報、館内設備をご案内します。",
   fontFamily: "",
+  themePreset: "light",
   showClock: false,
   backgroundColor: "#f8fafc",
   panelColor: "#ffffff",
@@ -177,6 +180,7 @@ function findLogoMedia(mediaItems: MediaItem[], logoPath: string) {
 
 export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProps) {
   const config = parseConfig(board.config);
+  const theme = resolveFloorGuideTheme(config);
   const floors = config.floors
     .filter((floor): floor is FloorConfig & { floorNumber: number } => floor.floorNumber !== null)
     .sort((left, right) => right.floorNumber - left.floorNumber);
@@ -188,8 +192,8 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
     <div
       className="flex h-screen w-screen flex-col overflow-hidden"
       style={{
-        backgroundColor: config.backgroundColor,
-        color: config.textColor,
+        backgroundColor: theme.backgroundColor,
+        color: theme.textColor,
         fontFamily: config.fontFamily || undefined,
         padding: "28px",
       }}
@@ -200,14 +204,14 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
         <div className="min-w-0 flex-1">
           <h1
             className="text-balance font-black tracking-tight"
-            style={{ color: config.titleColor, fontSize: "44px", lineHeight: 1.08 }}
+            style={{ color: theme.titleColor, fontSize: "44px", lineHeight: 1.08 }}
           >
             {config.title || board.name}
           </h1>
           {config.body && (
             <p
               className="mt-2 max-w-5xl leading-relaxed"
-              style={{ color: config.bodyColor, fontSize: "20px" }}
+              style={{ color: theme.bodyColor, fontSize: "20px" }}
             >
               {config.body}
             </p>
@@ -217,7 +221,7 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
           <div className="shrink-0">
             <DateTimeClock
               timeFontSize={28}
-              color={config.titleColor}
+              color={theme.titleColor}
               bgOpacity={0.08}
               layout="compact"
               fontFamily={config.fontFamily || undefined}
@@ -228,10 +232,13 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
 
       <div
         className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-slate-200/70 p-4 shadow-sm"
-        style={{ backgroundColor: config.panelColor }}
+        style={{ backgroundColor: theme.panelColor, borderColor: theme.panelBorderColor }}
       >
         {floors.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center text-slate-400">
+          <div
+            className="flex h-full items-center justify-center text-center"
+            style={{ color: theme.emptyTextColor }}
+          >
             表示する階数が設定されていません
           </div>
         ) : (
@@ -246,8 +253,11 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
                 return (
                   <section
                     key={floor.floorNumber}
-                    className="grid min-h-0 grid-cols-[110px_minmax(0,1fr)_120px] gap-4 rounded-2xl border border-slate-200/70 px-4 py-3 shadow-sm"
-                    style={{ backgroundColor: config.backgroundColor }}
+                    className="grid min-h-0 grid-cols-[110px_minmax(0,1fr)_120px] gap-4 rounded-2xl border px-4 py-3 shadow-sm"
+                    style={{
+                      backgroundColor: theme.rowBackgroundColor,
+                      borderColor: theme.rowBorderColor,
+                    }}
                   >
                     <div className="flex items-center justify-center">
                       <div
@@ -266,7 +276,11 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
                             return (
                               <div
                                 key={`${shop.text}-${index}`}
-                                className="flex min-w-0 items-center gap-2 rounded-xl bg-slate-100/80 px-3 py-2"
+                                className="flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2"
+                                style={{
+                                  backgroundColor: theme.shopCardColor,
+                                  borderColor: theme.rowBorderColor,
+                                }}
                               >
                                 {logo ? (
                                   <img
@@ -275,11 +289,20 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
                                     className="size-10 shrink-0 rounded-lg object-cover"
                                   />
                                 ) : shop.logoPath ? (
-                                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-xs font-bold text-slate-500">
+                                  <div
+                                    className="flex size-10 shrink-0 items-center justify-center rounded-lg text-xs font-bold"
+                                    style={{
+                                      backgroundColor: theme.shopPlaceholderBackgroundColor,
+                                      color: theme.shopPlaceholderColor,
+                                    }}
+                                  >
                                     LOGO
                                   </div>
                                 ) : null}
-                                <span className="min-w-0 truncate text-base font-semibold">
+                                <span
+                                  className="min-w-0 truncate text-base font-semibold"
+                                  style={{ color: theme.textColor }}
+                                >
                                   {shop.text || "店舗情報未設定"}
                                 </span>
                               </div>
@@ -287,17 +310,20 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
                           })}
                         </div>
                       ) : (
-                        <div className="flex h-full items-center text-sm text-slate-400">
+                        <div
+                          className="flex h-full items-center text-sm"
+                          style={{ color: theme.mutedTextColor }}
+                        >
                           店舗情報はありません
                         </div>
                       )}
                     </div>
 
                     <div className="flex flex-wrap content-center items-center justify-end gap-2">
-                      {floor.hasMensRestroom && <FacilityBadge iconSrc={malePict.src} alt="男性トイレ" />}
-                      {floor.hasWomensRestroom && <FacilityBadge iconSrc={femalePict.src} alt="女性トイレ" />}
-                      {floor.hasEscalator && <FacilityBadge iconSrc={escPict.src} alt="エスカレーター" />}
-                      {floor.hasEmergencyExit && <FacilityBadge iconSrc={exitPict.src} alt="非常口" />}
+                      {floor.hasMensRestroom && <FacilityBadge iconSrc={malePict.src} alt="男性トイレ" theme={theme} />}
+                      {floor.hasWomensRestroom && <FacilityBadge iconSrc={femalePict.src} alt="女性トイレ" theme={theme} />}
+                      {floor.hasEscalator && <FacilityBadge iconSrc={escPict.src} alt="エスカレーター" theme={theme} />}
+                      {floor.hasEmergencyExit && <FacilityBadge iconSrc={exitPict.src} alt="非常口" theme={theme} />}
                     </div>
                   </section>
                 );
@@ -312,6 +338,7 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
                   floorIndexMap={floorIndexMap}
                   totalRows={rowCount}
                   laneIndex={index}
+                  theme={theme}
                 />
               ))}
             </div>
@@ -325,12 +352,20 @@ export default function FloorGuideBoard({ board, mediaItems }: BoardTemplateProp
 function FacilityBadge({
   iconSrc,
   alt,
+  theme,
 }: {
   iconSrc: string;
   alt: string;
+  theme: FloorGuideThemePalette;
 }) {
   return (
-    <span className="inline-flex size-10 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200/80">
+    <span
+      className="inline-flex size-10 items-center justify-center rounded-full border shadow-sm"
+      style={{
+        backgroundColor: theme.facilityBadgeBackgroundColor,
+        borderColor: theme.facilityBadgeBorderColor,
+      }}
+    >
       <img src={iconSrc} alt={alt} className="size-7 object-contain" />
     </span>
   );
@@ -341,11 +376,13 @@ function ElevatorOverlay({
   floorIndexMap,
   totalRows,
   laneIndex,
+  theme,
 }: {
   elevator: ElevatorConfig;
   floorIndexMap: Map<number, number>;
   totalRows: number;
   laneIndex: number;
+  theme: FloorGuideThemePalette;
 }) {
   const coveredFloors = Array.from(floorIndexMap.keys())
     .filter((floor) => floor >= elevator.startFloor && floor <= elevator.endFloor)
@@ -376,18 +413,46 @@ function ElevatorOverlay({
       }}
     >
       <div className="absolute inset-x-0 top-0 flex justify-center">
-        <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+        <span
+          className="rounded-full px-2 py-0.5 text-[10px] font-bold shadow-sm"
+          style={{
+            backgroundColor: theme.elevatorLabelBackgroundColor,
+            color: theme.elevatorLabelTextColor,
+          }}
+        >
           {elevator.label}
         </span>
       </div>
-      <div className="absolute inset-x-[7px] top-6 bottom-6 rounded-full bg-slate-800/20" />
-      <div className="absolute inset-x-[4px] top-1/2 h-8 -translate-y-1/2 rounded-md border border-slate-700/20 bg-white shadow-sm">
-        <div className="flex h-full items-center justify-center rounded-md bg-slate-900 text-[10px] font-black text-white">
+      <div
+        className="absolute inset-x-[7px] top-6 bottom-6 rounded-full"
+        style={{ backgroundColor: theme.elevatorRailColor }}
+      />
+      <div
+        className="absolute inset-x-[4px] top-1/2 h-8 -translate-y-1/2 rounded-md border shadow-sm"
+        style={{
+          backgroundColor: theme.panelColor,
+          borderColor: theme.elevatorCabBorderColor,
+        }}
+      >
+        <div
+          className="flex h-full items-center justify-center rounded-md text-[10px] font-black"
+          style={{
+            backgroundColor: theme.elevatorCabColor,
+            color: theme.elevatorCabTextColor,
+          }}
+        >
           EV
         </div>
       </div>
       <div className="absolute inset-x-[2px] bottom-0 flex justify-center">
-        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/80">
+        <span
+          className="rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm"
+          style={{
+            backgroundColor: theme.elevatorRangeBackgroundColor,
+            color: theme.elevatorRangeTextColor,
+            borderColor: theme.elevatorRangeBorderColor,
+          }}
+        >
           {elevator.startFloor}F-{elevator.endFloor}F
         </span>
       </div>
